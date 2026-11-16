@@ -1,0 +1,57 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.billybobs.radiotuner'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.billybobs.radiotuner"
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}
+
+dependencies {
+    implementation 'androidx.core:core:1.13.1'
+
+    // Android Auto (RadioLibraryService) stays on Media3 - MediaLibraryService/
+    // MediaLibrarySession, which Android Auto browsing needs, only exists in
+    // these newer androidx.media3 artifacts; there's no equivalent in the
+    // classic (pre-Media3) ExoPlayer library below.
+    implementation 'androidx.media3:media3-exoplayer:1.3.1'
+    implementation 'androidx.media3:media3-exoplayer-hls:1.3.1'
+    implementation 'androidx.media3:media3-session:1.3.1'
+    implementation 'androidx.media3:media3-datasource-okhttp:1.3.1'
+
+    // Phone playback (PlaybackService) uses the classic, pre-Media3 ExoPlayer
+    // instead - the exact library + version (2.18.2) and OkHttp networking
+    // combination another real radio app (RadioDroid) uses, which plays the
+    // ad-stitched stations we're stuck on (Power 100, 3PBS, 2GB) with no
+    // issues. Media3 is Google's newer rebrand/refactor of this same engine;
+    // since every other targeted fix at the Media3 level failed, this tests
+    // whether something changed in Media3's own audio pipeline (vs. this
+    // older, known-working version) is the actual cause.
+    implementation 'com.google.android.exoplayer:exoplayer-core:2.18.2'
+    implementation 'com.google.android.exoplayer:extension-okhttp:2.18.2'
+    // HLS (.m3u8) support for the classic engine - ABC, BBC, RNZ and ~16
+    // other stations. Without it, tuning to any of them crashed the app
+    // ("No suitable media source factory found for content type: 2").
+    implementation 'com.google.android.exoplayer:exoplayer-hls:2.18.2'
+
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+}

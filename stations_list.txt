@@ -1,0 +1,193 @@
+============================================================
+BILLY BOB'S RADIO TUNER - STATION FREQUENCIES LIST
+Dial: 87.50 - 102.10 FM  |  150 stations  |  Updated 4 Nov 2026
+Format: dial frequency - station [real frequency · state/country] (stream)
+============================================================
+
+--- SPORT ---
+ 87.50 MHz - talkSPORT [1089 AM · UK] (http://23163.live.streamtheworld.com/NOVA_TALKSPORT_1.mp3?dist=talksport)
+ 87.55 MHz - SEN 1116 [1116 AM · VIC] (http://13.54.221.214:8000/sen.mp3)
+ 87.60 MHz - SEN 1170 [1170 AM · NSW] (https://d2kkpj3tysba3i.cloudfront.net/v1/master/fbb316a042e17a2e683126d94749c2d69866fc2c/SEN_Sydney/raw/sen-syd/EncoderUnit_3.m3u8?playerParams.sitepage=https%3A%2F%2Fsen.com.au%2F&playerParams.domain=sen.com.au&playerParams.cb=cachebusterPlaceholder&playerParams.playerId=SEN-Web) [HLS]
+ 87.70 MHz - Sports Nation NZ [1476 AM · NZ] (https://sen.streamguys1.com/SENZ-AAC/playlist.m3u8) [HLS]
+ 87.80 MHz - ABC Sports [DAB only · block 9C · AU] (https://mediaserviceslive.akamaized.net/hls/live/2038320/grandstand/master.m3u8) [HLS]
+ 87.90 MHz - BBC Radio 5 Sports Extra [DAB only · block 12B · UK] (https://a.files.bbci.co.uk/ms6/live/3441A116-B12E-4D2F-ACA8-C1984642FA4B/audio/simulcast/hls/uk/audio_syndication_low_sbr_v1/cfs/bbc_radio_five_live_sports_extra.m3u8) [HLS]
+ 88.00 MHz - talkSPORT 2 [DAB only · block 11A · UK] (https://talksport.live.stream.broadcasting.news/stream2)
+ 88.10 MHz - ABC Cricket [Internet only · AU] (https://mediaserviceslive.akamaized.net/hls/live/2118991/sportitinerant/v0-221.m3u8) [HLS]
+ 88.20 MHz - Guerilla Cricket [Internet only · UK] (https://s3.voscast.com:11173/1)
+ 88.30 MHz - SEN Fanatic [Internet only · AU] (https://d36bzojkpuw7nh.cloudfront.net/playlist.m3u8) [HLS]
+
+--- TALK ---
+ 88.40 MHz - ABC News [630 AM · NSW] (https://mediaserviceslive.akamaized.net/hls/live/2038311/newsradio/master.m3u8) [HLS]
+ 88.50 MHz - CBC Radio One Vancouver [690 AM · CA] (https://cbcradiolive.akamaized.net/hls/live/2041050/ES_R1PVC/master.m3u8) [HLS]
+ 88.60 MHz - ABC SYD [702 AM · NSW] (https://mediaserviceslive.akamaized.net/hls/live/2038258/localsydney/v0-221.m3u8) [HLS]
+ 88.65 MHz - WNYC [820 AM · US] (https://fm939.wnyc.org/wnycfm)
+ 88.70 MHz - KHVH 830 AM [830 AM · US] (https://stream.revma.ihrhls.com/zc4748)
+ 88.80 MHz - 2GB Sydney [873 AM · NSW] (https://23153.live.streamtheworld.com/2GB.mp3)
+ 88.90 MHz - 2SM 1269 [1269 AM · NSW] (https://cast4.asurahosting.com/proxy/2sm1269/stream)
+ 89.00 MHz - RTE Radio 1 [88.5 FM · IE] (https://25633.live.streamtheworld.com/RTE_1_INT.mp3)
+ 89.10 MHz - Money FM Singapore [89.3 FM · SG] (https://playerservices.streamtheworld.com/api/livestream-redirect/MONEY_893AAC.aac)
+ 89.20 MHz - Newstalk ZB Auckland [89.4 FM · NZ] (https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_01AAC_SC)
+ 89.30 MHz - Talk 702 Johannesburg [92.7 FM · ZA] (https://22733.live.streamtheworld.com/FM702AAC_SC)
+ 89.40 MHz - BBC Radio 4 [93.5 FM · UK] (http://as-hls-ww-live.akamaized.net/pool_55057080/live/ww/bbc_radio_fourfm/bbc_radio_fourfm.isml/bbc_radio_fourfm-audio%3d96000.norewind.m3u8) [HLS]
+ 89.50 MHz - LBC London [97.3 FM · UK] (https://media-ssl.musicradio.com/LBCLondon)
+ 89.60 MHz - RNZ National [101.4 FM · NZ] (https://radionz.streamguys1.com/national/national/national/national-mainstream/chunks.m3u8) [HLS]
+ 89.70 MHz - Radio Australia [101.9 FM · AU] (https://mediaserviceslive.akamaized.net/hls/live/2109446/ramulti/v0-221.m3u8) [HLS]
+ 89.80 MHz - BBC World Service [DAB only · block 12B · UK] (https://stream.live.vc.bbcmedia.co.uk/bbc_world_service)
+ 89.90 MHz - SKY News Radio [DAB only · block 9B · AU] (https://playerservices.streamtheworld.com/api/livestream-redirect/NOVA_SKYNEWSAAC.aac)
+
+--- NSW (AND ACT) ---
+ 90.00 MHz - 2WEB [585 AM · NSW] (https://billybobtuner.onrender.com/relay?url=https://s1.viastreaming.net:7230/)
+ 90.05 MHz - 2UE 954 [954 AM · NSW] (https://sa46.scastream.com.au/live/2ue_128.stream/playlist.m3u8?dist=listnr-web) [HLS]
+ 90.10 MHz - 2RDJ [88.1 FM · NSW] (https://billybobtuner.onrender.com/relay?url=http://104.128.238.80:8000/)
+ 90.20 MHz - 2RRR Ryde [88.5 FM · NSW] (https://28803.live.streamtheworld.com/2RRRAAC.aac)
+ 90.30 MHz - 2BRW [88.9 FM · NSW] (https://audio-edge-d34v9.syd.o.radiomast.io/ba864be6-11d1-4e13-aa74-f8e8781f64f6#.mp3)
+ 90.40 MHz - 2BLU Katoomba [89.1 FM · NSW] (https://23193.live.streamtheworld.com/2BLU.mp3)
+ 90.50 MHz - 2GLF [89.3 FM · NSW] (https://23093.live.streamtheworld.com/2GLFAAC.aac)
+ 90.60 MHz - Valley FM [89.5 FM · ACT] (https://22283.live.streamtheworld.com/1VFMAAC.aac)
+ 90.70 MHz - Alive 90.5 [90.5 FM · NSW] (https://23093.live.streamtheworld.com/2CCRAAC.aac)
+ 90.80 MHz - 2MCE Bathurst [92.3 FM · NSW] (https://stream.2mce.org/2MCE)
+ 90.90 MHz - 2YYY Young [92.3 FM · NSW] (https://streaming.2yyyradio.com/radio/8000/radio.mp3)
+ 91.00 MHz - 2MIA Griffith [95.1 FM · NSW] (https://28853.live.streamtheworld.com/2MIA.mp3)
+ 91.10 MHz - 2TVR Sounds Of The Mountains [96.3 FM · NSW] (https://billybobtuner.onrender.com/relay?url=https://stream.mjm-webhosting.com.au:8342//)
+ 91.20 MHz - Coast FM Gosford [96.3 FM · NSW] (https://28863.live.streamtheworld.com/2CCCAAC.aac)
+ 91.30 MHz - 2GHR Holbrook [96.7 FM · NSW] (https://stream.2ghr.org.au:8000/2ghr)
+ 91.40 MHz - Northside Radio [99.3 FM · NSW] (https://28793.live.streamtheworld.com/2NSBAAC.aac)
+ 91.50 MHz - 2SSR [99.7 FM · NSW] (https://radio12.shoutcast.net.au:8000/stream)
+ 91.60 MHz - SWR FM Blacktown [99.9 FM · NSW] (https://23193.live.streamtheworld.com/SWRFMAAC.aac)
+ 91.70 MHz - 2HHH [100.1 FM · NSW] (https://23203.live.streamtheworld.com/2HHHAAC.aac)
+ 91.80 MHz - 2MCR [100.3 FM · NSW] (https://cast4.my-control-panel.com/proxy/tim1/som)
+ 91.90 MHz - Yass FM [100.3 FM · NSW] (https://28863.live.streamtheworld.com/2YAS.mp3)
+ 92.00 MHz - Connect FM Bankstown [100.9 FM · NSW] (https://cast5.asurahosting.com/proxy/jim1/stream)
+ 92.10 MHz - Great Lakes FM [101.5 FM · NSW] (https://28853.live.streamtheworld.com/2GLAAAC.aac)
+ 92.20 MHz - Nim FM Nimbin [102.3 FM · NSW] (https://uk5.internet-radio.com/proxy/nimfm?mp=/stream)
+ 92.30 MHz - RAM FM Goulburn [103.3 FM · NSW] (https://23203.live.streamtheworld.com/2GCRAAC.aac)
+ 92.40 MHz - 2NUR [103.7 FM · NSW] (https://playerservices.streamtheworld.com/api/livestream-redirect/2NURFM.mp3)
+ 92.50 MHz - Triple U FM [104.5 FM · NSW] (https://stream1.tripleu.org.au/live)
+ 92.60 MHz - 2SEA Eden [104.7 FM · NSW] (https://23163.live.streamtheworld.com/2SEA_EDENAAC.aac)
+ 92.70 MHz - 2NVR Nambucca Heads [105.9 FM · NSW] (https://s14.myradiostream.com:19092/stream)
+ 92.80 MHz - VOX FM [106.9 FM · NSW] (https://billybobtuner.onrender.com/relay?url=http://s10.myradiostream.com:15272/)
+ 92.90 MHz - 2AAA Wagga [107.1 FM · NSW] (https://billybobtuner.onrender.com/relay?url=https://stream.tripleafm.com.au/)
+ 93.00 MHz - Highland FM Mittagong [107.1 FM · NSW] (https://23163.live.streamtheworld.com/HIGHLAND_FM.mp3)
+ 93.10 MHz - 2BBB Bellingen [107.3 FM · NSW] (https://23163.live.streamtheworld.com/2BBBAAC.aac)
+ 93.20 MHz - 2EAR Moruya [107.5 FM · NSW] (https://23193.live.streamtheworld.com/2EARAAC.aac)
+ 93.30 MHz - 2OCW Orange [107.5 FM · NSW] (https://23093.live.streamtheworld.com/2OCWAAC.aac)
+
+--- VICTORIA ---
+ 93.40 MHz - 3MFM [88.1 FM · VIC] (https://billybobtuner.onrender.com/relay?url=http://listen.southcoastfm.au:881/aac)
+ 93.50 MHz - Southern FM [88.3 FM · VIC] (https://billybobtuner.onrender.com/relay?url=https://stream.swifthosting.com.au/)
+ 93.60 MHz - Plenty Valley FM [88.6 FM · VIC] (https://28803.live.streamtheworld.com/3PVRAAC.aac)
+ 93.70 MHz - WYN FM [88.9 FM · VIC] (https://streamer5.rightclickitservices.com:19740/aac)
+ 93.80 MHz - Pulse FM Geelong [94.7 FM · VIC] (https://23193.live.streamtheworld.com/3PLSAAC.aac)
+ 93.90 MHz - Joy FM Melbourne [94.9 FM · VIC] (https://stream.joy.org.au/proxy/joy949?mp=/live)
+ 94.00 MHz - Main FM [94.9 FM · VIC] (https://billybobtuner.onrender.com/relay?url=http://s1.communitybroadcastnetwork.com.au:8000/MAINFM/stream)
+ 94.10 MHz - Inner FM [96.5 FM · VIC] (https://28793.live.streamtheworld.com/3NRAAC.aac)
+ 94.20 MHz - 3MDR [97.1 FM · VIC] (https://23163.live.streamtheworld.com/3MDRAAC.aac)
+ 94.30 MHz - Casey Radio [97.7 FM · VIC] (https://23193.live.streamtheworld.com/3SERAAC.aac)
+ 94.40 MHz - 3RPP [98.7 FM · VIC] (https://streaming.radio.co/sfbd79db12/listen)
+ 94.50 MHz - Yarra Valley FM [99.1 FM · VIC] (https://billybobtuner.onrender.com/relay?url=https://live.yarravalleyfm.org.au:8443/stream)
+ 94.60 MHz - Sunbury Radio [99.3 FM · VIC] (https://23203.live.streamtheworld.com/3NRGAAC.aac)
+ 94.70 MHz - 3MGB Mallacoota [101.7 FM · VIC] (https://23163.live.streamtheworld.com/3MGBAAC.aac)
+ 94.80 MHz - 3RRR FM [102.7 FM · VIC] (https://realtime.rrr.org.au/p1h)
+ 94.90 MHz - 3PBS FM [106.7 FM · VIC] (https://playerservices.streamtheworld.com/api/livestream-redirect/3PBS_FMAACHIGH.aac)
+
+--- QUEENSLAND ---
+ 95.00 MHz - 4KZ [531 AM · QLD] (https://stream03.syd.hostgeek.com.au/4kz/stream)
+ 95.10 MHz - 4AM [558 AM · QLD] (https://stream03.syd.hostgeek.com.au/4am/stream)
+ 95.20 MHz - 4BRZ [92.1 FM · QLD] (https://s8.yesstreaming.net:17065/BrzLgn)
+ 95.30 MHz - Goldie FM [94.1 FM · QLD] (https://14533.live.streamtheworld.com/941FMAAC.aac)
+ 95.40 MHz - Rebel FM [99.4 FM · QLD] (https://s8.yesstreaming.net:17099/RblGC)
+ 95.50 MHz - Bridge FM [99.7 FM · QLD] (https://28793.live.streamtheworld.com/997BRIDGEFMAAC.aac)
+ 95.60 MHz - 4RIM Boonah [100.1 FM · QLD] (https://streaming.rimfm.org/rimfmlive.mp3)
+ 95.70 MHz - Bay FM Redlands [100.3 FM · QLD] (https://28853.live.streamtheworld.com/4BAYAAC.aac)
+ 95.80 MHz - Power 100 [100.7 FM · QLD] (https://17853.live.streamtheworld.com/TOW_POWER100.mp3)
+ 95.90 MHz - Logan Radio [101.1 FM · QLD] (https://28853.live.streamtheworld.com/4CBLAAC.aac)
+ 96.00 MHz - Noosa FM [101.3 FM · QLD] (https://23153.live.streamtheworld.com/4NSA_ICECAST.mp3)
+ 96.10 MHz - 4OUR Caboolture [101.5 FM · QLD] (https://stream.lava.net.au/au_qld_4our_caboolture1015)
+ 96.20 MHz - 4ZZZ [102.1 FM · QLD] (https://iheart.4zzz.org.au/4zzz)
+ 96.30 MHz - Sunshine FM [104.9 FM · QLD] (https://23163.live.streamtheworld.com/4SFM_SC)
+
+--- SOUTH AUSTRALIA ---
+ 96.40 MHz - Coast FM Adelaide [88.7 FM · SA] (https://billybobtuner.onrender.com/relay?url=http://streaming1.coastfm.com.au:8000/broadwavehigh.mp3)
+ 96.50 MHz - Lofty Radio [88.9 FM · SA] (https://stream04.sigile.net/lofty-48-aac)
+ 96.60 MHz - Fleurieu FM [89.3 FM · SA] (https://stream.sigile.net/fleurieufm-128-mp3)
+ 96.70 MHz - 5PBA FM [89.7 FM · SA] (https://23093.live.streamtheworld.com/5PBAAAC.aac)
+ 96.80 MHz - Happy FM [90.1 FM · SA] (https://stream04.sigile.net/happyfm-128-mp3)
+ 96.90 MHz - 5KIX Kangaroo Island [90.7 FM · SA] (https://23093.live.streamtheworld.com/5KIXAAC.aac)
+ 97.00 MHz - 5ZZZ [91.1 FM · SA] (https://usa7.fastcast4u.com/proxy/triplez?mp=/1)
+ 97.10 MHz - Three D Radio [93.7 FM · SA] (https://sounds.threedradio.com/stream)
+ 97.20 MHz - Flow FM [99.5 FM · SA] (https://uksoutha.streaming.broadcast.radio/flow-fm)
+ 97.30 MHz - 5WOW [100.5 FM · SA] (https://stream04.sigile.net/wowfm-64-aac)
+
+--- WESTERN AUSTRALIA ---
+ 97.40 MHz - VCA FM Ellenbrook [88.5 FM · WA] (https://23093.live.streamtheworld.com/ELLENBROOK_RADIOAAC.aac)
+ 97.50 MHz - Radio Kalamunda [88.9 FM · WA] (https://radio12.shoutcast.net.au:2020/stream/kalamunda)
+ 97.60 MHz - Twin Cities FM [89.7 FM · WA] (https://ice8.securenetsystems.net/897FM)
+ 97.70 MHz - Wave Mandurah [91.7 FM · WA] (https://sa47.scastream.com.au/live/6mm_128.stream/playlist.m3u8) [HLS]
+ 97.80 MHz - Curtin Radio [100.1 FM · WA] (https://28853.live.streamtheworld.com/6NRAAC.aac)
+ 97.90 MHz - Bunbury Community Radio [103.7 FM · WA] (https://23203.live.streamtheworld.com/6BCRAAC.aac)
+ 98.00 MHz - H FM Armadale [107.3 FM · WA] (https://billybobtuner.onrender.com/relay?url=https://stream.hfm.radio:8443/)
+ 98.10 MHz - Radio Fremantle [107.9 FM · WA] (https://23193.live.streamtheworld.com/6CCRAAC.aac)
+
+--- TASMANIA ---
+ 98.20 MHz - Star FM St Helens [93.7 FM · TAS] (https://billybobtuner.onrender.com/relay?url=https://s6.myradiostream.com:11056/)
+ 98.30 MHz - Huon FM [95.3 FM · TAS] (https://stream3.rcast.net/72445)
+ 98.40 MHz - Hobart FM [96.1 FM · TAS] (https://radio12.shoutcast.net.au:2020/stream/8032)
+ 98.50 MHz - MV FM [96.9 FM · TAS] (https://23093.live.streamtheworld.com/MVFMAAC.aac)
+ 98.60 MHz - Tasman FM [97.7 FM · TAS] (https://stream-285.surfernetwork.com/kehh7k7co2yvv)
+ 98.70 MHz - TYGA FM [98.9 FM · TAS] (https://radio12.shoutcast.net.au:2020/stream/8012)
+ 98.80 MHz - City Park Radio [103.7 FM · TAS] (https://14533.live.streamtheworld.com/7LTNAAC.aac)
+ 98.90 MHz - 7DBS Coast FM [106.1 FM · TAS] (https://streaming.coastfmtas.au:8000/coastfm.aac)
+
+--- NORTHERN TERRITORY ---
+ 99.00 MHz - Territory FM [104.1 FM · NT] (https://streaming.territoryfm.com:8443/TerritoryFM)
+
+--- AUSTRALIA (NATIONAL) ---
+ 99.10 MHz - Triple J Hottest [DAB only · block 9C · AU] (https://mediaserviceslive.akamaized.net/hls/live/2109455/triplejhottest/v0-221.m3u8) [HLS]
+
+--- NEW ZEALAND ---
+ 99.20 MHz - Radio Dunedin [1305 AM · NZ] (https://stream.radioaotearoa.com/hls/RadioDunedin.m3u8) [HLS]
+ 99.30 MHz - Brian FM Oamaru [88.8 FM · NZ] (https://das-edge53-sa48-futuri-dal03.cdnstream.com/7654_128k.aac)
+ 99.40 MHz - Radio Hauraki Westport [89.3 FM · NZ] (https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_04AAC_SC.aac)
+ 99.50 MHz - The Rock Auckland [90.2 FM · NZ] (https://mediaworks.streamguys1.com/rock_net_icy)
+ 99.60 MHz - Channel X Queenstown [91.2 FM · NZ] (https://mediaworks.streamguys1.com/chx_net_icy)
+
+--- PACIFIC ---
+ 99.70 MHz - NC 1’ere [89.0 FM · NC] (https://nouvelle-caledonie.ice.infomaniak.ch/nouvelle-caledonie-128.mp3)
+ 99.80 MHz - Gold FM Fiji [100.2 FM · FJ] (https://icecast1.sere.plus/Gold)
+
+--- SINGAPORE ---
+ 99.90 MHz - Gold FM Singapore [90.5 FM · SG] (https://28393.live.streamtheworld.com/GOLD905_PREM.aac)
+
+--- SOUTH AFRICA ---
+100.00 MHz - Magic 828 [828 AM · ZA] (https://billybobtuner.onrender.com/relay?url=http://cast.fabrik.fm:8106/)
+100.10 MHz - LM Radio [87.8 FM · ZA] (https://ukwestb.streaming.broadcast.radio/lmradio)
+
+--- UK ---
+100.20 MHz - Radio Caroline [648 AM · UK] (https://billybobtuner.onrender.com/relay?url=https://stream.radiocaroline.net/rc128/)
+100.30 MHz - BBC Radio 2 [89.1 FM · UK] (https://a.files.bbci.co.uk/ms6/live/3441A116-B12E-4D2F-ACA8-C1984642FA4B/audio/simulcast/hls/nonuk/audio_syndication_low_sbr_v1/cfs/bbc_radio_two.m3u8) [HLS]
+
+--- FRANCE ---
+100.40 MHz - FIP Marseille [90.9 FM · FR] (https://icecast.radiofrance.fr/fip-midfi.mp3)
+
+--- GERMANY ---
+100.50 MHz - Rock Antenne [DAB only · block 5D · DE] (https://mp3channels.webradio.antenne.de/rockantenne)
+
+--- USA ---
+100.60 MHz - KBRW [680 AM · US] (https://tektite.streamguys1.com:5345/live)
+100.70 MHz - KOTZ [720 AM · US] (https://17643.live.streamtheworld.com/KOTZAM.mp3)
+100.80 MHz - WION [1430 AM · US] (http://das-edge11-live365-dal03.cdnstream.com/a83993)
+100.90 MHz - KFAI [90.3 FM · US] (https://kfai.broadcasttool.stream/kfai-1)
+101.00 MHz - WFMU [91.1 FM · US] (http://stream0.wfmu.org/freeform-high.aac)
+101.10 MHz - Pop 91.3 [91.3 FM · US] (http://streaming.live365.com/a25253)
+101.20 MHz - WLNG [92.1 FM · US] (http://cast6.asurahosting.com/proxy/barkoutl/stream)
+
+--- INTERNET ONLY ---
+101.30 MHz - Aircheck Radio [Internet only · US] (http://sonic.radiostream.ca/8034/stream)
+101.40 MHz - Alt Boss Gold [Internet only · US] (http://ais-sa3.cdnstream1.com/2713_128.mp3)
+101.50 MHz - Casey Kasem Classic AT40 [Internet only · US] (https://n14b-e2.revma.ihrhls.com/zc6545/20_tzs6wquc8rgp02/playlist.m3u8) [HLS]
+101.60 MHz - Powerzone [Internet only · AU] (https://listen2.streamaudio.co:8090/stream1.mp3)
+101.70 MHz - Radio Free Phoenix [Internet only · US] (https://s6.reliastream.com/proxy/radiofre?mp=/stream)
+101.80 MHz - Retro Hit Radio [Internet only · NZ] (https://riphel02.radioca.st/stream)
+101.90 MHz - Retro Stream (weekends only) [Internet only · AU] (http://retrostream.duckdns.org:8000/retro_stream_aac)
+102.00 MHz - Station X [Internet only · AU] (http://us01.xrn.com.au/listen/stx/StxHd)
+102.10 MHz - The Fresh Mix [Internet only · AU] (https://streaming.starterfm.com/listen/freshmix/mix192)

@@ -1,0 +1,3088 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Radio Wavehopper — 87.5–102.1 FM</title>
+<meta name="theme-color" content="#120a1e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Radio Wavehopper">
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Share+Tech+Mono&family=Rubik:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --plastic-dark:#19191c;
+    --plastic:#262629;
+    --plastic-light:#3a3a40;
+    --chrome-1:#e8e8ee;
+    --chrome-2:#9a9aa4;
+    --pink:#ff2d95;
+    --cyan:#00e5ff;
+    --yellow:#ffd500;
+    --lcd-bg:#0a1510;
+    --lcd-text:#4dffb0;
+    --lcd-dim:#1f5c42;
+    --ink:#c9ffe4;
+    --static:#3f6b57;
+    --ok:#4dffb0;
+    --warn:#ff8a3d;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+
+  body{
+    margin:0;
+    height:100%;
+    display:flex;
+    flex-direction:column;
+    align-items:stretch;
+    justify-content:stretch;
+    background:
+      radial-gradient(ellipse at 50% -10%, #3a1c4d 0%, #120a1e 55%, #090510 100%);
+    font-family:'Rubik',sans-serif;
+    overflow-x:hidden;
+  }
+
+  .set{
+    flex:1;
+    width:100%;
+    max-width:560px;
+    margin:0 auto;
+    background:linear-gradient(170deg, var(--plastic-light), var(--plastic) 45%, var(--plastic-dark) 100%);
+    display:flex;
+    flex-direction:column;
+    padding:
+      max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px))
+      max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
+    position:relative;
+    box-shadow:inset 0 2px 2px rgba(255,255,255,0.06);
+    border:1px solid #000;
+  }
+  .stripe{
+    position:absolute; top:0; left:16px; right:16px; height:4px;
+    background:linear-gradient(90deg, var(--pink), var(--cyan) 50%, var(--yellow));
+    border-radius:0 0 3px 3px;
+  }
+
+  .top-row{ display:flex; align-items:center; justify-content:space-between; padding:14px 2px 10px; gap:10px; }
+  .speaker{
+    width:62px; height:62px; border-radius:50%; flex-shrink:0;
+    background:
+      radial-gradient(circle, #000 1.6px, transparent 1.8px) 0 0/7px 7px,
+      radial-gradient(circle at 35% 30%, #35353b, #121214 70%);
+    box-shadow:
+      inset 0 2px 4px rgba(0,0,0,0.8),
+      0 0 0 3px #0c0c0e,
+      0 0 0 5px var(--chrome-2);
+  }
+
+  /* The speakers double as buttons: left = previous group of stations,
+     right = next group (Sport, Talk, NSW, ...). */
+  .speaker{ cursor:pointer; user-select:none; -webkit-user-select:none; touch-action:manipulation; -webkit-tap-highlight-color:transparent; transition:transform .1s ease, box-shadow .1s ease; }
+  .speaker:active, .speaker.pressed{ transform:scale(.93); box-shadow:inset 0 2px 4px rgba(0,0,0,0.8), 0 0 0 3px #0c0c0e, 0 0 0 5px var(--chrome-2), 0 0 16px rgba(0,229,255,0.55); }
+  .speaker:focus-visible{ outline:2px solid var(--cyan); outline-offset:6px; }
+  /* After a speaker tap the display shows just the group's name, on its
+     own, for a few seconds - then the frequency and station come back. */
+  #groupBadge{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    padding:10px 14px; text-align:center; text-wrap:balance;
+    color:var(--lcd-text); font-family:'Share Tech Mono',monospace; font-weight:700;
+    font-size:clamp(20px,6.5vw,32px); line-height:1.15; letter-spacing:2px; text-transform:uppercase;
+    text-shadow:0 0 10px rgba(77,255,176,0.6);
+    opacity:0; transition:opacity .2s ease; pointer-events:none;
+  }
+  .plaque.showing-group > :not(#groupBadge){ visibility:hidden; }
+  .plaque.showing-group #groupBadge{ opacity:1; }
+
+  .logo-badge{ text-align:center; flex:1; min-width:0; }
+  .logo-badge .brand-name{
+    font-family:'Bungee',cursive; font-size:clamp(13px,4vw,19px);
+    background:linear-gradient(90deg, var(--pink), var(--cyan));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    letter-spacing:0.5px; line-height:1.15; display:block;
+    filter:drop-shadow(0 0 6px rgba(255,45,149,0.35));
+  }
+  .logo-badge .sub-badges{
+    display:flex; gap:6px; justify-content:center; margin-top:4px; flex-wrap:wrap;
+  }
+  .logo-badge{ cursor:pointer; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
+  .logo-badge.holding{ transform:scale(0.97); transition:transform .15s; }
+  .logo-badge .sub-badges span.sleep-badge{ color:#ffb347; border-color:#ffb347; text-shadow:0 0 6px rgba(255,179,71,0.7); }
+  .logo-badge .sub-badges span{
+    font-size:8.5px; letter-spacing:1.2px; color:var(--chrome-1);
+    background:#000; padding:2px 6px; border-radius:3px;
+    border:1px solid var(--chrome-2);
+  }
+
+  .window{
+    background:var(--lcd-bg);
+    border-radius:8px; padding:16px 14px 10px;
+    box-shadow:inset 0 3px 10px rgba(0,0,0,0.8), 0 0 0 2px #000, 0 0 10px rgba(77,255,176,0.08);
+    position:relative; overflow:hidden;
+  }
+  .scanlines{
+    position:absolute; inset:0; pointer-events:none;
+    background:repeating-linear-gradient(0deg, rgba(0,0,0,0.25) 0 1px, transparent 1px 3px);
+  }
+  .ruler-wrap{ position:relative; height:78px; margin-top:2px; cursor:pointer; touch-action:none; }
+  .ruler-line{ position:absolute; left:0; right:0; top:44px; height:2px; background:var(--lcd-dim); opacity:0.9; }
+  .tick{ position:absolute; top:34px; width:1px; height:10px; background:var(--lcd-dim); opacity:0.8; }
+  .tick.major{ height:20px; top:24px; opacity:1; background:var(--ink); }
+  .tick-label{
+    position:absolute; top:2px; transform:translateX(-50%);
+    font-family:'Share Tech Mono',monospace;
+    font-size:11px; color:var(--ink); letter-spacing:0.2px; white-space:nowrap;
+  }
+  .station-mark{
+    position:absolute; top:58px; width:6px; height:6px; border-radius:50%;
+    background:var(--lcd-dim); transform:translateX(-50%); cursor:pointer;
+  }
+  .station-mark.active{ background:var(--pink); box-shadow:0 0 8px 2px rgba(255,45,149,0.8); }
+
+  /* Real-band dial (tap the frequency): the window redraws as the station's
+     own band - FM 88-108 MHz, AM 531-1701 kHz, or DAB+ Band III blocks -
+     or shows a stream panel for internet-only stations. */
+  .band-tag{
+    position:absolute; right:0; top:66px; font-family:'Share Tech Mono',monospace;
+    font-size:9px; letter-spacing:2px; color:var(--ink); opacity:0.85; white-space:nowrap; line-height:1;
+  }
+  .real-mark{
+    position:absolute; top:58px; width:5px; height:5px; border-radius:50%;
+    background:var(--lcd-dim); transform:translateX(-50%); pointer-events:none; opacity:0.8;
+  }
+  .real-mark.active{ background:var(--pink); box-shadow:0 0 8px 2px rgba(255,45,149,0.8); opacity:1; }
+  #streamDisplay{
+    height:78px; margin-top:2px; display:flex; align-items:center; justify-content:center; gap:12px;
+    color:var(--lcd-text); font-family:'Share Tech Mono',monospace; cursor:pointer; touch-action:none;
+    text-shadow:0 0 8px rgba(77,255,176,0.5);
+  }
+  #streamDisplay[hidden]{ display:none; }
+  #streamDisplay svg{ width:40px; height:40px; flex:0 0 auto; filter:drop-shadow(0 0 6px rgba(77,255,176,0.45)); }
+  #streamDisplay .stream-title{ font-size:clamp(15px,4.6vw,20px); letter-spacing:3px; font-weight:700; }
+  #streamDisplay .stream-sub{ font-size:10px; letter-spacing:2px; color:var(--ink); margin-top:4px; }
+  #streamDisplay .stream-dots span{ animation:streamDot 1.4s infinite; opacity:0.2; }
+  #streamDisplay .stream-dots span:nth-child(2){ animation-delay:.2s; }
+  #streamDisplay .stream-dots span:nth-child(3){ animation-delay:.4s; }
+  @keyframes streamDot{ 0%,100%{opacity:0.2} 40%{opacity:1} }
+  .window.band-switch .ruler-wrap, .window.band-switch #streamDisplay{ animation:bandSwitch .28s steps(3); }
+  @keyframes bandSwitch{ 0%{opacity:0.15} 50%{opacity:0.7} 100%{opacity:1} }
+  /* Internet stations: evenly spaced dots along the stream panel, in
+     alphabetical order, so it can be dragged like a dial. */
+  #streamDisplay{ position:relative; }
+  #streamDisplay .net-marks{ position:absolute; left:0; right:0; bottom:4px; height:6px; pointer-events:none; }
+  #streamDisplay .net-marks span{
+    position:absolute; top:0; width:5px; height:5px; border-radius:50%; transform:translateX(-50%);
+    background:var(--lcd-dim); opacity:0.8;
+  }
+  #streamDisplay .net-marks span.active{ background:var(--pink); box-shadow:0 0 8px 2px rgba(255,45,149,0.8); opacity:1; }
+
+  /* Odometer roll for the real-frequency readout. */
+  .odo{ display:inline-flex; }
+  .odo-c{ display:inline-block; height:1em; line-height:1; overflow:hidden; vertical-align:top; }
+  .odo-stack{ display:flex; flex-direction:column; }
+  .odo-stack > span{ display:block; height:1em; line-height:1; }
+  .odo-stack.up{ animation:odoUp .24s cubic-bezier(.3,.7,.4,1) both; }
+  .odo-stack.down{ animation:odoDown .24s cubic-bezier(.3,.7,.4,1) both; }
+  @keyframes odoUp{ from{ transform:translateY(0); } to{ transform:translateY(-50%); } }
+  @keyframes odoDown{ from{ transform:translateY(-50%); } to{ transform:translateY(0); } }
+  .plaque .station-name.slide-up{ animation:nameUp .24s ease-out; }
+  .plaque .station-name.slide-down{ animation:nameDown .24s ease-out; }
+  @keyframes nameUp{ from{ transform:translateY(70%); opacity:0; } to{ transform:none; opacity:1; } }
+  @keyframes nameDown{ from{ transform:translateY(-70%); opacity:0; } to{ transform:none; opacity:1; } }
+
+  /* Band Lock (next to the presets): only works in real-frequency mode. */
+  #bandLockBtn{
+    width:52px; height:52px; border-radius:50%; cursor:pointer; padding:0;
+    background:linear-gradient(145deg, #2a2a2e, #18181b); border:2px solid #f3d98a; color:#f3d98a;
+    font-family:'Share Tech Mono',monospace; font-size:8px; letter-spacing:1px; font-weight:700;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+    box-shadow:0 4px 10px rgba(0,0,0,0.6), inset 0 2px 3px rgba(255,255,255,0.15);
+    transition:transform 0.1s ease, opacity .2s, box-shadow .2s; -webkit-tap-highlight-color:transparent;
+  }
+  #bandLockBtn svg{ width:18px; height:18px; }
+  #bandLockBtn .shackle{ transition:transform .2s; }
+  #bandLockBtn:not(.on) .shackle{ transform:translateY(-3px); }
+  #bandLockBtn.on{ background:#f3d98a; color:#18181b; box-shadow:0 4px 10px rgba(0,0,0,0.6), 0 0 14px rgba(243,217,138,0.75); }
+  #auOnlyBtn{
+    width:52px; height:52px; border-radius:50%; cursor:pointer; padding:0;
+    background:linear-gradient(145deg, #2a2a2e, #18181b); border:2px solid #b8ff5c; color:#b8ff5c;
+    font-family:'Share Tech Mono',monospace; font-weight:700; font-size:15px; letter-spacing:1px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1;
+    box-shadow:0 4px 10px rgba(0,0,0,0.6), inset 0 2px 3px rgba(255,255,255,0.15);
+    transition:transform 0.1s ease, box-shadow .2s; -webkit-tap-highlight-color:transparent;
+  }
+  #auOnlyBtn small{ font-size:7px; letter-spacing:1px; margin-top:3px; }
+  #auOnlyBtn.on{ background:#b8ff5c; color:#18181b; box-shadow:0 4px 10px rgba(0,0,0,0.6), 0 0 14px rgba(184,255,92,0.7); }
+  .presets-row{ flex-wrap:wrap; }
+
+  /* Band strip (only while Band Lock is on) */
+  #bandStrip{ display:flex; gap:6px; margin-top:6px; position:relative; z-index:1; }
+  #bandStrip[hidden]{ display:none; }
+  #bandStrip button{
+    flex:1 1 0; min-width:0; height:26px; border-radius:13px; cursor:pointer;
+    background:var(--lcd-bg); border:1px solid rgba(243,217,138,0.35); color:var(--ink);
+    font-family:'Share Tech Mono',monospace; font-size:12px; letter-spacing:2px; font-weight:700;
+    box-shadow:inset 0 2px 5px rgba(0,0,0,0.7); -webkit-tap-highlight-color:transparent;
+  }
+  #bandStrip button.active{ color:#18181b; background:#f3d98a; border-color:#f3d98a; box-shadow:0 0 10px rgba(243,217,138,0.6); }
+  #bandStrip button:disabled{ opacity:0.3; cursor:not-allowed; }
+
+  /* "FM · 12 of 61" while Band Lock is on */
+  /* Tighter spacing while the band strip is showing, so the song title
+     still fits on short screens. */
+  .main-body.locked{ gap:clamp(8px,2vh,24px); }
+
+  /* Hold the dial still to magnify it: the window shows a 6x close-up that
+     slides under a fixed needle as you move. */
+  #dialLens{
+    position:absolute; inset:0; z-index:3; background:var(--lcd-bg); padding:16px 14px 10px;
+    pointer-events:none;
+  }
+  #dialLens[hidden]{ display:none; }
+  #dialLens .lens-tape{ position:relative; height:78px; margin-top:2px; }
+  #dialLens .lens-name{
+    position:absolute; left:14px; right:14px; bottom:6px; text-align:center; z-index:1;
+    font-family:'Share Tech Mono',monospace; font-size:11px; letter-spacing:1px; color:var(--lcd-text);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-shadow:0 0 6px rgba(77,255,176,0.5);
+  }
+  #dialLens .lens-zoom{
+    position:absolute; right:14px; top:6px; font-family:'Share Tech Mono',monospace; font-size:9px;
+    letter-spacing:2px; color:var(--pink);
+  }
+  .station-mark.dim, .real-mark.dim, #streamDisplay .net-marks span.dim{ opacity:0.15; }
+  #bandLockBtn:disabled{ opacity:0.28; cursor:not-allowed; border-color:#6b6b70; color:#8a8a90; }
+
+  .needle{
+    position:absolute; top:16px; width:2px; height:56px; background:var(--cyan);
+    transform:translateX(-50%); box-shadow:0 0 6px rgba(0,229,255,0.7);
+    transition:box-shadow 0.2s; pointer-events:none;
+  }
+  .needle::before{
+    content:""; position:absolute; top:-4px; left:50%; width:8px; height:8px;
+    background:var(--cyan); border-radius:50%; transform:translateX(-50%);
+    box-shadow:0 0 8px rgba(0,229,255,0.8);
+  }
+
+  .hero-row{
+    display:flex; align-items:center; gap:clamp(6px,2.5vw,14px);
+  }
+  .arrow-btn{
+    flex:0 0 auto; width:clamp(46px,13vw,58px); height:clamp(46px,13vw,58px); border-radius:50%;
+    border:1px solid rgba(0,229,255,0.3); cursor:pointer; -webkit-tap-highlight-color:transparent;
+    touch-action:manipulation; user-select:none;
+    background:radial-gradient(circle at 35% 30%, var(--plastic-light), var(--plastic-dark) 80%);
+    box-shadow:0 4px 8px rgba(0,0,0,0.6), 0 0 10px rgba(0,229,255,0.2), inset 0 1px 1px rgba(255,255,255,0.15);
+    display:flex; align-items:center; justify-content:center; color:var(--cyan);
+  }
+  .arrow-btn:active{ transform:scale(.92); box-shadow:0 2px 4px rgba(0,0,0,0.6), 0 0 14px rgba(0,229,255,0.5); }
+  .arrow-btn svg{ width:42%; height:42%; }
+  .arrow-btn:disabled{ opacity:0.3; cursor:not-allowed; }
+
+  .plaque{
+    flex:1; min-width:0; background:var(--lcd-bg);
+    border-radius:8px; padding:14px 16px; min-height:96px;
+    box-shadow:inset 0 2px 8px rgba(0,0,0,0.8), 0 0 0 2px #000;
+    position:relative;
+  }
+  .plaque .freq-readout{
+    font-family:'Share Tech Mono',monospace; color:var(--lcd-text); text-align:center;
+    font-size:clamp(34px,12vw,60px); letter-spacing:1px; line-height:1;
+    text-shadow:0 0 8px rgba(77,255,176,0.65), 0 0 18px rgba(77,255,176,0.3);
+  }
+  .plaque .freq-readout{ cursor:pointer; user-select:none; -webkit-user-select:none; -webkit-tap-highlight-color:transparent; }
+  #freqUnit{ cursor:pointer; user-select:none; -webkit-user-select:none; }
+  .plaque .freq-readout.real-text{ font-size:clamp(16px,5.2vw,28px); letter-spacing:0; line-height:64px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .plaque .freq-readout.flicker{ animation:freqFlick .2s steps(2); }
+  @keyframes freqFlick{ 0%{opacity:.3;} 50%{opacity:1;} 100%{opacity:1;} }
+  .plaque .station-name{
+    font-family:'Share Tech Mono',monospace; color:var(--lcd-text); font-size:14px; line-height:1.4;
+    text-shadow:0 0 8px rgba(77,255,176,0.5); min-height:20px; text-align:center; margin-top:4px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .plaque .station-name.static-text{
+    color:var(--static); text-shadow:none;
+    font-weight:400; font-style:italic; letter-spacing:0.5px;
+  }
+
+  /* The bars bounce by scaling (transform), not by changing height: a height
+     animation re-lays-out and repaints the whole panel every frame, which
+     made the background flash in the Android WebView while playing. */
+  .eq-bars{ display:flex; gap:3px; align-items:flex-end; height:22px; margin-top:10px; contain:layout paint; }
+  .eq-bars span{
+    width:5px; flex-shrink:0; border-radius:2px 2px 0 0; height:95%;
+    background:linear-gradient(180deg, var(--cyan), var(--pink));
+    transform:scaleY(0.13); transform-origin:50% 100%; will-change:transform;
+    transition:transform 0.2s ease;
+  }
+  .eq-bars.playing span{ animation:eqPulse 1s ease-in-out infinite; }
+  .eq-bars.playing span:nth-child(2){ animation-duration:0.8s; animation-delay:0.05s; }
+  .eq-bars.playing span:nth-child(3){ animation-duration:1.1s; animation-delay:0.1s; }
+  .eq-bars.playing span:nth-child(4){ animation-duration:0.7s; animation-delay:0.15s; }
+  .eq-bars.playing span:nth-child(5){ animation-duration:1.2s; animation-delay:0.2s; }
+  .eq-bars.playing span:nth-child(6){ animation-duration:0.9s; animation-delay:0.08s; }
+  .eq-bars.playing span:nth-child(7){ animation-duration:1.05s; animation-delay:0.18s; }
+  .eq-bars.playing span:nth-child(8){ animation-duration:0.75s; animation-delay:0.12s; }
+  @keyframes eqPulse{ 0%,100%{transform:scaleY(0.1);} 50%{transform:scaleY(1);} }
+
+  .play-row{ display:flex; align-items:center; gap:12px; margin-top:10px; }
+  .play-btn{
+    width:42px; height:42px; border-radius:50%; border:none; cursor:pointer;
+    background:linear-gradient(160deg, var(--pink), #b3146b);
+    box-shadow:0 3px 6px rgba(0,0,0,0.6), inset 0 1px 2px rgba(255,255,255,0.4), 0 0 10px rgba(255,45,149,0.5);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .play-btn:disabled{ opacity:0.3; cursor:not-allowed; box-shadow:none; }
+  .play-btn svg{ width:16px; height:16px; fill:#fff; }
+
+  .status-text{ font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--chrome-2); letter-spacing:0.3px; flex:1; }
+  .status-text.warn{ color:var(--warn); }
+  .status-text.ok{ color:var(--ok); }
+  .status-text a{ color:var(--cyan); text-decoration:underline; }
+
+  .volume-row{ display:flex; align-items:center; gap:8px; margin-top:10px; }
+  .volume-row label{ font-size:9.5px; letter-spacing:1.5px; color:var(--chrome-2); font-family:'Share Tech Mono',monospace; }
+  .volume-row input[type=range]{ flex:1; accent-color:var(--cyan); }
+
+  .now-playing{ margin-top:10px; overflow:hidden; display:none; align-items:center; gap:12px; }
+  .now-playing-label{ font-size:9px; letter-spacing:2px; color:var(--chrome-2); font-family:'Share Tech Mono',monospace; margin-bottom:2px; }
+  .now-playing-text{
+    font-family:'Share Tech Mono',monospace; font-size:12px; color:var(--lcd-text);
+    text-shadow:0 0 6px rgba(77,255,176,0.5); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+
+  .main-body{
+    flex:1; display:flex; flex-direction:column; min-height:0;
+    justify-content:center; gap:clamp(14px,3.5vh,30px);
+  }
+</style>
+</head>
+<body>
+
+<div class="set">
+  <div class="stripe"></div>
+  <div class="top-row">
+    <div class="speaker" id="speakerLeft" role="button" tabindex="0" aria-label="Previous group of stations" title="Previous group"></div>
+    <div class="logo-badge" role="button" tabindex="0" aria-label="Sleep timer off. Press and hold to set">
+      <span class="brand-name">RADIO WAVEHOPPER</span>
+      <div class="sub-badges"><span>STEREO</span><span>DIGITAL TUNING</span><span class="sleep-badge" id="sleepBadge" hidden>SLEEP</span></div>
+    </div>
+    <div class="speaker" id="speakerRight" role="button" tabindex="0" aria-label="Next group of stations" title="Next group"></div>
+  </div>
+
+  <div class="main-body">
+    <div class="window">
+      <div class="scanlines"></div>
+      <div class="ruler-wrap" id="ruler">
+        <div class="ruler-line"></div>
+        <div class="needle" id="needle" style="left:0%"></div>
+      </div>
+      <div class="ruler-wrap" id="realRuler" hidden aria-hidden="true"></div>
+      <div id="streamDisplay" hidden aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+          <circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.6 3.8 5.6 3.8 9s-1.2 6.4-3.8 9M12 3c-2.6 2.6-3.8 5.6-3.8 9s1.2 6.4 3.8 9"/>
+        </svg>
+        <div>
+          <div class="stream-title">INTERNET RADIO</div>
+          <div class="stream-sub">STREAMING<span class="stream-dots"><span>.</span><span>.</span><span>.</span></span> NO AM/FM/DAB</div>
+        </div>
+      </div>
+      <div id="bandStrip" hidden role="group" aria-label="Choose band">
+        <button type="button" data-band="am">AM</button>
+        <button type="button" data-band="fm">FM</button>
+        <button type="button" data-band="dab">DAB+</button>
+        <button type="button" data-band="net">NET</button>
+      </div>
+      <div id="dialLens" hidden aria-hidden="true">
+        <div class="lens-zoom">ZOOM ×6</div>
+        <div class="lens-tape"></div>
+        <div class="lens-name"></div>
+      </div>
+    </div>
+
+    <div class="hero-row">
+      <button class="arrow-btn" id="prevStationBtn" aria-label="Previous station">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="plaque" style="position:relative;">
+        <div id="presetBadge" style="display:none; position:absolute; top:12px; left:14px; color:var(--lcd-text); font-family:'Share Tech Mono',monospace; font-size:13px; font-weight:700; text-shadow:0 0 6px rgba(77,255,176,0.6);">1</div>
+        <div id="groupBadge" aria-live="polite"></div>
+        <div class="freq-readout" id="freqReadout" role="button" tabindex="0" title="Tap to show the station's real on-air frequency">91.8</div>
+        <div id="freqUnit" style="text-align:center;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:3px;color:var(--ink);margin-top:-2px;">MHz</div>
+        <div class="station-name" id="stationName">tuning…</div>
+      </div>
+      <button class="arrow-btn" id="nextStationBtn" aria-label="Next station">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+
+    <div class="plaque">
+      <div class="eq-bars" id="eqBars">
+        <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+      </div>
+      <div class="play-row">
+        <button class="play-btn" id="playBtn" disabled title="Play">
+          <svg id="playIcon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+        <div class="status-text" id="statusText">Tap ‹ › to find a station.</div>
+        <button id="identifyBtn" title="Identify song with Shazam" style="display:none;margin-left:auto;background:rgba(243,217,138,0.2);border:1px solid #f3d98a;color:#f3d98a;padding:4px 8px;border-radius:4px;font-family:'Share Tech Mono',monospace;font-size:11px;cursor:pointer;">🎵 Shazam</button>
+      </div>
+      <div class="volume-row">
+        <label>VOL</label>
+        <input type="range" id="volume" min="0" max="1" step="0.01" value="0.8">
+      </div>
+      <div class="presets-row" style="display:flex; justify-content:center; gap:16px; margin-top:10px;">
+        <button class="preset-btn" data-index="0" data-freq="100.2" title="Preset 1 (Hold to save)" style="width:52px; height:52px; border-radius:50%; background:linear-gradient(145deg, #2a2a2e, #18181b); border:2px solid #4dffb0; color:#4dffb0; font-family:'Share Tech Mono',monospace; font-size:18px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 10px rgba(0,0,0,0.6), inset 0 2px 3px rgba(255,255,255,0.15), 0 0 10px rgba(77,255,176,0.4); transition:transform 0.1s ease;">1</button>
+        <button class="preset-btn" data-index="1" data-freq="102.1" title="Preset 2 (Hold to save)" style="width:52px; height:52px; border-radius:50%; background:linear-gradient(145deg, #2a2a2e, #18181b); border:2px solid #ff2d95; color:#ff2d95; font-family:'Share Tech Mono',monospace; font-size:18px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 10px rgba(0,0,0,0.6), inset 0 2px 3px rgba(255,255,255,0.15), 0 0 10px rgba(255,45,149,0.4); transition:transform 0.1s ease;">2</button>
+        <button class="preset-btn" data-index="2" data-freq="101.5" title="Preset 3 (Hold to save)" style="width:52px; height:52px; border-radius:50%; background:linear-gradient(145deg, #2a2a2e, #18181b); border:2px solid #00e5ff; color:#00e5ff; font-family:'Share Tech Mono',monospace; font-size:18px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 10px rgba(0,0,0,0.6), inset 0 2px 3px rgba(255,255,255,0.15), 0 0 10px rgba(0,229,255,0.4); transition:transform 0.1s ease;">3</button>
+        <button id="bandLockBtn" type="button" disabled aria-pressed="false" title="Band lock — tune only within this band (real-frequency mode)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path class="shackle" d="M8 11V8a4 4 0 0 1 8 0v3"/><rect x="5" y="11" width="14" height="10" rx="2"/></svg>
+          <span>BAND</span>
+        </button>
+        <button id="auOnlyBtn" type="button" aria-pressed="false" title="Australian stations only">AU<small>ONLY</small></button>
+      </div>
+      <div class="now-playing" id="nowPlaying">
+        <img id="albumArt" src="" alt="Album Art" style="width:48px; height:48px; border-radius:6px; object-fit:cover; display:block; border:1px solid rgba(243,217,138,0.3); flex-shrink:0; background:rgba(0,0,0,0.3); padding:8px;" />
+        <div style="flex:1; min-width:0;">
+          <div class="now-playing-label">NOW PLAYING</div>
+          <div class="now-playing-text" id="nowPlayingText" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.13/hls.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dashjs/4.7.4/dash.all.min.js"></script>
+<script>
+(function(){
+  const stations = [
+    // ---- Sport ----
+    {freq:87.5, name:"talkSPORT", real:"1089 AM", cc:"UK", url:"http://23163.live.streamtheworld.com/NOVA_TALKSPORT_1.mp3?dist=talksport"},
+    {freq:87.55, name:"SEN 1116", real:"1116 AM", cc:"VIC", url:"http://13.54.221.214:8000/sen.mp3"},
+    {freq:87.6, name:"SEN 1170", real:"1170 AM", cc:"NSW", url:"https://d2kkpj3tysba3i.cloudfront.net/v1/master/fbb316a042e17a2e683126d94749c2d69866fc2c/SEN_Sydney/raw/sen-syd/EncoderUnit_3.m3u8?playerParams.sitepage=https%3A%2F%2Fsen.com.au%2F&playerParams.domain=sen.com.au&playerParams.cb=cachebusterPlaceholder&playerParams.playerId=SEN-Web", hls:true},
+    {freq:87.7, name:"Sports Nation NZ", real:"1476 AM", cc:"NZ", url:"https://sen.streamguys1.com/SENZ-AAC/playlist.m3u8", hls:true},
+    {freq:87.8, name:"ABC Sports", real:"DAB only", cc:"AU", dab:"9C", url:"https://mediaserviceslive.akamaized.net/hls/live/2038320/grandstand/master.m3u8", hls:true},
+    {freq:87.9, name:"BBC Radio 5 Sports Extra", real:"DAB only", cc:"UK", dab:"12B", url:"https://a.files.bbci.co.uk/ms6/live/3441A116-B12E-4D2F-ACA8-C1984642FA4B/audio/simulcast/hls/uk/audio_syndication_low_sbr_v1/cfs/bbc_radio_five_live_sports_extra.m3u8", hls:true},
+    {freq:88.0, name:"talkSPORT 2", real:"DAB only", cc:"UK", dab:"11A", url:"https://talksport.live.stream.broadcasting.news/stream2"},
+    {freq:88.1, name:"ABC Cricket", real:"Internet only", cc:"AU", url:"https://mediaserviceslive.akamaized.net/hls/live/2118991/sportitinerant/v0-221.m3u8", hls:true},
+    {freq:88.2, name:"Guerilla Cricket", real:"Internet only", cc:"UK", url:"https://s3.voscast.com:11173/1"},
+    {freq:88.3, name:"SEN Fanatic", real:"Internet only", cc:"AU", url:"https://d36bzojkpuw7nh.cloudfront.net/playlist.m3u8", hls:true},
+    // ---- Talk ----
+    {freq:88.4, name:"ABC News", real:"630 AM", cc:"NSW", url:"https://mediaserviceslive.akamaized.net/hls/live/2038311/newsradio/master.m3u8", hls:true},
+    {freq:88.5, name:"CBC Radio One Vancouver", real:"690 AM", cc:"CA", url:"https://cbcradiolive.akamaized.net/hls/live/2041050/ES_R1PVC/master.m3u8", hls:true},
+    {freq:88.6, name:"ABC SYD", real:"702 AM", cc:"NSW", url:"https://mediaserviceslive.akamaized.net/hls/live/2038258/localsydney/v0-221.m3u8", hls:true},
+    {freq:88.65, name:"WNYC", real:"820 AM", cc:"US", url:"https://fm939.wnyc.org/wnycfm"},
+    {freq:88.7, name:"KHVH 830 AM", real:"830 AM", cc:"US", url:"https://stream.revma.ihrhls.com/zc4748"},
+    {freq:88.8, name:"2GB Sydney", real:"873 AM", cc:"NSW", url:"https://23153.live.streamtheworld.com/2GB.mp3"},
+    {freq:88.9, name:"2SM 1269", real:"1269 AM", cc:"NSW", url:"https://cast4.asurahosting.com/proxy/2sm1269/stream"},
+    {freq:89.0, name:"RTE Radio 1", real:"88.5 FM", cc:"IE", url:"https://25633.live.streamtheworld.com/RTE_1_INT.mp3"},
+    {freq:89.1, name:"Money FM Singapore", real:"89.3 FM", cc:"SG", url:"https://playerservices.streamtheworld.com/api/livestream-redirect/MONEY_893AAC.aac"},
+    {freq:89.2, name:"Newstalk ZB Auckland", real:"89.4 FM", cc:"NZ", url:"https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_01AAC_SC"},
+    {freq:89.3, name:"Talk 702 Johannesburg", real:"92.7 FM", cc:"ZA", url:"https://22733.live.streamtheworld.com/FM702AAC_SC"},
+    {freq:89.4, name:"BBC Radio 4", real:"93.5 FM", cc:"UK", url:"http://as-hls-ww-live.akamaized.net/pool_55057080/live/ww/bbc_radio_fourfm/bbc_radio_fourfm.isml/bbc_radio_fourfm-audio%3d96000.norewind.m3u8", hls:true},
+    {freq:89.5, name:"LBC London", real:"97.3 FM", cc:"UK", url:"https://media-ssl.musicradio.com/LBCLondon"},
+    {freq:89.6, name:"RNZ National", real:"101.4 FM", cc:"NZ", url:"https://radionz.streamguys1.com/national/national/national/national-mainstream/chunks.m3u8", hls:true},
+    {freq:89.7, name:"Radio Australia", real:"101.9 FM", cc:"AU", url:"https://mediaserviceslive.akamaized.net/hls/live/2109446/ramulti/v0-221.m3u8", hls:true},
+    {freq:89.8, name:"BBC World Service", real:"DAB only", cc:"UK", dab:"12B", url:"https://stream.live.vc.bbcmedia.co.uk/bbc_world_service"},
+    {freq:89.9, name:"SKY News Radio", real:"DAB only", cc:"AU", dab:"9B", url:"https://playerservices.streamtheworld.com/api/livestream-redirect/NOVA_SKYNEWSAAC.aac"},
+    // ---- NSW (and ACT) ----
+    {freq:90.0, name:"2WEB", real:"585 AM", cc:"NSW", url:"https://s1.viastreaming.net:7230/stream"},
+    {freq:90.05, name:"2UE 954", real:"954 AM", cc:"NSW", url:"https://sa46.scastream.com.au/live/2ue_128.stream/playlist.m3u8?dist=listnr-web", hls:true},
+    {freq:90.08, name:"Station X", real:"1611 AM", cc:"NSW", url:"https://us01.xrn.com.au/listen/stx/StxSd"},
+    {freq:90.1, name:"2RDJ", real:"88.1 FM", cc:"NSW", url:"https://billybobtuner.onrender.com/relay?url=http://104.128.238.80:8000/"},
+    {freq:90.2, name:"2RRR Ryde", real:"88.5 FM", cc:"NSW", url:"https://28803.live.streamtheworld.com/2RRRAAC.aac"},
+    {freq:90.3, name:"2BRW", real:"88.9 FM", cc:"NSW", url:"https://audio-edge-d34v9.syd.o.radiomast.io/ba864be6-11d1-4e13-aa74-f8e8781f64f6#.mp3"},
+    {freq:90.4, name:"2BLU Katoomba", real:"89.1 FM", cc:"NSW", url:"https://23193.live.streamtheworld.com/2BLU.mp3"},
+    {freq:90.5, name:"2GLF", real:"89.3 FM", cc:"NSW", url:"https://23093.live.streamtheworld.com/2GLFAAC.aac"},
+    {freq:90.6, name:"Valley FM", real:"89.5 FM", cc:"ACT", url:"https://22283.live.streamtheworld.com/1VFMAAC.aac"},
+    {freq:90.7, name:"Alive 90.5", real:"90.5 FM", cc:"NSW", url:"https://23093.live.streamtheworld.com/2CCRAAC.aac"},
+    {freq:90.8, name:"2MCE Bathurst", real:"92.3 FM", cc:"NSW", url:"https://stream.2mce.org/2MCE"},
+    {freq:90.9, name:"2YYY Young", real:"92.3 FM", cc:"NSW", url:"https://streaming.2yyyradio.com/radio/8000/radio.mp3"},
+    {freq:90.95, name:"2EC", real:"94.5 FM", cc:"NSW", url:"https://playerservices.streamtheworld.com/api/livestream-redirect/BEG_2ECAAC.aac"},
+    {freq:91.0, name:"2MIA Griffith", real:"95.1 FM", cc:"NSW", url:"https://28853.live.streamtheworld.com/2MIA.mp3"},
+    {freq:91.1, name:"2TVR Sounds Of The Mountains", real:"96.3 FM", cc:"NSW", url:"https://stream.mjm-webhosting.com.au:8342/;?type=http"},
+    {freq:91.2, name:"Coast FM Gosford", real:"96.3 FM", cc:"NSW", url:"https://28863.live.streamtheworld.com/2CCCAAC.aac"},
+    {freq:91.3, name:"2GHR Holbrook", real:"96.7 FM", cc:"NSW", url:"https://stream.2ghr.org.au:8000/2ghr"},
+    {freq:91.4, name:"Northside Radio", real:"99.3 FM", cc:"NSW", url:"https://28793.live.streamtheworld.com/2NSBAAC.aac"},
+    {freq:91.5, name:"2SSR", real:"99.7 FM", cc:"NSW", url:"https://radio12.shoutcast.net.au:8000/stream"},
+    {freq:91.6, name:"SWR FM Blacktown", real:"99.9 FM", cc:"NSW", url:"https://23193.live.streamtheworld.com/SWRFMAAC.aac"},
+    {freq:91.7, name:"2HHH", real:"100.1 FM", cc:"NSW", url:"https://23203.live.streamtheworld.com/2HHHAAC.aac"},
+    {freq:91.8, name:"2MCR", real:"100.3 FM", cc:"NSW", url:"https://cast4.my-control-panel.com/proxy/tim1/som"},
+    {freq:91.9, name:"Yass FM", real:"100.3 FM", cc:"NSW", url:"https://28863.live.streamtheworld.com/2YAS.mp3"},
+    {freq:92.0, name:"Connect FM Bankstown", real:"100.9 FM", cc:"NSW", url:"https://cast5.asurahosting.com/proxy/jim1/stream"},
+    {freq:92.1, name:"Great Lakes FM", real:"101.5 FM", cc:"NSW", url:"https://28853.live.streamtheworld.com/2GLAAAC.aac"},
+    {freq:92.2, name:"Nim FM Nimbin", real:"102.3 FM", cc:"NSW", url:"https://uk5.internet-radio.com/proxy/nimfm?mp=/stream"},
+    {freq:92.3, name:"RAM FM Goulburn", real:"103.3 FM", cc:"NSW", url:"https://23203.live.streamtheworld.com/2GCRAAC.aac"},
+    {freq:92.4, name:"2NUR", real:"103.7 FM", cc:"NSW", url:"https://playerservices.streamtheworld.com/api/livestream-redirect/2NURFM.mp3"},
+    {freq:92.5, name:"Triple U FM", real:"104.5 FM", cc:"NSW", url:"https://stream1.tripleu.org.au/live"},
+    {freq:92.6, name:"2SEA Eden", real:"104.7 FM", cc:"NSW", url:"https://23163.live.streamtheworld.com/2SEA_EDENAAC.aac"},
+    {freq:92.7, name:"2NVR Nambucca Heads", real:"105.9 FM", cc:"NSW", url:"https://s14.myradiostream.com:19092/stream"},
+    {freq:92.8, name:"VOX FM", real:"106.9 FM", cc:"NSW", url:"http://s10.myradiostream.com:15272/stream"},
+    {freq:92.9, name:"2AAA Wagga", real:"107.1 FM", cc:"NSW", url:"https://stream.tripleafm.com.au//?"},
+    {freq:93.0, name:"Highland FM Mittagong", real:"107.1 FM", cc:"NSW", url:"https://23163.live.streamtheworld.com/HIGHLAND_FM.mp3"},
+    {freq:93.1, name:"2BBB Bellingen", real:"107.3 FM", cc:"NSW", url:"https://23163.live.streamtheworld.com/2BBBAAC.aac"},
+    {freq:93.2, name:"2EAR Moruya", real:"107.5 FM", cc:"NSW", url:"https://23193.live.streamtheworld.com/2EARAAC.aac"},
+    {freq:93.3, name:"2OCW Orange", real:"107.5 FM", cc:"NSW", url:"https://23093.live.streamtheworld.com/2OCWAAC.aac"},
+    // ---- Victoria ----
+    {freq:93.4, name:"3MFM", real:"88.1 FM", cc:"VIC", url:"https://billybobtuner.onrender.com/relay?url=http://listen.southcoastfm.au:881/aac"},
+    {freq:93.5, name:"Southern FM", real:"88.3 FM", cc:"VIC", url:"https://billybobtuner.onrender.com/relay?url=https://stream.swifthosting.com.au/"},
+    {freq:93.6, name:"Plenty Valley FM", real:"88.6 FM", cc:"VIC", url:"https://28803.live.streamtheworld.com/3PVRAAC.aac"},
+    {freq:93.7, name:"WYN FM", real:"88.9 FM", cc:"VIC", url:"https://streamer5.rightclickitservices.com:19740/aac"},
+    {freq:93.8, name:"Pulse FM Geelong", real:"94.7 FM", cc:"VIC", url:"https://23193.live.streamtheworld.com/3PLSAAC.aac"},
+    {freq:93.9, name:"Joy FM Melbourne", real:"94.9 FM", cc:"VIC", url:"https://stream.joy.org.au/proxy/joy949?mp=/live"},
+    {freq:94.0, name:"Main FM", real:"94.9 FM", cc:"VIC", url:"https://billybobtuner.onrender.com/relay?url=http://s1.communitybroadcastnetwork.com.au:8000/MAINFM/stream"},
+    {freq:94.1, name:"Inner FM", real:"96.5 FM", cc:"VIC", url:"https://28793.live.streamtheworld.com/3NRAAC.aac"},
+    {freq:94.2, name:"3MDR", real:"97.1 FM", cc:"VIC", url:"https://23163.live.streamtheworld.com/3MDRAAC.aac"},
+    {freq:94.3, name:"Casey Radio", real:"97.7 FM", cc:"VIC", url:"https://23193.live.streamtheworld.com/3SERAAC.aac"},
+    {freq:94.4, name:"3RPP", real:"98.7 FM", cc:"VIC", url:"https://streaming.radio.co/sfbd79db12/listen"},
+    {freq:94.5, name:"Yarra Valley FM", real:"99.1 FM", cc:"VIC", url:"https://billybobtuner.onrender.com/relay?url=https://live.yarravalleyfm.org.au:8443/stream"},
+    {freq:94.6, name:"Sunbury Radio", real:"99.3 FM", cc:"VIC", url:"https://23203.live.streamtheworld.com/3NRGAAC.aac"},
+    {freq:94.7, name:"3MGB Mallacoota", real:"101.7 FM", cc:"VIC", url:"https://23163.live.streamtheworld.com/3MGBAAC.aac"},
+    {freq:94.8, name:"3RRR FM", real:"102.7 FM", cc:"VIC", url:"https://realtime.rrr.org.au/p1h"},
+    {freq:94.9, name:"3PBS FM", real:"106.7 FM", cc:"VIC", url:"https://playerservices.streamtheworld.com/api/livestream-redirect/3PBS_FMAACHIGH.aac"},
+    // ---- Queensland ----
+    {freq:95.0, name:"4KZ", real:"531 AM", cc:"QLD", url:"https://stream03.syd.hostgeek.com.au/4kz/stream"},
+    {freq:95.1, name:"4AM", real:"558 AM", cc:"QLD", url:"https://stream03.syd.hostgeek.com.au/4am/stream"},
+    {freq:95.2, name:"4BRZ", real:"92.1 FM", cc:"QLD", url:"https://s8.yesstreaming.net:17065/BrzLgn"},
+    {freq:95.3, name:"Goldie FM", real:"94.1 FM", cc:"QLD", url:"https://14533.live.streamtheworld.com/941FMAAC.aac"},
+    {freq:95.4, name:"Rebel FM", real:"99.4 FM", cc:"QLD", url:"https://s8.yesstreaming.net:17099/RblGC"},
+    {freq:95.5, name:"Bridge FM", real:"99.7 FM", cc:"QLD", url:"https://28793.live.streamtheworld.com/997BRIDGEFMAAC.aac"},
+    {freq:95.6, name:"4RIM Boonah", real:"100.1 FM", cc:"QLD", url:"https://streaming.rimfm.org/rimfmlive.mp3"},
+    {freq:95.7, name:"Bay FM Redlands", real:"100.3 FM", cc:"QLD", url:"https://28853.live.streamtheworld.com/4BAYAAC.aac"},
+    {freq:95.8, name:"Power 100", real:"100.7 FM", cc:"QLD", url:"https://17853.live.streamtheworld.com/TOW_POWER100.mp3"},
+    {freq:95.9, name:"Logan Radio", real:"101.1 FM", cc:"QLD", url:"https://28853.live.streamtheworld.com/4CBLAAC.aac"},
+    {freq:96.0, name:"Noosa FM", real:"101.3 FM", cc:"QLD", url:"https://23153.live.streamtheworld.com/4NSA_ICECAST.mp3"},
+    {freq:96.1, name:"4OUR Caboolture", real:"101.5 FM", cc:"QLD", url:"https://stream.lava.net.au/au_qld_4our_caboolture1015"},
+    {freq:96.2, name:"4ZZZ", real:"102.1 FM", cc:"QLD", url:"https://iheart.4zzz.org.au/4zzz"},
+    {freq:96.3, name:"Sunshine FM", real:"104.9 FM", cc:"QLD", url:"https://23163.live.streamtheworld.com/4SFM_SC"},
+    // ---- South Australia ----
+    {freq:96.4, name:"Coast FM Adelaide", real:"88.7 FM", cc:"SA", url:"https://billybobtuner.onrender.com/relay?url=http://streaming1.coastfm.com.au:8000/broadwavehigh.mp3"},
+    {freq:96.5, name:"Lofty Radio", real:"88.9 FM", cc:"SA", url:"https://stream04.sigile.net/lofty-48-aac"},
+    {freq:96.6, name:"Fleurieu FM", real:"89.3 FM", cc:"SA", url:"https://stream.sigile.net/fleurieufm-128-mp3"},
+    {freq:96.7, name:"5PBA FM", real:"89.7 FM", cc:"SA", url:"https://23093.live.streamtheworld.com/5PBAAAC.aac"},
+    {freq:96.8, name:"Happy FM", real:"90.1 FM", cc:"SA", url:"https://stream04.sigile.net/happyfm-128-mp3"},
+    {freq:96.9, name:"5KIX Kangaroo Island", real:"90.7 FM", cc:"SA", url:"https://23093.live.streamtheworld.com/5KIXAAC.aac"},
+    {freq:97.0, name:"5ZZZ", real:"91.1 FM", cc:"SA", url:"https://usa7.fastcast4u.com/proxy/triplez?mp=/1"},
+    {freq:97.1, name:"Three D Radio", real:"93.7 FM", cc:"SA", url:"https://sounds.threedradio.com/stream"},
+    {freq:97.2, name:"Flow FM", real:"99.5 FM", cc:"SA", url:"https://uksoutha.streaming.broadcast.radio/flow-fm"},
+    {freq:97.3, name:"5WOW", real:"100.5 FM", cc:"SA", url:"https://stream04.sigile.net/wowfm-64-aac"},
+    // ---- Western Australia ----
+    {freq:97.4, name:"VCA FM Ellenbrook", real:"88.5 FM", cc:"WA", url:"https://23093.live.streamtheworld.com/ELLENBROOK_RADIOAAC.aac"},
+    {freq:97.5, name:"Radio Kalamunda", real:"88.9 FM", cc:"WA", url:"https://radio12.shoutcast.net.au:2020/stream/kalamunda"},
+    {freq:97.6, name:"Twin Cities FM", real:"89.7 FM", cc:"WA", url:"https://ice8.securenetsystems.net/897FM"},
+    {freq:97.7, name:"Wave Mandurah", real:"91.7 FM", cc:"WA", url:"https://sa47.scastream.com.au/live/6mm_128.stream/playlist.m3u8", hls:true},
+    {freq:97.8, name:"Curtin Radio", real:"100.1 FM", cc:"WA", url:"https://28853.live.streamtheworld.com/6NRAAC.aac"},
+    {freq:97.9, name:"Bunbury Community Radio", real:"103.7 FM", cc:"WA", url:"https://23203.live.streamtheworld.com/6BCRAAC.aac"},
+    {freq:98.0, name:"H FM Armadale", real:"107.3 FM", cc:"WA", url:"https://billybobtuner.onrender.com/relay?url=https://stream.hfm.radio:8443/"},
+    {freq:98.1, name:"Radio Fremantle", real:"107.9 FM", cc:"WA", url:"https://23193.live.streamtheworld.com/6CCRAAC.aac"},
+    // ---- Tasmania ----
+    {freq:98.2, name:"Star FM St Helens", real:"93.7 FM", cc:"TAS", url:"https://billybobtuner.onrender.com/relay?url=https://s6.myradiostream.com:11056/"},
+    {freq:98.3, name:"Huon FM", real:"95.3 FM", cc:"TAS", url:"https://stream3.rcast.net/72445"},
+    {freq:98.4, name:"Hobart FM", real:"96.1 FM", cc:"TAS", url:"https://radio12.shoutcast.net.au:2020/stream/8032"},
+    {freq:98.5, name:"MV FM", real:"96.9 FM", cc:"TAS", url:"https://23093.live.streamtheworld.com/MVFMAAC.aac"},
+    {freq:98.6, name:"Tasman FM", real:"97.7 FM", cc:"TAS", url:"https://stream-285.surfernetwork.com/kehh7k7co2yvv"},
+    {freq:98.7, name:"TYGA FM", real:"98.9 FM", cc:"TAS", url:"https://radio12.shoutcast.net.au:2020/stream/8012"},
+    {freq:98.8, name:"City Park Radio", real:"103.7 FM", cc:"TAS", url:"https://14533.live.streamtheworld.com/7LTNAAC.aac"},
+    {freq:98.9, name:"7DBS Coast FM", real:"106.1 FM", cc:"TAS", url:"https://streaming.coastfmtas.au:8000/coastfm.aac"},
+    // ---- Northern Territory ----
+    {freq:99.0, name:"Territory FM", real:"104.1 FM", cc:"NT", url:"https://streaming.territoryfm.com:8443/TerritoryFM"},
+    // ---- Australia (national) ----
+    {freq:99.1, name:"Triple J Hottest", real:"DAB only", cc:"AU", dab:"9C", url:"https://mediaserviceslive.akamaized.net/hls/live/2109455/triplejhottest/v0-221.m3u8", hls:true},
+    // ---- New Zealand ----
+    {freq:99.2, name:"Radio Dunedin", real:"1305 AM", cc:"NZ", url:"https://stream.radioaotearoa.com/hls/RadioDunedin.m3u8", hls:true},
+    {freq:99.3, name:"Brian FM Oamaru", real:"88.8 FM", cc:"NZ", url:"https://das-edge53-sa48-futuri-dal03.cdnstream.com/7654_128k.aac"},
+    {freq:99.4, name:"Radio Hauraki Westport", real:"89.3 FM", cc:"NZ", url:"https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_04AAC_SC.aac"},
+    {freq:99.5, name:"The Rock Auckland", real:"90.2 FM", cc:"NZ", url:"https://mediaworks.streamguys1.com/rock_net_icy"},
+    {freq:99.6, name:"Channel X Queenstown", real:"91.2 FM", cc:"NZ", url:"https://mediaworks.streamguys1.com/chx_net_icy"},
+    // ---- Pacific ----
+    {freq:99.7, name:"NC 1’ere", real:"89.0 FM", cc:"NC", url:"https://nouvelle-caledonie.ice.infomaniak.ch/nouvelle-caledonie-128.mp3"},
+    {freq:99.8, name:"Gold FM Fiji", real:"100.2 FM", cc:"FJ", url:"https://icecast1.sere.plus/Gold"},
+    // ---- Singapore ----
+    {freq:99.9, name:"Gold FM Singapore", real:"90.5 FM", cc:"SG", url:"https://28393.live.streamtheworld.com/GOLD905_PREM.aac"},
+    // ---- South Africa ----
+    {freq:100.0, name:"Magic 828", real:"828 AM", cc:"ZA", url:"https://billybobtuner.onrender.com/relay?url=http://cast.fabrik.fm:8106/"},
+    {freq:100.1, name:"LM Radio", real:"87.8 FM", cc:"ZA", url:"https://ukwestb.streaming.broadcast.radio/lmradio"},
+    // ---- UK ----
+    {freq:100.2, name:"Radio Caroline", real:"648 AM", cc:"UK", url:"https://stream.radiocaroline.net/rc128/stream.mp3"},
+    {freq:100.3, name:"BBC Radio 2", real:"89.1 FM", cc:"UK", url:"https://a.files.bbci.co.uk/ms6/live/3441A116-B12E-4D2F-ACA8-C1984642FA4B/audio/simulcast/hls/nonuk/audio_syndication_low_sbr_v1/cfs/bbc_radio_two.m3u8", hls:true},
+    // ---- France ----
+    {freq:100.4, name:"FIP Marseille", real:"90.9 FM", cc:"FR", url:"https://icecast.radiofrance.fr/fip-midfi.mp3"},
+    // ---- Germany ----
+    {freq:100.5, name:"Rock Antenne", real:"DAB only", cc:"DE", dab:"5D", url:"https://mp3channels.webradio.antenne.de/rockantenne"},
+    // ---- USA ----
+    {freq:100.6, name:"KBRW", real:"680 AM", cc:"US", url:"https://tektite.streamguys1.com:5345/live"},
+    {freq:100.7, name:"KOTZ", real:"720 AM", cc:"US", url:"https://17643.live.streamtheworld.com/KOTZAM.mp3"},
+    {freq:100.8, name:"WION", real:"1430 AM", cc:"US", url:"http://das-edge11-live365-dal03.cdnstream.com/a83993"},
+    {freq:100.9, name:"KFAI", real:"90.3 FM", cc:"US", url:"https://kfai.broadcasttool.stream/kfai-1"},
+    {freq:101.0, name:"WFMU", real:"91.1 FM", cc:"US", url:"http://stream0.wfmu.org/freeform-high.aac"},
+    {freq:101.1, name:"Pop 91.3", real:"91.3 FM", cc:"US", url:"http://streaming.live365.com/a25253"},
+    {freq:101.2, name:"WLNG", real:"92.1 FM", cc:"US", url:"http://cast6.asurahosting.com/proxy/barkoutl/stream"},
+    // ---- Internet only ----
+    {freq:101.3, name:"Aircheck Radio", real:"Internet only", cc:"US", url:"http://sonic.radiostream.ca/8034/stream"},
+    {freq:101.4, name:"Alt Boss Gold", real:"Internet only", cc:"US", url:"http://ais-sa3.cdnstream1.com/2713_128.mp3"},
+    {freq:101.5, name:"Casey Kasem Classic AT40", real:"Internet only", cc:"US", url:"https://n14b-e2.revma.ihrhls.com/zc6545/20_tzs6wquc8rgp02/playlist.m3u8", hls:true},
+    {freq:101.6, name:"Powerzone", real:"Internet only", cc:"AU", url:"https://listen2.streamaudio.co:8090/stream1.mp3"},
+    {freq:101.7, name:"Radio Free Phoenix", real:"Internet only", cc:"US", url:"https://s6.reliastream.com/proxy/radiofre?mp=/stream"},
+    {freq:101.8, name:"Retro Hit Radio", real:"Internet only", cc:"NZ", url:"https://riphel02.radioca.st/stream"},
+    {freq:101.9, name:"Retro Stream (weekends only)", real:"Internet only", cc:"AU", url:"http://retrostream.duckdns.org:8000/retro_stream_aac"},
+    {freq:102.1, name:"The Fresh Mix", real:"Internet only", cc:"AU", url:"https://streaming.starterfm.com/listen/freshmix/mix192"},
+  ];
+
+  // Stations the listener added on the Edit screen (pencil icon). Stored on
+  // the phone only: in the app by AndroidBridge, on the website in
+  // localStorage. The phone player merges the same list (UserStations.java).
+  const userData = (function(){
+    let d = {};
+    try {
+      let raw = '';
+      if (window.AndroidBridge && window.AndroidBridge.getUserStations) raw = window.AndroidBridge.getUserStations();
+      else raw = localStorage.getItem('user_stations_v1') || '';
+      if (raw) d = JSON.parse(raw) || {};
+    } catch (e) { d = {}; }
+    if (!Array.isArray(d.added)) d.added = [];
+    if (!Array.isArray(d.hidden)) d.hidden = [];
+    if (!d.edited || typeof d.edited !== 'object' || Array.isArray(d.edited)) d.edited = {};
+    d.added = d.added.filter(u => u && typeof u.name === 'string' && /^https?:\/\//i.test(u.url || '') && isFinite(u.freq));
+    return d;
+  })();
+  // Built-in stations: remember each one's dial key, then apply removals and edits.
+  stations.forEach(s => { s._key = s.freq.toFixed(2); });
+  if (userData.hidden.length || Object.keys(userData.edited).length) {
+    const hid = new Set(userData.hidden);
+    for (let i = stations.length - 1; i >= 0; i--) {
+      const s = stations[i];
+      if (hid.has(s._key)) { stations.splice(i, 1); continue; }
+      const e = userData.edited[s._key];
+      if (!e) continue;
+      if (e.url && e.url !== s.url) { s.url = e.url; delete s.hls; if (/\.m3u8(\?|$)/i.test(e.url)) s.hls = true; }
+      if (e.name) s.name = e.name;
+      if (e.real) s.real = e.real;
+      if (typeof e.freq === 'number' && isFinite(e.freq)) s.freq = e.freq;
+      if ('cc' in e) s.cc = e.cc;
+      if (e.real && !/^DAB/i.test(e.real)) delete s.dab; else if (e.dab) s.dab = e.dab;
+    }
+  }
+  userData.added.forEach(u => stations.push(Object.assign({ user: true }, u)));
+  stations.sort((a, b) => a.freq - b.freq);
+
+  // The blocks of the dial, in order: each starts at its first station's
+  // frequency. Must match the "// ---- Group ----" headings above, and the
+  // same list in StationLibrary.java (GROUPS) used by Android Auto.
+  const STATION_GROUPS = [
+    {name:"Sport", start:87.5},
+    {name:"Talk", start:88.4},
+    {name:"NSW (and ACT)", start:90.0},
+    {name:"Victoria", start:93.4},
+    {name:"Queensland", start:95.0},
+    {name:"South Australia", start:96.4},
+    {name:"Western Australia", start:97.4},
+    {name:"Tasmania", start:98.2},
+    {name:"Northern Territory", start:99.0},
+    {name:"Australia (national)", start:99.1},
+    {name:"New Zealand", start:99.2},
+    {name:"Pacific", start:99.7},
+    {name:"Singapore", start:99.9},
+    {name:"South Africa", start:100.0},
+    {name:"UK", start:100.2},
+    {name:"France", start:100.4},
+    {name:"Germany", start:100.5},
+    {name:"USA", start:100.6},
+    {name:"Internet only", start:101.3}
+  ];
+  STATION_GROUPS.forEach(g => {
+    if (!stations.some(s => Math.abs(s.freq - g.start) < 0.001)) console.warn('[radio] group start not on a station:', g);
+  });
+
+  const MIN = stations[0].freq;
+  const MAX = stations[stations.length-1].freq;
+  const totalRange = MAX - MIN;
+
+  const ruler = document.getElementById('ruler');
+  const needle = document.getElementById('needle');
+  const freqReadout = document.getElementById('freqReadout');
+  const freqUnit = document.getElementById('freqUnit');
+  const stationName = document.getElementById('stationName');
+  const playBtn = document.getElementById('playBtn');
+  const playIcon = document.getElementById('playIcon');
+  const statusText = document.getElementById('statusText');
+  const volumeSlider = document.getElementById('volume');
+  const eqBars = document.getElementById('eqBars');
+  const nowPlayingWrap = document.getElementById('nowPlaying');
+  const nowPlayingText = document.getElementById('nowPlayingText');
+
+  const audio = new Audio();
+  audio.volume = 0.8;
+  audio.referrerPolicy = 'no-referrer';
+  let hls = null;
+  let dashPlayer = null;
+  let currentPlayingStation = null;
+  let isPlaying = false;
+  let isLoading = false;
+  let icyAbortController = null;
+  let metadataPollTimer = null;
+  // Inside the Android app, this <audio> element is never actually used to
+  // play sound - PlaybackService's own native ExoPlayer does that, since
+  // it's the only thing that reliably participates in Android's audio
+  // focus system (see PlaybackService's class comment for the full story).
+  // The element, hls.js and dash.js below stay fully wired up and active
+  // only on the plain website, where there's no native player to hand off
+  // to.
+  const isNativeApp = !!window.AndroidBridge;
+
+  // In the app the sound comes from the native player, not this page's
+  // <audio> element, so there the slider drives the phone's media volume
+  // (and follows the volume buttons - see NativeControls.onVolumeChanged).
+  // On the plain website it still sets the <audio> element's volume.
+  let lastVolumeInputAt = 0;
+  const nativeVolume = isNativeApp && typeof window.AndroidBridge.setVolume === 'function';
+  if (nativeVolume) {
+    try { volumeSlider.value = window.AndroidBridge.getVolume(); } catch (e) {}
+  }
+  volumeSlider.addEventListener('input', () => {
+    const level = parseFloat(volumeSlider.value);
+    if (nativeVolume) {
+      lastVolumeInputAt = Date.now();
+      try { window.AndroidBridge.setVolume(level); } catch (e) {}
+    } else {
+      audio.volume = level;
+    }
+  });
+
+  // The dial was reorganised into groups (sport, talk, local by state,
+  // overseas music, internet-only). Presets are saved by frequency, so
+  // move any saved under the old layout to where those stations now sit.
+  // Further change: Guerilla Cricket added at 88.0, Radio Australia to 88.1,
+  // stations shifted up and RNZ Concert removed (layout 3). Then SEN Fanatic
+  // added at 88.1 and China Radio International removed (layout 4). Then
+  // talkSPORT and talkSPORT 2 added at 88.2/88.3, World Radio Network and
+  // Double J removed (layout 5). Then SKY News Radio moved to 88.9 to group
+  // with Australian talk/news (layout 6). Then stations reordered within
+  // sections by real frequency (AM/FM/DAB/Internet) (layout 7). Then Pop 91.3
+  // moved from Internet only into USA as 91.3 FM (layout 8).
+  (function migratePresets(){
+    const L1_TO_L2 = {"93.7":"87.5","92.9":"87.6","90.3":"87.7","89.9":"87.8","91.7":"87.9","94.3":"88.0","95.8":"88.1","89.7":"88.2","95.5":"88.3","101.5":"88.4","89.4":"88.5","92.0":"88.6","94.2":"88.7","88.2":"88.8","93.5":"88.9","94.4":"89.0","91.5":"89.1","93.1":"89.2","93.3":"89.3","101.6":"89.4","101.0":"89.5","87.5":"89.6","96.0":"89.7","96.4":"89.8","96.8":"89.9","96.6":"90.0","96.7":"90.1","93.0":"90.2","96.2":"90.3","100.9":"90.4","97.0":"90.5","96.9":"90.6","96.3":"90.7","91.9":"90.8","96.5":"90.9","96.1":"91.0","93.8":"91.1","93.9":"91.2","94.0":"91.3","94.1":"91.4","90.5":"91.5","90.4":"91.6","92.8":"91.7","88.9":"91.8","93.6":"91.9","91.8":"92.0","91.0":"92.1","91.6":"92.2","92.2":"92.3","92.4":"92.4","90.6":"92.5","92.6":"92.6","92.3":"92.7","90.1":"92.8","89.8":"92.9","89.5":"93.0","90.7":"93.1","88.7":"93.2","100.8":"93.3","97.3":"93.4","88.6":"93.5","97.9":"93.6","97.1":"93.7","97.2":"93.8","97.5":"93.9","97.6":"94.0","97.7":"94.1","97.8":"94.2","98.0":"94.3","95.9":"94.4","97.4":"94.5","90.8":"94.6","99.0":"94.7","98.2":"94.8","98.4":"94.9","98.7":"95.0","98.6":"95.1","98.1":"95.2","92.5":"95.3","98.3":"95.4","98.5":"95.5","98.8":"95.6","98.9":"95.7","101.3":"95.8","101.2":"95.9","101.4":"96.0","99.8":"96.1","99.7":"96.2","100.0":"96.3","99.9":"96.4","99.6":"96.5","99.1":"96.6","99.2":"96.7","99.3":"96.8","99.5":"96.9","99.4":"97.0","100.1":"97.1","100.6":"97.2","100.2":"97.3","100.3":"97.4","100.4":"97.5","100.7":"97.6","100.5":"97.7","101.1":"97.8","95.0":"97.9","95.3":"98.0","95.1":"98.1","95.2":"98.2","94.8":"98.3","94.6":"98.4","94.7":"98.5","94.9":"98.6","88.5":"98.7","88.4":"98.8","102.0":"98.9","91.4":"99.0","90.2":"99.1","89.3":"99.2","91.2":"99.3","88.3":"99.4","88.8":"99.5","89.2":"99.6","89.0":"99.7","101.7":"99.8","93.2":"99.9","93.4":"100.0","89.1":"100.1","88.0":"100.2","90.9":"100.3","87.9":"100.4","91.1":"100.5","94.5":"100.6","92.1":"100.7","92.7":"100.8","95.7":"100.9","95.6":"101.0","91.3":"101.1","102.1":"101.2","88.1":"101.3","87.8":"101.4","87.7":"101.5","87.6":"101.6","89.6":"101.7","90.0":"101.8","95.4":"101.9","101.8":"102.0","101.9":"102.1"};
+    const L3_TO_L4 = {"88.1":"88.2","88.2":"88.3","88.3":"88.4","88.4":"88.5","88.5":"88.6","88.6":"88.7","88.7":"88.8","88.8":"88.9","88.9":"89.0","89.0":"89.1","89.1":"89.2","89.2":"89.3","89.3":"89.4","89.4":"89.5","89.5":"89.6"};
+    const L4_TO_L5 = {"88.2":"88.4","88.3":"88.5","88.4":"88.6","88.5":"88.7","88.6":"88.8","88.7":"88.9","88.8":"89.0","88.9":"89.1","89.0":"89.2","89.1":"89.3","89.2":"89.4","89.3":"89.5","89.4":"89.6","89.5":"89.7","89.6":"89.8","89.7":"89.9","89.8":"90.0","89.9":"90.1","90.0":"90.2","90.1":"90.3","90.2":"90.4","90.3":"90.5","90.4":"90.6","90.5":"90.7","90.6":"90.8","90.7":"90.9","90.8":"91.0","90.9":"91.1","91.0":"91.2","91.1":"91.3","91.2":"91.4","91.3":"91.5","91.4":"91.6","91.5":"91.7","91.6":"91.8","91.7":"91.9","91.8":"92.0","91.9":"92.1","92.0":"92.2","92.1":"92.3","92.2":"92.4","92.3":"92.5","92.4":"92.6","92.5":"92.7","92.6":"92.8","92.7":"92.9","92.8":"93.0","92.9":"93.1","93.0":"93.2","93.1":"93.3","93.2":"93.4","93.3":"93.5","93.4":"93.6","93.5":"93.7","93.6":"93.8","93.7":"93.9","93.8":"94.0","93.9":"94.1","94.0":"94.2","94.1":"94.3","94.2":"94.4","94.3":"94.5","94.4":"94.6","94.5":"94.7","94.6":"94.8","94.7":"94.9","94.8":"95.0","94.9":"95.1","95.0":"95.2","95.1":"95.3","95.2":"95.4","95.3":"95.5","95.4":"95.6","95.5":"95.7","95.6":"95.8","95.7":"95.9","95.8":"96.0","95.9":"96.1","96.0":"96.2","96.1":"96.3","96.2":"96.4","96.3":"96.5","96.4":"96.6","96.5":"96.7","96.6":"96.8","96.7":"96.9","96.8":"97.0","96.9":"97.1","97.0":"97.2","97.1":"97.3","97.2":"97.4","97.3":"97.5","97.4":"97.6","97.5":"97.7","97.6":"97.8","97.7":"97.9","97.8":"98.0","97.9":"98.1","98.0":"98.2","98.1":"98.3","98.2":"98.4","98.3":"98.5","98.4":"98.6","98.5":"98.7","98.6":"98.8","98.7":"98.9","98.8":"99.0","98.9":"99.1","99.1":"99.2","99.2":"99.3","99.3":"99.4","99.4":"99.5","99.5":"99.6","99.6":"99.7","99.7":"99.8","99.8":"99.9","99.9":"100.0","100.0":"100.1","100.1":"100.2","100.2":"100.3","100.3":"100.4","100.4":"100.5","100.5":"100.6","100.6":"100.7","100.7":"100.8","100.8":"100.9","100.9":"101.0","101.0":"101.1","101.1":"101.2","101.2":"101.3","101.3":"101.4","101.4":"101.5","101.5":"101.6","101.6":"101.7","101.7":"101.8","101.8":"101.9"};
+    const L2_TO_L3 = {"88.4":"88.1","88.0":"88.2","88.1":"88.3","88.2":"88.4","88.3":"88.5","88.5":"88.6","88.6":"88.7","88.7":"88.8","88.8":"88.9","88.9":"89.0","89.0":"89.1","89.1":"89.2","89.2":"89.3","89.3":"89.4","89.4":"89.5","89.5":"89.6","89.6":"89.7","89.7":"89.8","89.8":"89.9","89.9":"90.0","90.0":"90.1","90.1":"90.2","90.2":"90.3","90.3":"90.4","90.4":"90.5","90.5":"90.6","90.6":"90.7","90.7":"90.8","90.8":"90.9","90.9":"91.0","91.0":"91.1","91.1":"91.2","91.2":"91.3","91.3":"91.4","91.4":"91.5","91.5":"91.6","91.6":"91.7","91.7":"91.8","91.8":"91.9","91.9":"92.0","92.0":"92.1","92.1":"92.2","92.2":"92.3","92.3":"92.4","92.4":"92.5","92.5":"92.6","92.6":"92.7","92.7":"92.8","92.8":"92.9","92.9":"93.0","93.0":"93.1","93.1":"93.2","93.2":"93.3","93.3":"93.4","93.4":"93.5","93.5":"93.6","93.6":"93.7","93.7":"93.8","93.8":"93.9","93.9":"94.0","94.0":"94.1","94.1":"94.2","94.2":"94.3","94.3":"94.4","94.4":"94.5","94.5":"94.6","94.6":"94.7","94.7":"94.8","94.8":"94.9","94.9":"95.0","95.0":"95.1","95.1":"95.2","95.2":"95.3","95.3":"95.4","95.4":"95.5","95.5":"95.6","95.6":"95.7","95.7":"95.8","95.8":"95.9","95.9":"96.0","96.0":"96.1","96.1":"96.2","96.2":"96.3","96.3":"96.4","96.4":"96.5","96.5":"96.6","96.6":"96.7","96.7":"96.8","96.8":"96.9","96.9":"97.0","97.0":"97.1","97.1":"97.2","97.2":"97.3","97.3":"97.4","97.4":"97.5","97.5":"97.6","97.6":"97.7","97.7":"97.8","97.8":"97.9","97.9":"98.0","98.0":"98.1","98.1":"98.2","98.2":"98.3","98.3":"98.4","98.4":"98.5","98.5":"98.6","98.6":"98.7","98.7":"98.8","98.8":"98.9","98.9":"99.0"};
+    const L5_TO_L6 = {"89.7":"88.9","88.9":"89.0","89.0":"89.1","89.1":"89.2","89.2":"89.3","89.3":"89.4","89.4":"89.5","89.5":"89.6","89.6":"89.7"};
+    const L7_TO_L8 = {'101.1':'101.2','101.5':'101.1','101.2':'101.3','101.3':'101.4','101.4':'101.5'};
+    const L6_TO_L7 = {'87.5':'87.6','87.6':'87.8','87.7':'88.1','87.8':'87.7','88.0':'88.2','88.1':'88.3','88.2':'87.5','88.3':'88.0','88.4':'89.7','88.5':'88.8','88.6':'88.9','88.7':'88.4','88.8':'88.6','88.9':'89.9','89.0':'89.2','89.1':'89.6','89.2':'89.5','89.3':'89.8','89.5':'89.0','89.6':'88.5','89.7':'89.3','89.8':'89.1','89.9':'88.7','90.0':'91.4','90.1':'90.2','90.2':'91.7','90.3':'90.1','90.4':'91.5','90.5':'91.6','90.6':'90.7','90.7':'92.0','90.8':'90.5','90.9':'91.8','91.0':'91.2','91.1':'92.4','91.2':'92.8','91.3':'90.4','91.4':'92.2','91.5':'93.1','91.6':'92.7','91.7':'92.1','91.8':'90.0','91.9':'90.8','92.0':'93.3','92.1':'90.3','92.2':'91.0','92.3':'90.9','92.4':'91.9','92.5':'92.9','92.6':'91.1','92.7':'91.3','92.8':'93.0','92.9':'92.3','93.0':'92.5','93.1':'93.2','93.2':'92.6','93.3':'90.6','93.4':'94.8','93.5':'94.9','93.6':'93.9','93.7':'93.5','93.8':'93.6','93.9':'94.1','94.0':'94.2','94.1':'94.6','94.2':'94.5','94.3':'93.7','94.4':'94.3','94.5':'94.4','94.6':'93.8','94.7':'94.0','94.8':'93.4','94.9':'94.7','95.0':'96.2','95.1':'95.9','95.2':'95.7','95.3':'95.2','95.4':'96.1','95.5':'95.3','95.6':'95.4','95.7':'95.6','95.8':'95.5','95.9':'96.0','96.0':'96.3','96.1':'95.8','96.2':'95.0','96.3':'95.1','96.4':'97.1','96.5':'96.4','96.6':'96.7','96.7':'97.3','96.8':'97.0','96.9':'96.5','97.0':'96.8','97.1':'96.6','97.3':'96.9','97.4':'97.8','97.5':'98.1','97.6':'97.4','97.7':'97.6','97.8':'97.5','97.9':'98.0','98.0':'97.7','98.1':'97.9','98.2':'98.4','98.4':'98.6','98.5':'98.7','98.6':'98.8','98.7':'98.5','98.8':'98.9','98.9':'98.2','99.2':'99.5','99.3':'99.4','99.4':'99.6','99.5':'99.2','99.6':'99.3','99.7':'99.8','99.8':'99.7','100.0':'100.1','100.1':'100.0','100.2':'100.3','100.3':'100.2','100.6':'101.0','100.7':'100.9','100.8':'101.1','100.9':'100.8','101.0':'100.6','101.1':'100.7','101.2':'101.5','101.3':'101.4','101.4':'101.8','101.5':'101.3','101.7':'101.2','101.8':'102.0','101.9':'101.7','102.0':'102.1','102.1':'101.9'};
+    try {
+      const layout = localStorage.getItem('radio_layout') || '1';
+      if (layout === '8') return;
+      const raw = localStorage.getItem('radio_presets');
+      let saved = raw ? JSON.parse(raw) : null;
+      const move = (map) => {
+        if (Array.isArray(saved)) saved = saved.map(f => {
+          const moved = map[Number(f).toFixed(1)];
+          return moved !== undefined ? Number(moved) : f;
+        });
+      };
+      // Each step runs only for presets saved under an older layout, so a
+      // preset is moved exactly once per reshuffle.
+      const from = Number(layout) || 1;
+      if (from < 2) move(L1_TO_L2);
+      if (from < 3) move(L2_TO_L3);
+      if (from < 4) move(L3_TO_L4);
+      if (from < 5) move(L4_TO_L5);
+      if (from < 6) move(L5_TO_L6);
+      if (from < 7) move(L6_TO_L7);
+      if (from < 8) move(L7_TO_L8);
+      if (Array.isArray(saved)) localStorage.setItem('radio_presets', JSON.stringify(saved));
+      localStorage.setItem('radio_layout', '8');
+    } catch (e) {}
+  })();
+
+  function updatePresetButtons() {
+    let saved;
+    try { saved = JSON.parse(localStorage.getItem('radio_presets') || '[100.2, 102.1, 101.5]'); }
+    catch (e) { saved = [100.2, 102.1, 101.5]; }
+    document.querySelectorAll('.preset-btn').forEach((btn, idx) => {
+      const freq = saved[idx];
+      const station = nearestStation(freq);
+      btn.dataset.freq = freq;
+      if (station) {
+        btn.title = `Preset ${idx + 1}: ${freq.toFixed(2)} MHz — ${station.name} (Hold to save)`;
+      }
+    });
+  }
+
+  let holdTimeout = null;
+  document.querySelectorAll('.preset-btn').forEach((btn) => {
+    const idx = parseInt(btn.dataset.index, 10);
+    const originalText = btn.textContent;
+
+    btn.addEventListener('pointerdown', () => {
+      holdTimeout = setTimeout(() => {
+        if (tunedStation) {
+          let saved;
+          try { saved = JSON.parse(localStorage.getItem('radio_presets') || '[100.2, 102.1, 101.5]'); }
+          catch (e) { saved = [100.2, 102.1, 101.5]; }
+          saved[idx] = tunedStation.freq;
+          try { localStorage.setItem('radio_presets', JSON.stringify(saved)); } catch (e) {}
+          updatePresetButtons();
+
+          btn.textContent = '✓';
+          btn.style.transform = 'scale(1.15)';
+          statusText.className = 'status-text ok';
+          statusText.textContent = `Preset ${idx + 1} saved: ${tunedStation.name} (${tunedStation.freq.toFixed(2)} MHz)`;
+
+          setTimeout(() => {
+            btn.textContent = originalText;
+            btn.style.transform = 'scale(1)';
+          }, 800);
+        }
+      }, 600);
+    });
+
+    btn.addEventListener('pointerup', () => clearTimeout(holdTimeout));
+    btn.addEventListener('pointercancel', () => clearTimeout(holdTimeout));
+    btn.addEventListener('pointerleave', () => clearTimeout(holdTimeout));
+
+    btn.addEventListener('click', () => {
+      clearTimeout(holdTimeout);
+      const freq = parseFloat(btn.dataset.freq);
+      render(freq);
+    });
+  });
+
+  updatePresetButtons();
+
+  const identifyBtn = document.getElementById('identifyBtn');
+  identifyBtn.addEventListener('click', () => {
+    if (window.AndroidBridge && window.AndroidBridge.identifySong) {
+      try { window.AndroidBridge.identifySong(); } catch (e) {}
+    } else {
+      window.open('https://www.shazam.com', '_blank');
+    }
+  });
+
+  const DEFAULT_ART = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23f3d98a"><path d="M12 3v10.55c-.59-.34-1.28-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
+  const albumArtImg = document.getElementById('albumArt');
+
+  async function fetchAlbumArt(artist, title) {
+    if (!albumArtImg) return;
+    if (!artist && !title) {
+      albumArtImg.src = DEFAULT_ART;
+      albumArtImg.style.display = 'block';
+      return;
+    }
+    try {
+      const query = encodeURIComponent((artist ? artist + ' ' : '') + (title || ''));
+      const resp = await fetch(`https://itunes.apple.com/search?term=${query}&entity=song&limit=1`);
+      const data = await resp.json();
+      if (data && data.results && data.results.length > 0) {
+        let artUrl = data.results[0].artworkUrl100;
+        if (artUrl) {
+          artUrl = artUrl.replace('100x100bb', '300x300bb');
+          albumArtImg.src = artUrl;
+          albumArtImg.style.display = 'block';
+          return;
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+    albumArtImg.src = DEFAULT_ART;
+    albumArtImg.style.display = 'block';
+  }
+
+  function clearNowPlaying(){
+    nowPlayingWrap.style.display = 'none';
+    nowPlayingText.textContent = '';
+    if (albumArtImg) albumArtImg.style.display = 'none';
+  }
+  function setNowPlaying(text){
+    if (!text) { clearNowPlaying(); return; }
+    nowPlayingText.textContent = text;
+    nowPlayingWrap.style.display = 'flex';
+  }
+
+  // --- "now playing" via embedded ID3 tags on HLS streams (hls.js parses these
+  // into a standard TextTrack automatically; TIT2 = title, TPE1 = artist) ---
+  if (audio.textTracks) {
+    audio.textTracks.addEventListener('addtrack', (e) => {
+      const track = e.track;
+      if (!track || track.kind !== 'metadata') return;
+      track.mode = 'hidden';
+      track.addEventListener('cuechange', () => {
+        const cues = track.activeCues;
+        if (!cues || !cues.length) return;
+        let artist = '', title = '';
+        for (const cue of cues) {
+          const val = cue.value;
+          if (!val) continue;
+          if (val.key === 'TIT2') title = val.data;
+          else if (val.key === 'TPE1') artist = val.data;
+        }
+        if (title) {
+          const displayText = artist ? artist + ' — ' + title : title;
+          setNowPlaying(displayText);
+          notifyNativeTrack(artist, title);
+        }
+      });
+    });
+  }
+
+  // --- "now playing" via legacy ICY metadata, for plain Icecast/Shoutcast
+  // streams. Falls back to a CORS proxy if direct fetch is blocked by CORS.
+  async function tryIcyMetadata(station, signal){
+    try {
+      let resp;
+      try {
+        resp = await fetch(station.url, { headers: { 'Icy-MetaData': '1' }, signal });
+      } catch (err) {
+        const proxy = 'https://corsproxy.io/?url=' + encodeURIComponent(station.url);
+        resp = await fetch(proxy, { headers: { 'Icy-MetaData': '1' }, signal });
+      }
+      const metaint = parseInt(resp.headers.get('icy-metaint'), 10);
+      if (!metaint || !resp.body) return 'nometa';
+
+      const reader = resp.body.getReader();
+      let bytesUntilMeta = metaint;
+      let readingLenByte = false;
+      let metaLenRemaining = 0;
+      let metaBuffer = [];
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done || signal.aborted) break;
+        let i = 0;
+        while (i < value.length) {
+          if (!readingLenByte && metaLenRemaining === 0 && bytesUntilMeta > 0) {
+            const chunk = Math.min(bytesUntilMeta, value.length - i);
+            i += chunk;
+            bytesUntilMeta -= chunk;
+            if (bytesUntilMeta === 0) readingLenByte = true;
+          } else if (readingLenByte) {
+            metaLenRemaining = value[i] * 16;
+            i += 1;
+            readingLenByte = false;
+            metaBuffer = [];
+            if (metaLenRemaining === 0) bytesUntilMeta = metaint;
+          } else {
+            const chunk = Math.min(metaLenRemaining, value.length - i);
+            for (let k = 0; k < chunk; k++) metaBuffer.push(value[i + k]);
+            i += chunk;
+            metaLenRemaining -= chunk;
+            if (metaLenRemaining === 0) {
+              const text = new TextDecoder('utf-8').decode(new Uint8Array(metaBuffer));
+              const match = /StreamTitle='([^']*)'/.exec(text);
+              if (match && match[1]) {
+                const streamTitle = match[1].replace(' - ', ' — ');
+                setNowPlaying(streamTitle);
+                const parts = streamTitle.split(' — ');
+                const artist = parts.length > 1 ? parts[0] : '';
+                const title = parts.length > 1 ? parts.slice(1).join(' — ') : streamTitle;
+                notifyNativeTrack(artist, title);
+              }
+              bytesUntilMeta = metaint;
+            }
+          }
+        }
+      }
+      return 'ended';
+    } catch (e) {
+      // Blocked by CORS, unsupported by this server, or stream changed — fail silently.
+      return signal.aborted ? 'aborted' : 'ended';
+    }
+  }
+
+  // The ICY connection is a second connection to the stream, and servers (or the
+  // CORS proxy) drop it after a while - after that the song title never changed
+  // until the station was restarted. So reconnect (up to 12 times, 5 s apart)
+  // while the station is still playing.
+  async function keepIcyAlive(station, signal){
+    for (let attempt = 0; attempt < 12; attempt++){
+      const r = await tryIcyMetadata(station, signal);
+      if (r === 'nometa' || r === 'aborted' || signal.aborted) return;
+      await new Promise(res => setTimeout(res, 5000));
+      if (signal.aborted || !isPlaying) return;
+    }
+  }
+
+  // AzuraCast stations (URL like https://host/listen/<station>/<mount>) publish what
+  // is playing at https://host/api/nowplaying/<station>, with CORS open - far more
+  // reliable than the ICY connection or an Icecast status page.
+  async function pollAzuraCast(station, signal){
+    const m = /^(https?:\/\/[^/]+)\/listen\/([^/]+)\//.exec(station.url);
+    if (!m) return false;
+    try {
+      const resp = await fetch(m[1] + '/api/nowplaying/' + encodeURIComponent(m[2]), { signal, cache: 'no-store' });
+      if (!resp.ok) return false;
+      const data = await resp.json();
+      const song = data && data.now_playing && data.now_playing.song;
+      if (!song) return false;
+      const artist = (song.artist || '').trim();
+      const title = (song.title || '').trim();
+      const text = song.text || (artist && title ? artist + ' — ' + title : (title || artist));
+      if (!text) return false;
+      setNowPlaying(text.replace(' - ', ' — '));
+      notifyNativeTrack(artist, title || text);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  async function pollStationMetadata(station, signal) {
+    if (await pollAzuraCast(station, signal)) return true;
+    try {
+      const urlObj = new URL(station.url);
+      const candidates = [
+        `${urlObj.protocol}//${urlObj.host}/status-json.xsl`,
+        `${urlObj.protocol}//${urlObj.host}/stats?json=1`
+      ];
+      for (const endpoint of candidates) {
+        if (signal.aborted) return false;
+        try {
+          const resp = await fetch('https://corsproxy.io/?url=' + encodeURIComponent(endpoint), { signal });
+          if (!resp.ok) continue;
+          const data = await resp.json();
+          if (data && data.icestats) {
+            const source = Array.isArray(data.icestats.source) ? data.icestats.source[0] : data.icestats.source;
+            if (source && (source.title || source.server_name)) {
+              const streamTitle = source.title || source.server_name;
+              if (streamTitle) {
+                const parts = streamTitle.includes(' — ') ? streamTitle.split(' — ') : streamTitle.split(' - ');
+                const artist = parts.length > 1 ? parts[0].trim() : '';
+                const title = parts.length > 1 ? parts.slice(1).join(' — ').trim() : streamTitle.trim();
+                setNowPlaying(streamTitle);
+                notifyNativeTrack(artist, title);
+                return true;
+              }
+            }
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+    return false;
+  }
+
+  function pct(freq){ return ((freq - MIN) / totalRange) * 100; }
+
+  // build ticks (major = whole MHz), station dots
+  for (let f = Math.ceil(MIN); f <= Math.floor(MAX); f++){
+    const tick = document.createElement('div');
+    tick.className = 'tick major';
+    tick.style.left = pct(f) + '%';
+    ruler.appendChild(tick);
+    const label = document.createElement('div');
+    label.className = 'tick-label';
+    label.style.left = pct(f) + '%';
+    label.textContent = f;
+    ruler.appendChild(label);
+  }
+  stations.forEach(s => {
+    const dot = document.createElement('div');
+    dot.className = 'station-mark';
+    dot.dataset.freq = s.freq;
+    dot.style.left = pct(s.freq) + '%';
+    dot.title = s.name + ' — ' + s.freq.toFixed(2) + ' MHz';
+    dot.addEventListener('click', (e) => { e.stopPropagation(); if (allowed(s)) render(s.freq); });
+    ruler.appendChild(dot);
+  });
+
+  let currentFreq = MIN;
+  let tunedStation = null;
+
+  function nearestStation(freq){
+    let best = stations[0], bestDist = Infinity;
+    for (const s of stations){
+      const d = Math.abs(s.freq - freq);
+      if (d < bestDist){ bestDist = d; best = s; }
+    }
+    return best;
+  }
+
+  function stopAudio(){
+    eqBars.classList.remove('playing');
+    isPlaying = false;
+    isLoading = false;
+    playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+    updateMediaSessionState();
+    notifyNativeTrack('', '');
+    if (icyAbortController) { icyAbortController.abort(); icyAbortController = null; }
+    if (metadataPollTimer) { clearInterval(metadataPollTimer); metadataPollTimer = null; }
+    identifyBtn.style.display = 'none';
+    fetchAlbumArt('', '');
+    clearNowPlaying();
+
+    if (isNativeApp) {
+      // PlaybackService's own ExoPlayer is the one actually playing - tell
+      // it to pause. Its own Player.Listener will confirm back via
+      // onNativePaused once it actually has, but we update the UI
+      // optimistically here too so a tap feels instant.
+      try { window.AndroidBridge.pauseStation(); } catch (e) {}
+      return;
+    }
+
+    audio.pause();
+    audio.removeAttribute('src');
+    audio.load();
+    if (hls){ hls.destroy(); hls = null; }
+    if (dashPlayer){ dashPlayer.reset(); dashPlayer = null; }
+  }
+
+  // --- bridge to the native Android wrapper (no-op in a plain browser) ---
+  // Metadata only - actual play/pause state is now driven the other way
+  // around (native tells JS via window.NativeControls.onNativePlaying /
+  // onNativePaused / onNativeError, see below), since PlaybackService's own
+  // ExoPlayer is what's actually playing inside the app.
+  function notifyNativeTrack(artist, title){
+    fetchAlbumArt(artist, title);
+    if (window.AndroidBridge && window.AndroidBridge.onTrackChanged) {
+      try { window.AndroidBridge.onTrackChanged(artist || '', title || ''); } catch (e) { /* ignore */ }
+    }
+  }
+
+  // --- Media Session: lock-screen / notification / Bluetooth media controls ---
+  // Inside the Android app, PlaybackService's own native MediaSession (now
+  // backed by its own ExoPlayer, not this page's <audio> element) already
+  // owns the lock screen. The Web Media Session API below stays wired up
+  // only on the plain website, where there's no native side at all.
+  function updateMediaSessionMetadata(station){
+    if (isNativeApp || !('mediaSession' in navigator)) return;
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: station ? station.name : "Radio Wavehopper",
+      artist: station ? station.freq.toFixed(2) + ' MHz' : '',
+      album: "Radio Wavehopper"
+    });
+  }
+  function updateMediaSessionState(){
+    if (isNativeApp || !('mediaSession' in navigator)) return;
+    navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+  }
+  if (!isNativeApp && 'mediaSession' in navigator) {
+    navigator.mediaSession.setActionHandler('play', () => { if (tunedStation) playStation(tunedStation); });
+    navigator.mediaSession.setActionHandler('pause', () => stopAudio());
+    navigator.mediaSession.setActionHandler('previoustrack', () => goToStationStep(-1));
+    navigator.mediaSession.setActionHandler('nexttrack', () => goToStationStep(1));
+  }
+
+  // Tap the frequency to swap between the app's dial frequency and the
+  // station's real-world one (its main AM/FM frequency, or "DAB only" /
+  // "Internet only" when it has none). Stays in that mode while tuning, so
+  // you can scroll the dial seeing real frequencies; tap again to go back.
+  let showRealFreq = false;
+  try { showRealFreq = localStorage.getItem('show_real_freq') === '1'; } catch (e) {}
+  let readoutStation = null;
+  let pendingRollDir = 0;
+
+  function showStationFrequency(station){
+    const prevStation = readoutStation;
+    const prevText = freqReadout.dataset.shown || '';
+    const prevWasText = freqReadout.classList.contains('real-text');
+    // Direction of travel for the odometer roll (real-frequency mode only):
+    // +1 rolls the digits up, -1 down. Set by the arrows; worked out from
+    // the real-frequency order when the dial is dragged.
+    let rollDir = 0;
+    if (showRealFreq && prevStation && prevStation !== station) {
+      rollDir = pendingRollDir || Math.sign(realIndex(station) - realIndex(prevStation));
+    }
+    pendingRollDir = 0;
+    readoutStation = station;
+    const real = station.real || 'Internet only';
+    const onAir = /^([\d.]+) (FM|AM)$/.exec(real);
+    if (!showRealFreq) {
+      freqReadout.textContent = station.freq.toFixed(2);
+      freqReadout.classList.remove('real-text');
+      freqUnit.textContent = 'MHz';
+      freqReadout.setAttribute('aria-label', `${station.freq.toFixed(2)} megahertz. Tap for the real on-air frequency`);
+    } else if (onAir) {
+      freqReadout.textContent = onAir[1];
+      freqReadout.classList.remove('real-text');
+      freqUnit.textContent = onAir[2] === 'FM' ? 'REAL · MHz FM' : 'REAL · kHz AM';
+      freqReadout.setAttribute('aria-label', `On air on ${real}. Tap for the dial frequency`);
+    } else if (real === 'DAB only' && station.dab) {
+      freqReadout.textContent = station.dab;
+      freqReadout.classList.remove('real-text');
+      freqUnit.textContent = 'REAL · DAB+ BLOCK';
+      freqReadout.setAttribute('aria-label', `On DAB+ block ${station.dab}. Tap for the dial frequency`);
+    } else {
+      freqReadout.textContent = real;
+      freqReadout.classList.add('real-text');
+      freqUnit.textContent = 'REAL · NO AM/FM';
+      freqReadout.setAttribute('aria-label', `${real}. Tap for the dial frequency`);
+    }
+    // State (NSW, ACT, VIC ...) or country (NZ, UK, US ...) after the frequency.
+    if (station.cc) freqUnit.textContent += ' · ' + station.cc;
+    const shown = freqReadout.textContent;
+    freqReadout.dataset.shown = shown;
+    if (rollDir && !prevWasText && prevText && !freqReadout.classList.contains('real-text') && prevText !== shown) {
+      rollReadout(prevText, shown, rollDir);
+    }
+    if (rollDir && realBandFor(station).band === 'net') {
+      stationName.classList.remove('slide-up', 'slide-down'); void stationName.offsetWidth;
+      stationName.classList.add(rollDir > 0 ? 'slide-up' : 'slide-down');
+    }
+    updateDial(station);
+  }
+
+  // Rolls each changed character like a mechanical counter: going up, the
+  // new digit comes up from below; going down, it drops in from above.
+  // Shorter text is padded on the left so the digits line up (999 -> 1008).
+  let rollToken = 0;
+  function rollReadout(fromText, toText, dir){
+    const len = Math.max(fromText.length, toText.length);
+    const a = fromText.padStart(len, ' '), b = toText.padStart(len, ' ');
+    const token = ++rollToken;
+    const odo = document.createElement('span');
+    odo.className = 'odo';
+    odo.setAttribute('aria-hidden', 'true');
+    const cell = ch => ch === ' ' ? '\u00a0' : ch;
+    for (let i = 0; i < len; i++) {
+      const c = document.createElement('span');
+      c.className = 'odo-c';
+      if (a[i] === b[i]) {
+        c.textContent = cell(b[i]);
+      } else {
+        const stack = document.createElement('span');
+        stack.className = 'odo-stack ' + (dir > 0 ? 'up' : 'down');
+        const first = document.createElement('span'), second = document.createElement('span');
+        first.textContent = cell(dir > 0 ? a[i] : b[i]);
+        second.textContent = cell(dir > 0 ? b[i] : a[i]);
+        stack.append(first, second);
+        stack.style.animationDelay = ((len - 1 - i) * 18) + 'ms';
+        c.appendChild(stack);
+      }
+      odo.appendChild(c);
+    }
+    freqReadout.textContent = '';
+    freqReadout.appendChild(odo);
+    setTimeout(() => {
+      if (token === rollToken && freqReadout.firstChild === odo) freqReadout.textContent = toText;
+    }, 320 + len * 18);
+  }
+
+  // ---- Real-band dial ----
+  // Standard mode shows the app's FM dial. Real mode (tap the frequency)
+  // redraws the window as the station's real band, with the needle on its
+  // real frequency, flipping band as you step between AM, FM and DAB+
+  // stations. Internet-only stations show a stream panel instead.
+  const realRuler = document.getElementById('realRuler');
+  const streamDisplay = document.getElementById('streamDisplay');
+  const dialWindow = ruler.parentElement;
+
+  // DAB+ Band III blocks (MHz). Australian capitals use 9A-9C; the UK national
+  // multiplexes are on 11A-12B; Germany's national ones mostly 5C/5D.
+  const DAB_BLOCKS = {
+    '5A':174.928,'5B':176.640,'5C':178.352,'5D':180.064,
+    '6A':181.936,'6B':183.648,'6C':185.360,'6D':187.072,
+    '7A':188.928,'7B':190.640,'7C':192.352,'7D':194.064,
+    '8A':195.936,'8B':197.648,'8C':199.360,'8D':201.072,
+    '9A':202.928,'9B':204.640,'9C':206.352,'9D':208.064,
+    '10A':209.936,'10B':211.648,'10C':213.360,'10D':215.072,
+    '11A':216.928,'11B':218.640,'11C':220.352,'11D':222.064,
+    '12A':223.936,'12B':225.648,'12C':227.360,'12D':229.072,
+    '13A':230.784,'13B':232.496,'13C':234.208,'13D':235.776,'13E':237.488,'13F':239.200
+  };
+  const REAL_BANDS = {
+    fm:  { min:87.5, max:108.0, tag:'FM · MHz' },
+    am:  { min:531,  max:1701,  tag:'AM · kHz ×100' },
+    dab: { min:173.5, max:240.5, tag:'DAB+ · BAND III' }
+  };
+
+  // Which band a station's real frequency is on, and where on it.
+  function realBandFor(station){
+    const m = /^([\d.]+) (FM|AM)$/.exec(station.real || '');
+    if (m) return { band: m[2].toLowerCase(), value: parseFloat(m[1]) };
+    if (station.real === 'DAB only') {
+      return { band: 'dab', value: station.dab && DAB_BLOCKS[station.dab] ? DAB_BLOCKS[station.dab] : null };
+    }
+    return { band: 'net', value: null };
+  }
+
+  function bandPct(band, value){
+    const b = REAL_BANDS[band];
+    return Math.min(100, Math.max(0, (value - b.min) / (b.max - b.min) * 100));
+  }
+
+  // ---- Real-frequency tuning order ----
+  // With Band Lock on, the arrows and the dial follow the stations' real
+  // frequencies within one band, across all sections (Band Lock off keeps
+  // the normal section-by-section order). The bands, in order: AM (kHz), then FM (MHz), then
+  // DAB+ (by block, 5A..13F), then Internet (alphabetical). Stations on the
+  // same frequency go alphabetically.
+  const BAND_RANK = { am:0, fm:1, dab:2, net:3 };
+  const BAND_LABEL = { am:'AM', fm:'FM', dab:'DAB+', net:'INTERNET' };
+  const byName = (x, y) => x.name.localeCompare(y.name, undefined, { sensitivity:'base' });
+  let realOrderCache = null;
+  function realOrder(){
+    if (realOrderCache) return realOrderCache;
+    realOrderCache = stations.slice().sort((x, y) => {
+      const a = realBandFor(x), b = realBandFor(y);
+      if (a.band !== b.band) return BAND_RANK[a.band] - BAND_RANK[b.band];
+      const av = a.value == null ? Infinity : a.value, bv = b.value == null ? Infinity : b.value;
+      if (av !== bv) return av - bv;
+      return byName(x, y);
+    });
+    return realOrderCache;
+  }
+  function realIndex(station){ return realOrder().indexOf(station); }
+  function realBandStations(band){ return realOrder().filter(s => realBandFor(s).band === band); }
+
+  // Band Lock: tunes by real frequency inside the current station's band,
+  // stopping at either end. Starts off every launch, is greyed out outside
+  // real-frequency mode, and is switched off by the speakers. Presets still
+  // tune anything; the lock then follows that station's band.
+  let bandLock = false;
+  const bandLockBtn = document.getElementById('bandLockBtn');
+  function setBandLock(on){
+    bandLock = !!on && showRealFreq;
+    bandLockBtn.classList.toggle('on', bandLock);
+    bandLockBtn.setAttribute('aria-pressed', bandLock ? 'true' : 'false');
+    bandLockBtn.disabled = !showRealFreq;
+    updateBandUI();
+  }
+  bandLockBtn.addEventListener('click', () => {
+    if (!showRealFreq) return;
+    setBandLock(!bandLock);
+    const band = realBandFor(nearestStation(currentFreq)).band;
+    flashGroupName(bandLock ? `${BAND_LABEL[band]} BAND LOCKED` : 'BAND UNLOCKED');
+    if (navigator.vibrate) { try { navigator.vibrate(15); } catch (e) {} }
+  });
+
+  // With Band Lock on: the station one step away within the current band,
+  // in real-frequency order, or null at either end (no wrapping).
+  function realStepTarget(step){
+    const cur = nearestStation(currentFreq);
+    const list = realBandAllowed(realBandFor(cur).band, cur);
+    const j = list.indexOf(cur) + step;
+    return (j < 0 || j >= list.length) ? null : list[j];
+  }
+  // ---- Australia only (the AU button) ----
+  // Skips overseas stations with the arrows, the dial, the speakers and the
+  // band strip, in every mode. Presets still tune anything. Remembered.
+  const AU_REGIONS = new Set(['AU','NSW','ACT','VIC','QLD','SA','WA','TAS','NT']);
+  const isAustralian = s => AU_REGIONS.has(s.cc);
+  let auOnly = false;
+  try { auOnly = localStorage.getItem('au_only') === '1'; } catch (e) {}
+  const allowed = s => !auOnly || isAustralian(s);
+  // A band's stations under the AU filter, keeping `keep` (the station
+  // you're on) so stepping always knows where it is.
+  function realBandAllowed(band, keep){ return realBandStations(band).filter(s => allowed(s) || s === keep); }
+  const byFreq = stations.slice().sort((a, b) => a.freq - b.freq);
+
+  // Band Lock off: the next station along the app's dial (wrapping round),
+  // skipping overseas ones when AU only is on.
+  function seqStepTarget(step){
+    const cur = nearestStation(currentFreq);
+    const n = byFreq.length, i = byFreq.indexOf(cur);
+    for (let k = 1; k <= n; k++) {
+      const s = byFreq[(((i + step * k) % n) + n) % n];
+      if (allowed(s)) return s;
+    }
+    return cur;
+  }
+
+  const auOnlyBtn = document.getElementById('auOnlyBtn');
+  function applyAuFilterUI(){
+    auOnlyBtn.classList.toggle('on', auOnly);
+    auOnlyBtn.setAttribute('aria-pressed', auOnly ? 'true' : 'false');
+    const byName = {};
+    stations.forEach(s => { byName[s.name] = s; });
+    document.querySelectorAll('.station-mark').forEach(d => {
+      const s = nearestStation(parseFloat(d.dataset.freq));
+      d.classList.toggle('dim', !allowed(s));
+    });
+    document.querySelectorAll('.real-mark, #streamDisplay .net-marks span').forEach(d => {
+      const s = byName[d.dataset.name];
+      d.classList.toggle('dim', !!s && !allowed(s));
+    });
+  }
+  auOnlyBtn.addEventListener('click', () => {
+    auOnly = !auOnly;
+    try { localStorage.setItem('au_only', auOnly ? '1' : '0'); } catch (e) {}
+    applyAuFilterUI();
+    updateBandUI();
+    flashGroupName(auOnly ? 'AUSTRALIA ONLY' : 'ALL STATIONS');
+    buzz(15);
+  });
+
+  function buzz(ms){ if (navigator.vibrate) { try { navigator.vibrate(ms || 8); } catch (e) {} } }
+
+  // ---- Band strip + position counter (only while Band Lock is on) ----
+  // Each band remembers the last station tuned in it; a band you haven't
+  // used yet opens on its first station.
+  const bandStrip = document.getElementById('bandStrip');
+  const mainBody = document.querySelector('.main-body');
+  const streamSub = streamDisplay.querySelector('.stream-sub');
+  const streamSubHTML = streamSub.innerHTML;
+  let bandLast = {};
+  try { bandLast = JSON.parse(localStorage.getItem('band_last') || '{}') || {}; } catch (e) { bandLast = {}; }
+  function rememberBand(station){
+    const band = realBandFor(station).band;
+    if (bandLast[band] === station.name) return;
+    bandLast[band] = station.name;
+    try { localStorage.setItem('band_last', JSON.stringify(bandLast)); } catch (e) {}
+  }
+  function bandOpeningStation(band){
+    const list = realBandStations(band).filter(allowed);
+    return list.find(s => s.name === bandLast[band]) || list[0] || null;
+  }
+  function updateBandUI(){
+    const cur = nearestStation(currentFreq);
+    const band = realBandFor(cur).band;
+    bandStrip.hidden = !bandLock;
+    bandStrip.querySelectorAll('button').forEach(b => {
+      b.classList.toggle('active', b.dataset.band === band);
+      b.setAttribute('aria-pressed', b.dataset.band === band ? 'true' : 'false');
+      b.disabled = !bandOpeningStation(b.dataset.band) && b.dataset.band !== band;
+    });
+    mainBody.classList.toggle('locked', bandLock);
+    // Position counter: "FM · MHz · 12 of 61" in the dial's corner, or on
+    // the Internet panel's second line.
+    let count = '';
+    if (bandLock) {
+      const list = realBandAllowed(band, cur);
+      count = `${list.indexOf(cur) + 1} of ${list.length}`;
+    }
+    const tag = realRuler.querySelector('.band-tag');
+    if (tag && REAL_BANDS[builtBand]) tag.textContent = REAL_BANDS[builtBand].tag + (count && band === builtBand ? ' · ' + count : '');
+    if (count && band === 'net') streamSub.textContent = 'INTERNET · ' + count;
+    else if (streamSub.innerHTML !== streamSubHTML) streamSub.innerHTML = streamSubHTML;
+  }
+  bandStrip.addEventListener('click', e => {
+    const b = e.target.closest('button[data-band]');
+    if (!b || b.disabled || !bandLock) return;
+    const target = bandOpeningStation(b.dataset.band);
+    if (!target) return;
+    if (Math.abs(target.freq - currentFreq) > 0.001) render(target.freq);
+    flashGroupName(`${BAND_LABEL[b.dataset.band]} BAND LOCKED`);
+    buzz(15);
+  });
+  var auUiReady = false;
+  setBandLock(false);
+  applyAuFilterUI();
+  auUiReady = true;
+
+  function bumpBandEnd(){
+    freqReadout.classList.remove('flicker'); void freqReadout.offsetWidth; freqReadout.classList.add('flicker');
+    if (navigator.vibrate) { try { navigator.vibrate([20, 40, 20]); } catch (e) {} }
+  }
+
+  let builtBand = null;   // which band realRuler currently shows
+  let shownView = 'std';  // 'std' | 'fm' | 'am' | 'dab' | 'net'
+
+  function addTick(band, value, major, labelText){
+    const tick = document.createElement('div');
+    tick.className = major ? 'tick major' : 'tick';
+    tick.style.left = bandPct(band, value) + '%';
+    realRuler.appendChild(tick);
+    if (labelText != null) {
+      const label = document.createElement('div');
+      label.className = 'tick-label';
+      label.style.left = bandPct(band, value) + '%';
+      label.textContent = labelText;
+      realRuler.appendChild(label);
+    }
+  }
+
+  function buildBand(band){
+    realRuler.innerHTML = '<div class="ruler-line"></div>';
+    if (band === 'fm') {
+      for (let f = 88; f <= 108; f++) addTick('fm', f, f % 2 === 0, f % 2 === 0 ? f : null);
+    } else if (band === 'am') {
+      for (let k = 550; k <= 1700; k += 50) addTick('am', k, k % 100 === 0, k % 100 === 0 ? k / 100 : null);
+    } else {
+      Object.keys(DAB_BLOCKS).forEach(block => {
+        const isA = /^\d+A$/.test(block);
+        addTick('dab', DAB_BLOCKS[block], isA, isA ? block.replace('A', '') : null);
+      });
+    }
+    const tag = document.createElement('div');
+    tag.className = 'band-tag';
+    tag.textContent = REAL_BANDS[band].tag;
+    realRuler.appendChild(tag);
+    // A dot for every station on this band, at its real frequency.
+    stations.forEach(s => {
+      const r = realBandFor(s);
+      if (r.band !== band || r.value == null) return;
+      const dot = document.createElement('div');
+      dot.className = 'real-mark';
+      dot.dataset.name = s.name;
+      dot.style.left = bandPct(band, r.value) + '%';
+      realRuler.appendChild(dot);
+    });
+    const n = document.createElement('div');
+    n.className = 'needle';
+    n.id = 'realNeedle';
+    realRuler.appendChild(n);
+    builtBand = band;
+  }
+
+  // Internet stations have no frequency, so they sit evenly spaced (with a
+  // small margin at each end) along the stream panel.
+  const NET_MARGIN = 6;
+  function netPct(i, n){ return n < 2 ? 50 : NET_MARGIN + i / (n - 1) * (100 - 2 * NET_MARGIN); }
+
+  function updateDial(station){
+    const r = showRealFreq ? realBandFor(station) : { band: 'std' };
+    const view = r.band;
+    ruler.hidden = view !== 'std';
+    streamDisplay.hidden = view !== 'net';
+    realRuler.hidden = !(view === 'fm' || view === 'am' || view === 'dab');
+    if (!realRuler.hidden) {
+      if (builtBand !== view) buildBand(view);
+      const n = document.getElementById('realNeedle');
+      n.hidden = r.value == null;
+      if (r.value != null) n.style.left = bandPct(view, r.value) + '%';
+      realRuler.querySelectorAll('.real-mark').forEach(d => d.classList.toggle('active', d.dataset.name === station.name));
+    }
+    if (view === 'net') {
+      let marks = streamDisplay.querySelector('.net-marks');
+      if (!marks) {
+        marks = document.createElement('div');
+        marks.className = 'net-marks';
+        const list = realBandStations('net');
+        list.forEach((s, i) => {
+          const dot = document.createElement('span');
+          dot.dataset.name = s.name;
+          dot.style.left = netPct(i, list.length) + '%';
+          marks.appendChild(dot);
+        });
+        streamDisplay.appendChild(marks);
+      }
+      marks.querySelectorAll('span').forEach(d => d.classList.toggle('active', d.dataset.name === station.name));
+    }
+    if (view !== shownView) {
+      dialWindow.classList.remove('band-switch'); void dialWindow.offsetWidth; dialWindow.classList.add('band-switch');
+      shownView = view;
+    }
+    if (auUiReady) { applyAuFilterUI(); updateBandUI(); }
+  }
+
+  function toggleRealFrequency(){
+    showRealFreq = !showRealFreq;
+    try { localStorage.setItem('show_real_freq', showRealFreq ? '1' : '0'); } catch (e) {}
+    setBandLock(false);   // greys out (or re-enables) the button; lock starts off
+    if (readoutStation) showStationFrequency(readoutStation);
+    freqReadout.classList.remove('flicker'); void freqReadout.offsetWidth; freqReadout.classList.add('flicker');
+  }
+  freqReadout.addEventListener('click', toggleRealFrequency);
+  freqUnit.addEventListener('click', toggleRealFrequency);
+  freqReadout.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleRealFrequency(); }
+  });
+
+  // Takes the group name off the display (any tuning shows the frequency again).
+  function hideGroupName(){
+    const badge = document.getElementById('groupBadge');
+    if (badge) badge.parentElement.classList.remove('showing-group');
+  }
+
+  function render(freq, opts){
+    opts = opts || {};
+    hideGroupName();
+    freq = Math.min(MAX, Math.max(MIN, freq));
+    const station = nearestStation(freq);
+    currentFreq = station.freq;
+
+    needle.style.left = pct(station.freq) + '%';
+    needle.style.boxShadow = '0 0 10px 3px rgba(243,217,138,0.7)';
+    showStationFrequency(station);
+
+    document.querySelectorAll('.station-mark').forEach(dot => {
+      dot.classList.toggle('active', Math.abs(parseFloat(dot.dataset.freq) - station.freq) < 0.001);
+    });
+
+    let savedPresets;
+    try { savedPresets = JSON.parse(localStorage.getItem('radio_presets') || '[100.2, 102.1, 101.5]'); }
+    catch (e) { savedPresets = [100.2, 102.1, 101.5]; }
+    const presetIdx = savedPresets.findIndex(f => Math.abs(f - station.freq) < 0.01);
+    const presetBadge = document.getElementById('presetBadge');
+    if (presetBadge) {
+      if (presetIdx !== -1) {
+        presetBadge.textContent = `${presetIdx + 1}`;
+        presetBadge.style.display = 'block';
+      } else {
+        presetBadge.style.display = 'none';
+      }
+    }
+
+    stationName.classList.remove('static-text');
+    stationName.textContent = station.name;
+    playBtn.disabled = false;
+    updateMediaSessionMetadata(station);
+
+    // Silent moves (used while scanning through frequencies on a held tune
+    // button) only update the display — they don't touch playback, so
+    // holding the button doesn't hammer every frequency it passes over
+    // with a connection attempt. The scan is committed with a normal,
+    // non-silent render() call once the button is released.
+    if (opts.silent) return station;
+    rememberBand(station);
+
+    if (station !== tunedStation) {
+      tunedStation = station;
+      stopAudio();
+      if (!opts.initial) {
+        playStation(station);
+      } else {
+        statusText.className = 'status-text';
+        statusText.textContent = 'Press play to listen.';
+      }
+    }
+    return station;
+  }
+
+  function upgradeUrl(url){
+    return url.startsWith('http://') ? url.replace('http://','https://') : url;
+  }
+
+  // Public relay used only as a last-resort fallback for plain-http streams.
+  // Not designed for continuous live audio, so it may stall or drop — the
+  // "open directly" link is always the reliable option if this fails too.
+  function relayUrl(url){
+    return 'https://corsproxy.io/?url=' + encodeURIComponent(url);
+  }
+
+  function playStation(station){
+    stopAudio();
+    isLoading = true;
+    statusText.className = 'status-text';
+    statusText.textContent = 'Connecting…';
+    playIcon.innerHTML = '<path d="M6 6h12v12H6z"/>';
+    currentPlayingStation = station;
+
+    // Best-effort "now playing" via ICY metadata or server stats polling -
+    // these are their own separate fetch() calls, unrelated to whichever
+    // engine is actually decoding and playing the audio, so this runs the
+    // same way whether that's PlaybackService's native ExoPlayer (in the
+    // app) or this page's own <audio> element (on the plain website).
+    if (!station.hls && !station.dash) {
+      icyAbortController = new AbortController();
+      // Read titles from the stream itself (ICY), reconnecting if the server drops that
+      // connection, and also poll the station's now-playing API / status page as a backup.
+      keepIcyAlive(station, icyAbortController.signal);
+      metadataPollTimer = setInterval(async () => {
+        if (isPlaying && icyAbortController && !icyAbortController.signal.aborted) {
+          await pollStationMetadata(station, icyAbortController.signal);
+        } else {
+          clearInterval(metadataPollTimer);
+          metadataPollTimer = null;
+        }
+      }, 15000);
+      setTimeout(() => {
+        if (isPlaying && icyAbortController && !icyAbortController.signal.aborted) {
+          pollStationMetadata(station, icyAbortController.signal);
+        }
+      }, 3000);
+    }
+
+    if (isNativeApp) {
+      // Hand actual playback to PlaybackService's own ExoPlayer - see its
+      // class comment for the full reasoning. It resolves the frequency
+      // against the same canonical station list itself (doesn't trust a
+      // URL from here) and calls back into window.NativeControls.onNativePlaying
+      // / onNativeError once it knows the real outcome.
+      try { window.AndroidBridge.playStation(station.freq, station.name); } catch (e) {}
+      return;
+    }
+
+    // --- website-only fallback below: hls.js/dash.js + this page's own
+    //     <audio> element, with multi-URL retry, used only when there's no
+    //     native player to hand off to. ---
+
+    // MediaError.code -> readable reason, so a failure says *why* instead of
+    // just "didn't work". See https://developer.mozilla.org/.../MediaError
+    let lastFailureReason = '';
+    const MEDIA_ERROR_REASONS = {
+      1: 'aborted',
+      2: 'network error',
+      3: 'decode/format error',
+      4: 'source not supported'
+    };
+
+    // build an ordered list of URLs to attempt
+    const attempts = [];
+    if (station.url.startsWith('http://')) {
+      attempts.push({url: upgradeUrl(station.url), label: 'secure upgrade'});
+      attempts.push({url: relayUrl(station.url), label: 'relay fallback'});
+    } else {
+      attempts.push({url: station.url, label: 'direct'});
+    }
+
+    let attemptIndex = 0;
+
+    function onPlaying(){
+      isLoading = false;
+      isPlaying = true;
+      eqBars.classList.add('playing');
+      playIcon.innerHTML = '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>';
+      statusText.className = 'status-text ok';
+      statusText.textContent = 'On air — ' + station.name;
+      updateMediaSessionState();
+      identifyBtn.style.display = '';
+    }
+
+    function finalFailure(){
+      isLoading = false;
+      isPlaying = false;
+      playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+      statusText.className = 'status-text warn';
+      const reasonSuffix = lastFailureReason ? ' (' + lastFailureReason + ')' : '';
+      statusText.innerHTML = 'Couldn\'t play this in-browser' + reasonSuffix + '. ' +
+        '<a href="' + station.url + '" target="_blank" rel="noopener">Open the stream directly ↗</a>';
+      console.warn('[radio] all attempts failed for', station.name, '-', lastFailureReason);
+      updateMediaSessionState();
+    }
+
+    function tryNext(){
+      if (attemptIndex >= attempts.length){ finalFailure(); return; }
+      const attempt = attempts[attemptIndex++];
+      statusText.className = 'status-text';
+      statusText.textContent = 'Connecting (' + attempt.label + ')…';
+      console.log('[radio] attempt:', attempt.label, attempt.url);
+
+      // Guard against this single attempt's failure being reported twice
+      // (e.g. both the audio 'error' event AND the play() promise rejecting),
+      // which would otherwise skip straight past the next attempt.
+      let settled = false;
+      function advance(reason){
+        if (settled) return;
+        settled = true;
+        lastFailureReason = reason;
+        tryNext();
+      }
+
+      if (station.dash) {
+        if (window.dashjs) {
+          dashPlayer = dashjs.MediaPlayer().create();
+          dashPlayer.on(dashjs.MediaPlayer.events.ERROR, (e) => {
+            console.warn('[radio] dash.js error:', e && e.error);
+            advance('DASH error');
+          });
+          dashPlayer.initialize(audio, attempt.url, true);
+        } else {
+          advance('dash.js unavailable');
+          return;
+        }
+      } else if (station.hls) {
+        if (window.Hls && Hls.isSupported()) {
+          hls = new Hls();
+          hls.loadSource(attempt.url);
+          hls.attachMedia(audio);
+          hls.on(Hls.Events.ERROR, (evt, data) => {
+            if (!data.fatal) return;
+            // hls.js's own recommended recovery: try to resume the same
+            // instance before treating it as a full fatal failure, since
+            // many "fatal" network/media errors are actually transient.
+            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+              console.warn('[radio] hls.js network error, retrying load:', data.details);
+              hls.startLoad();
+              return;
+            }
+            if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+              console.warn('[radio] hls.js media error, attempting recovery:', data.details);
+              hls.recoverMediaError();
+              return;
+            }
+            console.warn('[radio] hls.js unrecoverable fatal error:', data.type, data.details);
+            advance('HLS: ' + (data.details || data.type));
+          });
+        } else if (audio.canPlayType('application/vnd.apple.mpegurl')) {
+          audio.src = attempt.url;
+        } else {
+          advance('HLS unsupported on this device');
+          return;
+        }
+      } else {
+        audio.src = attempt.url;
+      }
+
+      audio.addEventListener('error', () => {
+        const code = audio.error ? audio.error.code : null;
+        const reason = MEDIA_ERROR_REASONS[code] || ('media error' + (code ? ' ' + code : ''));
+        console.warn('[radio] audio element error:', reason, attempt.url);
+        advance(reason);
+      }, {once:true});
+      audio.addEventListener('playing', () => { settled = true; onPlaying(); }, {once:true});
+
+      const p = audio.play();
+      if (p && p.catch) p.catch(e => {
+        console.warn('[radio] audio.play() rejected:', e && e.name, e && e.message);
+      });
+    }
+
+    tryNext();
+    currentPlayingStation = station;
+  }
+
+  playBtn.addEventListener('click', () => {
+    if (!tunedStation) return;
+    if (isPlaying && currentPlayingStation === tunedStation) {
+      stopAudio();
+      statusText.className = 'status-text';
+      statusText.textContent = 'Paused. Press play to resume.';
+    } else {
+      playStation(tunedStation);
+    }
+  });
+
+  // --- dial drag (snaps straight to the nearest station) ---
+  // Works the same on the app's dial and, with Band Lock on, the real
+  // band dial. Each station passed gives a light buzz. Hold your finger
+  // still for a moment to magnify: the window shows a 6x close-up and the
+  // dial moves 6 times slower under your finger, for picking between
+  // stations that sit close together. Let go to return to normal.
+  const ZOOM = 6, HOLD_MS = 380, HOLD_SLOP = 8;
+  const dialLens = document.getElementById('dialLens');
+  const lensTape = dialLens.querySelector('.lens-tape');
+  const lensName = dialLens.querySelector('.lens-name');
+  let drag = null;
+
+  function freqFromClientX(clientX){
+    const rect = ruler.getBoundingClientRect();
+    const p = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    return MIN + p * totalRange;
+  }
+
+  // What a dial covers and which stations sit on it.
+  function dialSpec(kind, band){
+    if (kind === 'std') {
+      return { kind, band:'std', min:MIN, max:MAX, val:s => s.freq, list:byFreq.filter(allowed) };
+    }
+    const b = REAL_BANDS[band];
+    return { kind, band, min:b.min, max:b.max, val:s => realBandFor(s).value,
+             list:realBandStations(band).filter(s => allowed(s) && realBandFor(s).value != null) };
+  }
+  // Nearest station to a value; on a shared frequency, the first in order
+  // (alphabetical on the real dial).
+  function pickOn(spec, value){
+    let best = null, gap = Infinity;
+    spec.list.forEach(s => {
+      const g = Math.abs(spec.val(s) - value);
+      if (g < gap - 1e-9) { best = s; gap = g; }
+    });
+    return best;
+  }
+  function dragValue(x){
+    const { spec, rect } = drag;
+    const range = spec.max - spec.min;
+    if (drag.zoom) {
+      const v = drag.anchorVal + (x - drag.anchorX) / rect.width * range / ZOOM;
+      return Math.min(spec.max, Math.max(spec.min, v));
+    }
+    return spec.min + Math.min(1, Math.max(0, (x - rect.left) / rect.width)) * range;
+  }
+  function dragTo(x){
+    drag.lastX = x;
+    const v = dragValue(x);
+    drag.value = v;
+    const s = pickOn(drag.spec, v);
+    if (s && Math.abs(s.freq - currentFreq) > 0.001) { buzz(8); render(s.freq); }
+    if (drag.zoom) renderLens();
+  }
+
+  // The close-up: ticks, station dots and the needle for the stretch of dial
+  // around the finger, with the tuned station's name underneath.
+  function renderLens(){
+    const { spec } = drag;
+    const span = (spec.max - spec.min) / ZOOM;
+    const lo = drag.value - span / 2, hi = drag.value + span / 2;
+    const at = v => ((v - lo) / span * 100) + '%';
+    let html = '<div class="ruler-line"></div>';
+    const tick = (v, major, label) => {
+      html += `<div class="tick${major ? ' major' : ''}" style="left:${at(v)}"></div>`;
+      if (label != null) html += `<div class="tick-label" style="left:${at(v)}">${label}</div>`;
+    };
+    if (spec.band === 'std' || spec.band === 'fm') {
+      for (let t = Math.ceil(lo * 10); t <= Math.floor(hi * 10); t++) {
+        const major = t % 5 === 0;
+        tick(t / 10, major, major ? (t / 10).toFixed(1) : null);
+      }
+    } else if (spec.band === 'am') {
+      for (let k = Math.ceil(lo / 10) * 10; k <= hi; k += 10) tick(k, k % 50 === 0, k % 50 === 0 ? k : null);
+    } else {
+      Object.keys(DAB_BLOCKS).forEach(block => {
+        const v = DAB_BLOCKS[block];
+        if (v >= lo && v <= hi) tick(v, true, block);
+      });
+    }
+    const cur = nearestStation(currentFreq);
+    spec.list.forEach(s => {
+      const v = spec.val(s);
+      if (v < lo || v > hi) return;
+      html += `<div class="real-mark${s === cur ? ' active' : ''}" style="left:${at(v)}"></div>`;
+    });
+    if (cur && spec.list.includes(cur)) html += `<div class="needle" style="left:${at(spec.val(cur))}"></div>`;
+    lensTape.innerHTML = html;
+    const real = cur.real && cur.real !== 'DAB only' ? cur.real : (cur.dab ? 'DAB+ ' + cur.dab : cur.real);
+    lensName.textContent = spec.band === 'std'
+      ? `${cur.freq.toFixed(2)} · ${cur.name}` : `${real} · ${cur.name}`;
+  }
+  function enterZoom(){
+    if (!drag || drag.zoom) return;
+    drag.anchorX = drag.lastX;
+    drag.anchorVal = drag.value;
+    drag.zoom = true;
+    dialLens.hidden = false;
+    buzz(20);
+    renderLens();
+  }
+  function startDrag(kind, el, e){
+    const spec = dialSpec(kind, kind === 'real' ? shownView : null);
+    try { el.setPointerCapture(e.pointerId); } catch (err) {}
+    drag = { el, spec, rect:el.getBoundingClientRect(), startX:e.clientX, lastX:e.clientX, zoom:false, value:0 };
+    drag.hold = setTimeout(enterZoom, HOLD_MS);
+    dragTo(e.clientX);
+  }
+  function endDrag(){
+    if (!drag) return;
+    clearTimeout(drag.hold);
+    drag = null;
+    dialLens.hidden = true;
+  }
+
+  ruler.addEventListener('pointerdown', e => { e.preventDefault(); startDrag('std', ruler, e); });
+
+  // The real dial. With real frequency on, touching it tunes the real
+  // frequency along the band on screen (Band Lock is switched on for you)
+  // and stops at each end. Tap the BAND lock to release it.
+  realRuler.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    if (!bandLock) {
+      if (!showRealFreq) { startDrag('std', ruler, e); return; }
+      // Real frequency is on: touching the real dial tunes the real
+      // frequency. That is what Band Lock does, so switch it on for you.
+      setBandLock(true);
+      if (!bandLock) { startDrag('std', ruler, e); return; }
+    }
+    startDrag('real', realRuler, e);
+  });
+  [ruler, realRuler].forEach(el => {
+    el.addEventListener('pointermove', e => {
+      if (!drag || drag.el !== el) return;
+      if (!drag.zoom && Math.abs(e.clientX - drag.startX) > HOLD_SLOP) clearTimeout(drag.hold);
+      dragTo(e.clientX);
+    });
+    el.addEventListener('pointerup', endDrag);
+    el.addEventListener('pointercancel', endDrag);
+  });
+
+  // The Internet panel (Band Lock on): stations evenly spaced, alphabetical.
+  let draggingNet = false;
+  function netDialTo(clientX){
+    const list = realBandStations('net').filter(allowed);
+    if (!list.length) return;
+    const rect = streamDisplay.getBoundingClientRect();
+    const pc = (clientX - rect.left) / rect.width * 100;
+    const all = realBandStations('net');
+    const p = Math.min(1, Math.max(0, (pc - NET_MARGIN) / (100 - 2 * NET_MARGIN)));
+    const near = all[Math.round(p * (all.length - 1))];
+    // nearest allowed by position
+    let best = null, gap = Infinity;
+    list.forEach(s => { const g = Math.abs(all.indexOf(s) - all.indexOf(near)); if (g < gap) { gap = g; best = s; } });
+    if (best && Math.abs(best.freq - currentFreq) > 0.001) { buzz(8); render(best.freq); }
+  }
+  streamDisplay.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    if (!bandLock) {
+      if (!showRealFreq) { startDrag('std', ruler, e); return; }
+      setBandLock(true);
+      if (!bandLock) { startDrag('std', ruler, e); return; }
+    }
+    draggingNet = true;
+    try { streamDisplay.setPointerCapture(e.pointerId); } catch (err) {}
+    netDialTo(e.clientX);
+  });
+  streamDisplay.addEventListener('pointermove', e => { if (draggingNet) netDialTo(e.clientX); });
+  streamDisplay.addEventListener('pointerup', () => { draggingNet = false; });
+  streamDisplay.addEventListener('pointercancel', () => { draggingNet = false; });
+
+  // --- arrow-button tuning + keyboard ---
+  const prevStationBtn = document.getElementById('prevStationBtn');
+  const nextStationBtn = document.getElementById('nextStationBtn');
+  const TUNE_STEP = 0.1;
+
+  // Wraps a frequency into [MIN, MAX] instead of clamping at the ends, so
+  // stepping past 102.1 loops back to 87.5 and stepping back past 87.5
+  // loops to 102.1 - matching how Android Auto's skip-next/skip-previous
+  // already behaves (REPEAT_MODE_ALL over the full station list).
+  function wrapFreq(freq){
+    if (freq > MAX + 1e-9) return MIN;
+    if (freq < MIN - 1e-9) return MAX;
+    return Math.round(freq * 10) / 10; // avoid float drift (87.60000000000001 etc.)
+  }
+
+  function goToStationStep(step){
+    if (showRealFreq) pendingRollDir = step;   // digits roll the way you're tuning
+    if (bandLock) {
+      const target = realStepTarget(step);
+      if (!target) { bumpBandEnd(); return; }
+      pendingRollDir = step;
+      render(target.freq);
+      return;
+    }
+    if (!showRealFreq) { freqReadout.classList.remove('flicker'); void freqReadout.offsetWidth; freqReadout.classList.add('flicker'); }
+    render(seqStepTarget(step).freq);
+  }
+
+  // Tap = single step (decimal point by decimal point, as before). Press
+  // and hold = skip through frequencies like a traditional radio tuner,
+  // speeding up the longer it's held, settling — and only then actually
+  // tuning in and playing — on whatever frequency you release on.
+  function bindHoldTune(btn, direction){
+    let holdTimer = null;
+    let holding = false;
+    let scanning = false;
+
+    function scanTick(delay){
+      if (!holding) return;
+      scanning = true;
+      if (bandLock) {
+        const target = realStepTarget(direction);
+        if (target) { pendingRollDir = direction; render(target.freq, {silent:true}); }
+      } else {
+        if (showRealFreq) pendingRollDir = direction;
+        else { freqReadout.classList.remove('flicker'); void freqReadout.offsetWidth; freqReadout.classList.add('flicker'); }
+        render(seqStepTarget(direction).freq, {silent:true});
+      }
+      const nextDelay = Math.max(50, delay - 10);
+      holdTimer = setTimeout(() => scanTick(nextDelay), nextDelay);
+    }
+
+    function start(e){
+      if (holding) return;
+      e.preventDefault();
+      holding = true;
+      scanning = false;
+      btn.setPointerCapture?.(e.pointerId);
+      holdTimer = setTimeout(() => scanTick(160), 300); // pause before auto-scan kicks in
+    }
+
+    function stop(){
+      if (!holding) return;
+      holding = false;
+      clearTimeout(holdTimer);
+      if (scanning) {
+        render(currentFreq); // commit wherever the scan landed and start playing it
+      } else {
+        goToStationStep(direction); // short tap never entered scan mode
+      }
+    }
+
+    btn.addEventListener('pointerdown', start);
+    btn.addEventListener('pointerup', stop);
+    btn.addEventListener('pointercancel', stop);
+    btn.addEventListener('pointerleave', stop);
+  }
+
+  bindHoldTune(prevStationBtn, -1);
+  bindHoldTune(nextStationBtn, 1);
+
+  // --- speakers: jump a whole group (block) of stations ---
+  // Right speaker = next group, left = back (to the start of this group,
+  // or the previous group if already there), wrapping round at either end
+  // (Internet only -> Sport, and back). Lands on the group's first station.
+  const groupBadge = document.getElementById('groupBadge');
+  let groupBadgeTimer = null;
+
+  function groupIndexFor(freq){
+    let g = 0;
+    for (let i = 0; i < STATION_GROUPS.length; i++) {
+      if (STATION_GROUPS[i].start <= freq + 1e-9) g = i;
+    }
+    return g;
+  }
+
+  function flashGroupName(name){
+    groupBadge.textContent = name;
+    groupBadge.parentElement.classList.add('showing-group');
+    clearTimeout(groupBadgeTimer);
+    groupBadgeTimer = setTimeout(hideGroupName, 2500);
+  }
+
+  // Left works like "previous track" on a CD player: from partway through a
+  // group it goes back to that group's first station; from the first
+  // station it goes to the previous group.
+  function goToGroupStep(direction){
+    setBandLock(false);   // the speakers go back to browsing by section
+    const n = STATION_GROUPS.length;
+    const here = groupIndexFor(currentFreq);
+    // A section's first station (the first Australian one when AU only is
+    // on); sections with none are skipped.
+    const firstOf = g => {
+      const lo = STATION_GROUPS[g].start - 1e-9;
+      const hi = g + 1 < n ? STATION_GROUPS[g + 1].start - 1e-9 : Infinity;
+      return byFreq.find(s => s.freq >= lo && s.freq < hi && allowed(s)) || null;
+    };
+    const first = firstOf(here);
+    const atStart = !first || currentFreq <= first.freq + 0.001;
+    let target = here;
+    if (!(direction < 0 && !atStart)) {
+      for (let k = 1; k <= n; k++) {
+        target = (((here + direction * k) % n) + n) % n;
+        if (firstOf(target)) break;
+      }
+    }
+    const group = STATION_GROUPS[target];
+    const landing = firstOf(target) || nearestStation(group.start);
+    freqReadout.classList.remove('flicker'); void freqReadout.offsetWidth; freqReadout.classList.add('flicker');
+    render(landing.freq);
+    flashGroupName(group.name);
+    if (navigator.vibrate) { try { navigator.vibrate(15); } catch (e) {} }
+  }
+
+  [['speakerLeft', -1], ['speakerRight', 1]].forEach(([id, direction]) => {
+    const speaker = document.getElementById(id);
+    speaker.addEventListener('click', () => goToGroupStep(direction));
+    speaker.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goToGroupStep(direction); }
+    });
+  });
+
+  // --- keyboard tuning ---
+  document.addEventListener('keydown', e => {
+    if (document.activeElement === volumeSlider) return; // let the slider handle its own arrows
+    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      goToStationStep(1);
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      goToStationStep(-1);
+    } else if (e.key === 'PageUp') {
+      e.preventDefault();
+      goToGroupStep(1);
+    } else if (e.key === 'PageDown') {
+      e.preventDefault();
+      goToGroupStep(-1);
+    }
+  });
+
+  // --- commands the native Android shell can invoke (lock screen / notification / Bluetooth) ---
+  // ---- Sleep timer: press and hold the RADIO WAVEHOPPER badge ----
+  // Each hold steps 120 -> 60 -> 30 -> 10 minutes -> off. In the app the
+  // countdown itself runs in the native player (page timers stop when the
+  // screen is off); this page just shows it. On the website it runs here.
+  const SLEEP_STEPS = [120, 60, 30, 10, 0];
+  const SLEEP_MESSAGE_MS = 10000;   // how long a sleep message stays by the play button
+  const SLEEP_WARNING_S = 30;       // final countdown, with the chance to extend
+  const logoBadge = document.querySelector('.logo-badge');
+  const sleepBadge = document.getElementById('sleepBadge');
+  const nativeSleep = isNativeApp && typeof window.AndroidBridge.setSleepTimer === 'function';
+  let sleepChoice = 0;      // minutes last chosen (0 = off)
+  let sleepEndAt = 0;       // epoch ms when it stops, 0 = off
+  let sleepTicker = null;
+  let sleepMessage = '';    // the sleep text currently shown by the play button, if any
+  let sleepMessageTimer = null;
+  let statusBeforeSleep = null;
+
+  // Show a sleep message by the play button. A temporary one goes back to
+  // the normal "On air" (or paused) text after 10 seconds; the final
+  // countdown stays until it ends or is extended.
+  function showSleepMessage(text, cls, temporary){
+    if (!sleepMessage || statusText.textContent !== sleepMessage) {
+      statusBeforeSleep = { cls: statusText.className, text: statusText.textContent };
+    }
+    statusText.className = 'status-text ' + cls;
+    statusText.textContent = text;
+    sleepMessage = text;
+    clearTimeout(sleepMessageTimer);
+    if (temporary) sleepMessageTimer = setTimeout(clearSleepMessage, SLEEP_MESSAGE_MS);
+  }
+
+  function clearSleepMessage(){
+    clearTimeout(sleepMessageTimer);
+    // Only put things back if nothing else has changed the text since.
+    if (sleepMessage && statusText.textContent === sleepMessage) {
+      if (isPlaying && currentPlayingStation) {
+        statusText.className = 'status-text ok';
+        statusText.textContent = 'On air — ' + currentPlayingStation.name;
+      } else if (statusBeforeSleep) {
+        statusText.className = statusBeforeSleep.cls;
+        statusText.textContent = statusBeforeSleep.text;
+      }
+    }
+    sleepMessage = '';
+  }
+
+  function sleepSecondsLeft(){
+    return sleepEndAt ? Math.max(0, Math.ceil((sleepEndAt - Date.now()) / 1000)) : 0;
+  }
+  function inFinalCountdown(){
+    const left = sleepSecondsLeft();
+    return left > 0 && left <= SLEEP_WARNING_S;
+  }
+
+  function showSleepTimer(){
+    const left = sleepSecondsLeft();
+    if (!left) {
+      sleepBadge.hidden = true;
+      logoBadge.setAttribute('aria-label', 'Sleep timer off. Press and hold to set');
+      return;
+    }
+    sleepBadge.hidden = false;
+    sleepBadge.textContent = left < 60 ? 'SLEEP 0:' + String(left).padStart(2, '0')
+                                       : 'SLEEP ' + Math.ceil(left / 60);
+    logoBadge.setAttribute('aria-label',
+      `Sleep timer: ${left < 60 ? left + ' seconds' : Math.ceil(left / 60) + ' minutes'} left. Press and hold to change`);
+    if (left <= SLEEP_WARNING_S) {
+      showSleepMessage(`Sleeping in ${left}s. Hold the badge to extend.`, 'warn', false);
+    }
+  }
+
+  function sleepTimerEnded(){
+    sleepEndAt = 0; sleepChoice = 0;
+    clearInterval(sleepTicker); sleepTicker = null;
+    try { localStorage.removeItem('sleep_end_at'); } catch (e) {}
+    showSleepTimer();
+  }
+
+  // Ticks every second: cheap, and makes the final countdown smooth.
+  function startSleepTicker(){
+    clearInterval(sleepTicker);
+    sleepTicker = setInterval(() => {
+      if (sleepEndAt && Date.now() >= sleepEndAt) {
+        sleepTimerEnded();
+        if (!nativeSleep) {
+          // Website only: the app's native player stops itself and says so.
+          if (isPlaying) stopAudio();
+          showSleepMessage('Sleep timer: goodnight. Press play to resume.', '', false);
+        }
+      } else {
+        showSleepTimer();
+      }
+    }, 1000);
+  }
+
+  function setSleepTimer(minutes){
+    sleepChoice = minutes;
+    sleepEndAt = minutes ? Date.now() + minutes * 60000 : 0;
+    if (nativeSleep) { try { window.AndroidBridge.setSleepTimer(minutes); } catch (e) {} }
+    else { try { localStorage.setItem('sleep_end_at', String(sleepEndAt)); } catch (e) {} }
+    if (minutes) startSleepTicker(); else { clearInterval(sleepTicker); sleepTicker = null; }
+    showSleepTimer();
+    showSleepMessage(minutes ? `Sleep timer: ${minutes} min. Hold the badge again to change.`
+                             : 'Sleep timer off.', 'ok', true);
+  }
+
+  function stepSleepTimer(){
+    // In the final countdown a hold is an extension, so start again from the
+    // longest setting (120, then 60, 30, 10) rather than stepping to "off".
+    const from = inFinalCountdown() ? 0 : sleepChoice;
+    const next = SLEEP_STEPS[(SLEEP_STEPS.indexOf(from) + 1) % SLEEP_STEPS.length];
+    setSleepTimer(next);
+    if (navigator.vibrate) { try { navigator.vibrate(25); } catch (e) {} }
+  }
+
+  // Restore a timer that's still running (app reopened, or page reloaded).
+  try {
+    const savedEnd = nativeSleep ? Number(window.AndroidBridge.getSleepTimerEnd())
+                                 : Number(localStorage.getItem('sleep_end_at') || 0);
+    if (savedEnd > Date.now()) {
+      sleepEndAt = savedEnd;
+      const minsLeft = (savedEnd - Date.now()) / 60000;
+      sleepChoice = SLEEP_STEPS.find(m => m && m >= minsLeft) || 120;
+      startSleepTicker();
+    }
+  } catch (e) {}
+  showSleepTimer();
+
+  let sleepHold = null;
+  logoBadge.addEventListener('pointerdown', () => {
+    logoBadge.classList.add('holding');
+    clearTimeout(sleepHold);
+    sleepHold = setTimeout(() => { sleepHold = null; logoBadge.classList.remove('holding'); stepSleepTimer(); }, 600);
+  });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => logoBadge.addEventListener(ev, () => {
+    clearTimeout(sleepHold); sleepHold = null; logoBadge.classList.remove('holding');
+  }));
+  logoBadge.addEventListener('contextmenu', e => e.preventDefault());
+  logoBadge.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); stepSleepTimer(); }
+  });
+
+  window.NativeControls = {
+    onSleepTimerCancelled: function(){
+      sleepTimerEnded();
+      showSleepMessage('Sleep timer cancelled: Android Auto took over.', '', true);
+    },
+    onSleepTimerFinished: function(){
+      sleepTimerEnded();
+      showSleepMessage('Sleep timer: goodnight. Press play to resume.', '', false);
+    },
+    // Next/Previous still ask this page which station comes next (it owns
+    // the dial-stepping logic) - goToStationStep() -> render() -> playStation()
+    // then tells native which one to actually play.
+    next: function(){ goToStationStep(1); },
+    // The phone's media volume changed (buttons, system panel, or this
+    // slider). Ignored while the slider is being dragged, so the native
+    // echo of the drag doesn't snap the thumb out from under the finger.
+    onVolumeChanged: function(level){
+      if (Date.now() - lastVolumeInputAt < 500) return;
+      volumeSlider.value = level;
+    },
+    prev: function(){ goToStationStep(-1); },
+
+    // PlaybackService's own ExoPlayer is what's actually playing now (lock
+    // screen Play/Pause taps go straight to it, not through this page) -
+    // these three are it reporting the real outcome back, so the UI
+    // reflects what's actually happening rather than what was merely asked
+    // for.
+    onNativePlaying: function(){
+      isLoading = false;
+      isPlaying = true;
+      eqBars.classList.add('playing');
+      playIcon.innerHTML = '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>';
+      statusText.className = 'status-text ok';
+      statusText.textContent = 'On air — ' + (currentPlayingStation ? currentPlayingStation.name : '');
+      updateMediaSessionState();
+      identifyBtn.style.display = '';
+    },
+    onNativePaused: function(){
+      isLoading = false;
+      isPlaying = false;
+      eqBars.classList.remove('playing');
+      playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+      statusText.className = 'status-text';
+      statusText.textContent = 'Paused. Press play to resume.';
+      updateMediaSessionState();
+    },
+    onNativeError: function(reason){
+      isLoading = false;
+      isPlaying = false;
+      eqBars.classList.remove('playing');
+      playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+      statusText.className = 'status-text warn';
+      const reasonSuffix = reason ? ' (' + reason + ')' : '';
+      const url = currentPlayingStation ? currentPlayingStation.url : '';
+      statusText.innerHTML = 'Couldn\'t play this' + reasonSuffix + '.' +
+        (url ? ' <a href="' + url + '" target="_blank" rel="noopener">Open the stream directly ↗</a>' : '');
+      updateMediaSessionState();
+      if (icyAbortController) { icyAbortController.abort(); icyAbortController = null; }
+      if (metadataPollTimer) { clearInterval(metadataPollTimer); metadataPollTimer = null; }
+    }
+  };
+
+  let initialStationName = "";
+  let shouldPlay = false;
+  if (window.AndroidBridge) {
+    try {
+      if (window.AndroidBridge.getSavedStation) initialStationName = window.AndroidBridge.getSavedStation();
+      if (window.AndroidBridge.isPlaying) shouldPlay = window.AndroidBridge.isPlaying();
+    } catch (e) {}
+  }
+
+  if (initialStationName) {
+    const found = stations.find(s => s.name === initialStationName || initialStationName.includes(s.name));
+    if (found) {
+      render(found.freq, {initial: !shouldPlay});
+    } else {
+      render(90.3, {initial:true});
+    }
+  } else {
+    render(90.3, {initial:true});
+  }
+  window.__wh = { stations, STATION_GROUPS, DAB_BLOCKS, userData, getBandLock: () => bandLock, getCurrentFreq: () => currentFreq };
+  // Closing the Edit screen reloads the page; keep Band Lock on across that one reload.
+  try {
+    if (sessionStorage.getItem('wh_keep_lock') === '1') { sessionStorage.removeItem('wh_keep_lock'); setBandLock(true); }
+  } catch (e) {}
+})();
+</script>
+
+
+<script>
+// Hidden: hold "DIGITAL TUNING" under the title for ~1.5s to share the diagnostic log (Android app only).
+// (Holding the rest of the badge is the sleep timer, so this stops the press reaching it.)
+(function(){
+  const spans = document.querySelectorAll('.logo-badge .sub-badges span');
+  let el = null;
+  spans.forEach(sp => { if (/DIGITAL/i.test(sp.textContent)) el = sp; });
+  if (!el) return;
+  let t = null;
+  el.addEventListener('pointerdown', e => {
+    e.stopPropagation();
+    clearTimeout(t);
+    t = setTimeout(() => {
+      try { if (window.AndroidBridge && window.AndroidBridge.shareLog) window.AndroidBridge.shareLog(); } catch(err){}
+    }, 1500);
+  });
+  ['pointerup','pointercancel','pointerleave'].forEach(ev => el.addEventListener(ev, () => clearTimeout(t)));
+})();
+</script>
+<script>
+// Edit screen (pencil, top right): add your own stations. Stage 1 = Add.
+// Saved on the phone only: the app's own storage via AndroidBridge, or the
+// browser's localStorage on the plain website. Saving does not touch the
+// built-in list; the page and the phone player merge the two.
+(function(){
+  const wh = window.__wh;
+  if (!wh) return;
+  const { stations, STATION_GROUPS, DAB_BLOCKS, userData } = wh;
+  const KEY = 'user_stations_v1';
+  const native = !!(window.AndroidBridge && window.AndroidBridge.saveUserStations);
+  let dirty = false, testing = false, testAudio = null;
+  let editing = null;   // the station being edited, or null when adding
+
+  const REGION_FOR_GROUP = {
+    'NSW (and ACT)':'NSW', 'Victoria':'VIC', 'Queensland':'QLD', 'South Australia':'SA',
+    'Western Australia':'WA', 'Tasmania':'TAS', 'Northern Territory':'NT',
+    'Australia (national)':'AU', 'New Zealand':'NZ', 'Singapore':'SG', 'South Africa':'ZA',
+    'UK':'UK', 'France':'FR', 'Germany':'DE', 'USA':'US'
+  };
+  const REGIONS = [['AU','Australia (national)'],['NSW','NSW'],['ACT','ACT'],['VIC','Victoria'],['QLD','Queensland'],
+    ['SA','South Australia'],['WA','Western Australia'],['TAS','Tasmania'],['NT','Northern Territory'],
+    ['NZ','New Zealand'],['NC','New Caledonia'],['FJ','Fiji'],['SG','Singapore'],['ZA','South Africa'],
+    ['UK','United Kingdom'],['IE','Ireland'],['FR','France'],['DE','Germany'],['US','USA'],['CA','Canada'],['XX','Other']];
+  const GROUP_END_LAST = 102.10;
+
+  // ---- dial slot ----------------------------------------------------
+  const groupOf = f => { let g = 0; STATION_GROUPS.forEach((s, i) => { if (s.start <= f + 1e-9) g = i; }); return g; };
+  const groupEnd = g => g + 1 < STATION_GROUPS.length ? STATION_GROUPS[g + 1].start : GROUP_END_LAST;
+  // Same order the built-in list uses inside a group: AM, FM, DAB, Internet, by real frequency.
+  function orderKey(s){
+    const r = s.real || '';
+    let m;
+    const nm = (s.name || '').toLowerCase();   // only breaks ties between equal frequencies
+    if ((m = /^([\d.]+)\s*AM$/i.exec(r))) return [0, parseFloat(m[1]), nm];
+    if ((m = /^([\d.]+)\s*FM$/i.exec(r))) return [1, parseFloat(m[1]), nm];
+    if (/^DAB/i.test(r)) return [2, DAB_BLOCKS && DAB_BLOCKS[s.dab] ? DAB_BLOCKS[s.dab] : 0, nm];
+    return [3, 0, nm];
+  }
+  function cmpKey(a, b){
+    return a[0] - b[0] || a[1] - b[1] || (a[2] < b[2] ? -1 : a[2] > b[2] ? 1 : 0);
+  }
+  const hundredths = f => Math.round(f * 100);
+  // The free hundredth-step slot strictly inside the group's block, nearest
+  // to where the new station belongs in the group's order. null = block full.
+  function slotBounds(g, cand, except){
+    const start = STATION_GROUPS[g].start, end = groupEnd(g);
+    const inGroup = stations.filter(s => s !== except && groupOf(s.freq) === g).sort((a, b) => a.freq - b.freq);
+    const key = orderKey(cand);
+    let prev = start, next = end;
+    for (const s of inGroup) {
+      if (s.freq <= start + 1e-9) { prev = Math.max(prev, s.freq); continue; } // group's first station stays first
+      if (cmpKey(orderKey(s), key) <= 0) prev = Math.max(prev, s.freq);
+      else { next = s.freq; break; }
+    }
+    return { start, end, prev, next };
+  }
+  function autoSlot(g, cand, except){
+    const { start, end, prev, next } = slotBounds(g, cand, except);
+    const ideal = (prev + next) / 2;
+    const used = new Set(stations.filter(s => s !== except).map(s => hundredths(s.freq)));
+    let best = null, bestD = Infinity;
+    for (let k = hundredths(start) + 1; k < hundredths(end); k++) {
+      if (used.has(k)) continue;
+      const d = Math.abs(k / 100 - ideal);
+      if (d < bestD - 1e-9) { bestD = d; best = k; }
+    }
+    return best === null ? null : best / 100;
+  }
+  function slotProblem(f, g, except){
+    if (!isFinite(f)) return 'Enter a dial position like 90.04.';
+    if (hundredths(f) / 100 !== Math.round(f * 100) / 100) return 'Use two decimals, like 90.04.';
+    if (hundredths(f) <= hundredths(STATION_GROUPS[g].start)) return 'That spot is the start of the block. Pick one just above ' + STATION_GROUPS[g].start.toFixed(2) + '.';
+    if (hundredths(f) >= hundredths(groupEnd(g))) return 'That is outside this category. It must be below ' + groupEnd(g).toFixed(2) + '.';
+    if (stations.some(s => s !== except && hundredths(s.freq) === hundredths(f))) return 'Another station is already on ' + f.toFixed(2) + '.';
+    return '';
+  }
+
+  // ---- UI ------------------------------------------------------------
+  const css = document.createElement('style');
+  css.textContent = `
+  #editBtn{ position:absolute; top:max(2px,env(safe-area-inset-top,0px)); right:max(5px,env(safe-area-inset-right,0px)); z-index:5;
+    width:26px; height:26px; border-radius:50%; border:1px solid var(--chrome-2); background:rgba(0,0,0,.35); color:var(--chrome-2);
+    display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; -webkit-tap-highlight-color:transparent; }
+  #editBtn:active{ transform:scale(.93); color:var(--cyan); border-color:var(--cyan); }
+  #editBtn svg{ width:14px; height:14px; }
+  #editScreen{ position:fixed; inset:0; z-index:50; background:#121216; color:#e8e8ec; overflow-y:auto; -webkit-overflow-scrolling:touch;
+    padding:max(14px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(24px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
+    font-family:'Share Tech Mono',monospace; }
+  #editScreen[hidden], #editScreen [hidden]{ display:none !important; }
+  #editScreen .ed-wrap{ max-width:560px; margin:0 auto; display:flex; flex-direction:column; gap:14px; }
+  #editScreen .ed-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  #editScreen h2{ margin:0; font-size:15px; letter-spacing:3px; color:var(--lcd-text); font-weight:400; }
+  #editScreen h3{ margin:16px 0 0; padding-top:12px; border-top:1px solid #2c2c35; font-size:11px; letter-spacing:2px; color:var(--chrome-2); font-weight:400; }
+  #editScreen button{ font-family:inherit; }
+  #editScreen .ed-close{ background:none; border:1px solid var(--chrome-2); color:#e8e8ec; border-radius:6px; padding:7px 12px; font-size:12px; letter-spacing:1.5px; cursor:pointer; }
+  #editScreen label{ display:flex; flex-direction:column; gap:4px; font-size:10px; letter-spacing:1.5px; color:var(--chrome-2); }
+  #editScreen input[type=text], #editScreen input[type=url], #editScreen input[type=number], #editScreen select{
+    font-family:inherit; font-size:16px; padding:9px 10px; background:#0a0a0d; color:#f4f4f6; border:1px solid #3a3a44; border-radius:6px; min-width:0; width:100%; box-sizing:border-box; letter-spacing:0; }
+  #editScreen input:focus, #editScreen select:focus{ outline:2px solid var(--cyan); outline-offset:0; }
+  #editScreen .ed-row{ display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; }
+  #editScreen .ed-row > label{ flex:1 1 140px; min-width:0; }
+  #editScreen .ed-row > .ed-btn{ flex:1 1 140px; }
+  #editScreen .ed-btn{ background:#1d1d24; color:var(--cyan); border:1px solid var(--cyan); border-radius:6px; padding:10px 14px; font-size:13px; letter-spacing:1px; cursor:pointer; white-space:nowrap; }
+  #editScreen .ed-btn.primary{ background:var(--cyan); color:#06161a; font-weight:700; }
+  #editScreen .ed-btn:disabled{ opacity:.45; }
+  #editScreen .ed-note{ font-size:11px; line-height:1.5; color:#9a9aa6; letter-spacing:.3px; }
+  #editScreen .ed-msg{ font-size:12px; line-height:1.45; min-height:1.2em; }
+  #editScreen .ed-msg.warn{ color:var(--warn); } #editScreen .ed-msg.ok{ color:var(--ok); }
+  #editScreen .ed-slot{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-size:13px; }
+  #editScreen .ed-slot b{ font-size:20px; color:var(--lcd-text); font-weight:400; }
+  #editScreen .ed-slot label{ flex-direction:row; align-items:center; gap:6px; letter-spacing:.5px; font-size:12px; color:#cfcfd6; }
+  #editScreen #edLogoBox{ display:flex; flex-direction:column; gap:14px; }
+  #editScreen .ed-logo{ display:flex; align-items:center; gap:14px; margin:2px 0 4px; }
+  #editScreen .ed-logo .ed-note{ flex:1; min-width:0; }
+  #editScreen .ed-logo img{ width:72px; height:72px; border-radius:8px; background:#fff; object-fit:contain; border:1px solid #3a3a44; }
+  #editScreen .ed-logo img[hidden]{ display:none; }
+  #editScreen .ed-list{ display:flex; flex-direction:column; gap:6px; }
+  #editScreen .ed-item{ display:flex; align-items:center; gap:10px; padding:8px 10px; border:1px solid #2c2c35; border-radius:6px; font-size:13px; }
+  #editScreen .ed-item .f{ color:var(--lcd-text); min-width:52px; }
+  #editScreen .ed-item .n{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #editScreen .ed-item .x{ background:none; border:1px solid #4a4a55; color:#e8e8ec; border-radius:5px; padding:5px 9px; font-size:11px; cursor:pointer; }
+  `;
+  document.head.appendChild(css);
+
+  const btn = document.createElement('button');
+  btn.id = 'editBtn'; btn.type = 'button'; btn.title = 'Edit stations'; btn.setAttribute('aria-label', 'Edit stations');
+  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>';
+  document.querySelector('.set').appendChild(btn);
+
+  const scr = document.createElement('div');
+  scr.id = 'editScreen'; scr.hidden = true; scr.setAttribute('role', 'dialog'); scr.setAttribute('aria-label', 'Edit stations');
+  scr.innerHTML = `
+  <div class="ed-wrap">
+    <div class="ed-head"><h2>EDIT STATIONS</h2><button type="button" class="ed-close" id="edClose">CLOSE</button></div>
+    <h3>EDIT OR DELETE A STATION</h3>
+    <div class="ed-row"><label style="flex-basis:100%">DIAL NUMBER<input type="number" id="edFind" inputmode="decimal" step="0.01" placeholder="90.08"></label><button type="button" class="ed-btn" id="edFindBtn">FIND</button><button type="button" class="ed-btn" id="edCurBtn">THIS ONE</button></div>
+    <div class="ed-msg" id="edFindMsg"></div>
+    <h3 id="edTitle">ADD A STATION</h3>
+    <label>STATION NAME<input type="text" id="edName" maxlength="40" autocomplete="off" placeholder="e.g. My Local Radio"></label>
+    <div class="ed-row">
+      <label>CATEGORY<select id="edGroup"></select></label>
+      <label>REGION<select id="edRegion"></select></label>
+    </div>
+    <div class="ed-row">
+      <label>BAND<select id="edBand"><option value="net">Internet</option><option value="fm">FM</option><option value="am">AM</option><option value="dab">DAB+</option></select></label>
+      <label id="edFreqWrap" hidden><span id="edFreqLbl">FREQUENCY (MHz)</span><input type="number" id="edFreq" inputmode="decimal" step="0.1" placeholder="101.7"></label>
+      <label id="edDabWrap" hidden>DAB+ BLOCK<select id="edDab"></select></label>
+    </div>
+    <label>STREAMING URL<input type="url" id="edUrl" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://..."></label>
+    <div class="ed-row"><button type="button" class="ed-btn" id="edTest">&#9654; TEST STREAM</button><div class="ed-msg" id="edTestMsg" style="flex:1"></div></div>
+    <div id="edLogoBox" hidden>
+      <h3>LOGO (ANDROID AUTO AND WIDGETS)</h3>
+      <div class="ed-logo"><img id="edLogoImg" alt="" width="72" height="72"><div class="ed-note" id="edLogoState">Default logo</div></div>
+      <div class="ed-row"><button type="button" class="ed-btn" id="edLogoPick">UPLOAD FROM PHONE</button><button type="button" class="ed-btn" id="edLogoClear">USE DEFAULT</button></div>
+      <div class="ed-row"><label style="flex-basis:100%">STATION WEBSITE<input type="text" id="edSite" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="example.com.au"></label><button type="button" class="ed-btn" id="edLogoFetch" style="flex-basis:100%">FETCH LOGO FROM WEBSITE</button></div>
+      <div class="ed-msg" id="edLogoMsg"></div>
+      <p class="ed-note">Logos stay on this phone and are saved when you save the station. Please only use logos you have the right to use; station logos belong to their owners.</p>
+    </div>
+    <div class="ed-slot"><span>DIAL</span><b id="edSlotShow">--</b><label><input type="checkbox" id="edManual"> choose it myself</label></div>
+    <label id="edSlotWrap" hidden>DIAL POSITION<input type="number" id="edSlot" inputmode="decimal" step="0.01" placeholder="90.04"></label>
+    <div class="ed-msg" id="edMsg"></div>
+    <button type="button" class="ed-btn primary" id="edAdd">ADD STATION</button>
+    <div class="ed-row" id="edEditBtns" hidden><button type="button" class="ed-btn" id="edDelete" style="color:var(--warn);border-color:var(--warn)">DELETE STATION</button><button type="button" class="ed-btn" id="edCancel">CANCEL</button></div>
+    <h3>YOUR STATIONS</h3>
+    <div class="ed-list" id="edList"></div>
+    <h3>BACKUP</h3>
+    <div class="ed-row"><button type="button" class="ed-btn" id="edExport">SAVE TO PHONE</button><button type="button" class="ed-btn" id="edShare">SHARE BACKUP</button></div>
+    <div class="ed-row"><button type="button" class="ed-btn" id="edImport">IMPORT BACKUP</button></div>
+    <input type="file" id="edImportFile" accept=".json,application/json" hidden>
+    <div class="ed-row" id="edImportGoRow" hidden><button type="button" class="ed-btn primary" id="edImportGo">REPLACE WITH THIS BACKUP</button><button type="button" class="ed-btn" id="edImportNo">CANCEL</button></div>
+    <div class="ed-msg" id="edBackupMsg"></div>
+    <h3>RESET</h3>
+    <button type="button" class="ed-btn" id="edReset">RESET TO DEFAULTS</button>
+    <div class="ed-msg" id="edResetMsg"></div>
+    <p class="ed-note">Your changes stay on this phone only. Reset puts back every built-in station and removes the ones you added, with your custom logos. New stations are placed on the dial automatically inside their category. Android Auto shows them the next time the car connects. Please only add streams you are happy to listen to. Station logos belong to their owners.</p>
+  </div>`;
+  document.body.appendChild(scr);
+
+  const $ = id => scr.querySelector('#' + id);
+  const gSel = $('edGroup'), rSel = $('edRegion'), bSel = $('edBand'), dSel = $('edDab');
+  STATION_GROUPS.forEach((g, i) => { const o = document.createElement('option'); o.value = i; o.textContent = g.name; gSel.appendChild(o); });
+  REGIONS.forEach(r => { const o = document.createElement('option'); o.value = r[0]; o.textContent = r[1]; rSel.appendChild(o); });
+  Object.keys(DAB_BLOCKS || {}).forEach(k => { const o = document.createElement('option'); o.value = k; o.textContent = k; dSel.appendChild(o); });
+
+  function setMsg(el, text, cls){ el.textContent = text || ''; el.className = 'ed-msg' + (cls ? ' ' + cls : ''); }
+  function currentCandidate(){
+    const band = bSel.value, f = parseFloat($('edFreq').value);
+    let real = 'Internet only', dab;
+    if (band === 'fm') real = (isFinite(f) ? (Number.isInteger(f) ? f.toFixed(1) : String(f)) : '0.0') + ' FM';   // 88 -> "88.0 FM", like the built-in stations
+    else if (band === 'am') real = (isFinite(f) ? Math.round(f) : 0) + ' AM';
+    else if (band === 'dab') { real = 'DAB only'; dab = dSel.value; }
+    return { name: $('edName').value.trim(), real, dab };
+  }
+  // The first station of each block must stay put (the group buttons need it).
+  const isBlockStart = st => !st.user && startKeys.has(keyOf(st));
+  // Editing: the station keeps its slot unless its category or band changed,
+  // then it is re-placed in the right spot (or the spot you typed).
+  function editTargetSlot(){
+    const g = +gSel.value, c = currentCandidate();
+    const k = orderKey(c), ek = orderKey(editing);
+    const moved = g !== groupOf(editing.freq) || k[0] !== ek[0] || k[1] !== ek[1] || (c.dab || '') !== (editing.dab || '');
+    if (moved) return autoSlot(g, c, editing);
+    // Renaming an Internet-only station: re-slot only if it's no longer in alphabetical place.
+    if (k[0] === 3 && c.name.toLowerCase() !== (editing.name || '').toLowerCase()) {
+      const b = slotBounds(g, c, editing);
+      if (!(editing.freq > b.prev + 1e-9 && editing.freq < b.next - 1e-9)) return autoSlot(g, c, editing);
+    }
+    return editing.freq;
+  }
+  function refreshSlot(){
+    const g = +gSel.value;
+    if (editing && isBlockStart(editing)) { $('edSlotShow').textContent = editing.freq.toFixed(2); $('edSlotWrap').hidden = true; return; }
+    if (editing && !$('edManual').checked) {
+      const f = editTargetSlot();
+      $('edSlotShow').textContent = f === null ? 'FULL' : f.toFixed(2) + (Math.abs(f - editing.freq) > 1e-6 ? '  (moves from ' + editing.freq.toFixed(2) + ')' : '');
+      $('edSlot').value = f === null ? '' : f.toFixed(2);
+      $('edSlotWrap').hidden = true; return;
+    }
+    if ($('edManual').checked) { $('edSlotWrap').hidden = false; $('edSlotShow').textContent = (parseFloat($('edSlot').value) || 0).toFixed(2); return; }
+    $('edSlotWrap').hidden = true;
+    const s = autoSlot(g, currentCandidate());
+    $('edSlotShow').textContent = s === null ? 'FULL' : s.toFixed(2);
+    $('edSlot').value = s === null ? '' : s.toFixed(2);
+  }
+  function refreshBand(){
+    const b = bSel.value;
+    $('edFreqWrap').hidden = !(b === 'fm' || b === 'am');
+    $('edDabWrap').hidden = b !== 'dab';
+    $('edFreqLbl').textContent = b === 'am' ? 'FREQUENCY (kHz)' : 'FREQUENCY (MHz)';
+    $('edFreq').step = b === 'am' ? '1' : '0.1';
+    $('edFreq').placeholder = b === 'am' ? '1269' : '101.7';
+    refreshSlot();
+  }
+  // Region is only asked for when the category doesn't already say it
+  // (Sport, Talk, Pacific, music blocks, Internet). Otherwise it's filled in.
+  function updateRegionVisibility(){
+    const auto = REGION_FOR_GROUP[STATION_GROUPS[+gSel.value].name];
+    rSel.parentElement.hidden = !!auto && (!editing || rSel.value === auto);
+  }
+  gSel.addEventListener('change', () => { if (!editing) rSel.value = REGION_FOR_GROUP[STATION_GROUPS[+gSel.value].name] || 'AU'; updateRegionVisibility(); refreshSlot(); });
+  ['change', 'input'].forEach(ev => {
+    bSel.addEventListener(ev, refreshBand);
+    dSel.addEventListener(ev, refreshSlot);
+    $('edFreq').addEventListener(ev, refreshSlot);
+    $('edName').addEventListener(ev, refreshSlot);
+    $('edManual').addEventListener(ev, refreshSlot);
+    $('edSlot').addEventListener(ev, () => { if ($('edManual').checked) refreshSlot(); });
+  });
+
+  function validUrl(u){ return /^https?:\/\/[^\s]+$/i.test(u); }
+
+  // ---- test play ----
+  function stopTest(){
+    if (!testing) return;
+    testing = false;
+    try { if (native) window.AndroidBridge.pauseStation(); } catch (e) {}
+    if (testAudio) { try { testAudio.pause(); testAudio.removeAttribute('src'); testAudio.load(); } catch (e) {} testAudio = null; }
+    $('edTest').innerHTML = '&#9654; TEST STREAM';
+  }
+  $('edTest').addEventListener('click', () => {
+    if (testing) { stopTest(); setMsg($('edTestMsg'), ''); return; }
+    const url = $('edUrl').value.trim();
+    if (!validUrl(url)) { setMsg($('edTestMsg'), 'Enter a web address starting with http:// or https://', 'warn'); return; }
+    testing = true;
+    $('edTest').innerHTML = '&#9632; STOP TEST';
+    setMsg($('edTestMsg'), 'Connecting…');
+    if (native) {
+      try { window.AndroidBridge.testStream(url, $('edName').value.trim() || 'Test stream'); } catch (e) { setMsg($('edTestMsg'), 'Could not start the test.', 'warn'); testing = false; }
+    } else {
+      testAudio = new Audio(); testAudio.src = url;
+      testAudio.addEventListener('playing', () => setMsg($('edTestMsg'), 'Playing. That stream works.', 'ok'));
+      testAudio.addEventListener('error', () => { setMsg($('edTestMsg'), 'The browser could not play that stream.', 'warn'); stopTest(); });
+      testAudio.play().catch(() => {});
+    }
+  });
+  // The phone player reports back through the page's NativeControls.
+  const nc = window.NativeControls;
+  if (nc) {
+    const oPlay = nc.onNativePlaying, oErr = nc.onNativeError;
+    nc.onNativePlaying = function(){ if (testing) setMsg($('edTestMsg'), 'Playing. That stream works.', 'ok'); return oPlay && oPlay.apply(this, arguments); };
+    nc.onNativeError = function(reason){
+      if (testing) { setMsg($('edTestMsg'), 'That stream would not play (' + reason + '). Check the address.', 'warn'); testing = false; $('edTest').innerHTML = '&#9654; TEST STREAM'; }
+      return oErr && oErr.apply(this, arguments);
+    };
+  }
+
+  // ---- list / save ----
+  function persist(){
+    const json = JSON.stringify(userData);
+    if (native) return window.AndroidBridge.saveUserStations(json);
+    try { localStorage.setItem(KEY, json); return true; } catch (e) { return false; }
+  }
+  function renderList(){
+    const list = $('edList'); list.textContent = '';
+    if (!userData.added.length) { const p = document.createElement('div'); p.className = 'ed-note'; p.textContent = 'None yet.'; list.appendChild(p); return; }
+    userData.added.slice().sort((a, b) => a.freq - b.freq).forEach(u => {
+      const row = document.createElement('div'); row.className = 'ed-item';
+      const f = document.createElement('span'); f.className = 'f'; f.textContent = u.freq.toFixed(2);
+      const n = document.createElement('span'); n.className = 'n'; n.textContent = u.name;
+      const x = document.createElement('button'); x.type = 'button'; x.className = 'x'; x.textContent = 'REMOVE';
+      let armed = false;
+      x.addEventListener('click', () => {
+        if (!armed) { armed = true; x.textContent = 'SURE?'; setTimeout(() => { armed = false; x.textContent = 'REMOVE'; }, 3000); return; }
+        userData.added = userData.added.filter(a => a !== u);
+        const i = stations.findIndex(s => s.user && Math.abs(s.freq - u.freq) < 1e-6); if (i >= 0) stations.splice(i, 1);
+        persist(); dirty = true; renderList(); refreshSlot();
+      });
+      const ed = document.createElement('button'); ed.type = 'button'; ed.className = 'x'; ed.textContent = 'EDIT';
+      ed.addEventListener('click', () => { const st = stations.find(s => s.user && Math.abs(s.freq - u.freq) < 1e-6); if (st) enterEdit(st); });
+      row.append(f, n, ed, x); list.appendChild(row);
+    });
+  }
+
+  $('edAdd').addEventListener('click', () => {
+    const msg = $('edMsg'), g = +gSel.value, c = currentCandidate(), url = $('edUrl').value.trim();
+    const band = bSel.value;
+    if (!c.name) return setMsg(msg, 'Give the station a name.', 'warn');
+    if ((band === 'fm' || band === 'am') && !(parseFloat($('edFreq').value) > 0)) return setMsg(msg, 'Enter the station’s ' + (band === 'am' ? 'AM kHz' : 'FM MHz') + ' frequency, or choose Internet.', 'warn');
+    if (!validUrl(url)) return setMsg(msg, 'Enter the streaming URL (http:// or https://).', 'warn');
+    let freq;
+    if (editing) freq = isBlockStart(editing) ? editing.freq : ($('edManual').checked ? parseFloat($('edSlot').value) : editTargetSlot());
+    else if ($('edManual').checked) freq = parseFloat($('edSlot').value); else freq = autoSlot(g, c);
+    if (freq === null) return setMsg(msg, 'That category has no free spots left. Tick “choose it myself” or pick another category.', 'warn');
+    const prob = editing && Math.abs(freq - editing.freq) < 1e-6 ? '' : slotProblem(freq, g, editing);
+    if (prob) return setMsg(msg, prob, 'warn');
+    if (stations.some(s => s !== editing && s.name.toLowerCase() === c.name.toLowerCase())) return setMsg(msg, 'A station called “' + c.name + '” already exists. Use a slightly different name.', 'warn');
+    const rec = { freq: Math.round(freq * 100) / 100, name: c.name, real: c.real, cc: rSel.value === 'XX' ? '' : rSel.value, url };
+    if (c.dab) rec.dab = c.dab;
+    if (/\.m3u8(\?|$)/i.test(url)) rec.hls = true;
+    if (editing) return saveEdit(rec, msg);
+    userData.added.push(rec);
+    if (!persist()) { userData.added.pop(); return setMsg(msg, 'Could not save. Try again.', 'warn'); }
+    stations.push(Object.assign({ user: true }, rec)); stations.sort((a, b) => a.freq - b.freq);
+    applyLogo(rec.name, '');
+    dirty = true;
+    stopTest();
+    setMsg(msg, 'Added “' + rec.name + '” at ' + rec.freq.toFixed(2) + ' MHz in ' + STATION_GROUPS[g].name + '. Close this screen to tune to it.', 'ok');
+    $('edName').value = ''; $('edUrl').value = ''; $('edFreq').value = ''; setMsg($('edTestMsg'), '');
+    renderList(); refreshSlot();
+  });
+
+
+
+  // ---- logo (app only: Android Auto and the widgets use it) ----------
+  // pendingLogo: undefined = leave as is, a data: URL = set, null = back to default.
+  let pendingLogo;
+  const logoImg = $('edLogoImg');
+  function showLogo(dataUrl, text){
+    if (dataUrl) { logoImg.src = dataUrl; logoImg.hidden = false; } else { logoImg.removeAttribute('src'); logoImg.hidden = true; }
+    $('edLogoState').textContent = text;
+  }
+  function resetLogoUi(name){
+    pendingLogo = undefined; setMsg($('edLogoMsg'), ''); $('edSite').value = '';
+    $('edLogoBox').hidden = !native;
+    if (!native) return;
+    let cur = '';
+    try { if (name && window.AndroidBridge.getUserLogo) cur = window.AndroidBridge.getUserLogo(name) || ''; } catch (e) {}
+    showLogo(cur, cur ? 'Your logo' : 'Default logo (the app’s own, or a drawn tile)');
+  }
+  window.__whLogoResult = function(ok, data){
+    const m = $('edLogoMsg');
+    if (!ok) { setMsg(m, data || '', data ? 'warn' : ''); return; }
+    pendingLogo = data; showLogo(data, 'New logo (saved when you save the station)');
+    setMsg(m, 'Logo ready.', 'ok');
+  };
+  $('edLogoPick').addEventListener('click', () => { try { window.AndroidBridge.pickLogo(); } catch (e) { setMsg($('edLogoMsg'), 'Could not open the picker.', 'warn'); } });
+  $('edLogoFetch').addEventListener('click', () => {
+    const site = $('edSite').value.trim();
+    if (!site) return setMsg($('edLogoMsg'), 'Type the station’s website, like example.com.au', 'warn');
+    setMsg($('edLogoMsg'), 'Looking for a logo…');
+    try { window.AndroidBridge.fetchLogo(site); } catch (e) { setMsg($('edLogoMsg'), 'Could not fetch a logo.', 'warn'); }
+  });
+  $('edLogoClear').addEventListener('click', () => {
+    pendingLogo = null; showLogo('', 'Default logo (saved when you save the station)'); setMsg($('edLogoMsg'), '');
+  });
+  // After a station is saved: store, clear or move its logo.
+  function applyLogo(name, oldName){
+    if (!native) return;
+    const b = window.AndroidBridge;
+    try {
+      if (typeof pendingLogo === 'string') b.saveUserLogo(name, pendingLogo);
+      else if (pendingLogo === null) b.clearUserLogo(name);
+      else if (oldName && oldName !== name && b.renameUserLogo) b.renameUserLogo(oldName, name);
+    } catch (e) {}
+    pendingLogo = undefined;
+  }
+
+  // ---- edit / delete / reset -----------------------------------------
+  const startKeys = new Set(STATION_GROUPS.map(g => g.start.toFixed(2)));
+  const keyOf = st => st._key || st.freq.toFixed(2);
+  function setBand(st){
+    const r = st.real || '', m = /^([\d.]+)\s*(FM|AM)$/i.exec(r);
+    if (m) { bSel.value = m[2].toLowerCase(); $('edFreq').value = m[1]; }
+    else if (/^DAB/i.test(r)) { bSel.value = 'dab'; if (st.dab) dSel.value = st.dab; }
+    else bSel.value = 'net';
+  }
+  function enterEdit(st){
+    editing = st;
+    $('edTitle').textContent = 'EDIT STATION ' + st.freq.toFixed(2) + (st.user ? ' (YOURS)' : ' (BUILT-IN)');
+    $('edName').value = st.name; $('edUrl').value = st.url;
+    gSel.value = String(groupOf(st.freq)); gSel.disabled = isBlockStart(st);
+    rSel.value = REGIONS.some(r => r[0] === st.cc) ? st.cc : 'XX';
+    $('edFreq').value = ''; setBand(st); updateRegionVisibility();
+    $('edManual').checked = false;
+    $('edManual').parentElement.hidden = isBlockStart(st);
+    $('edAdd').textContent = 'SAVE CHANGES';
+    resetLogoUi(st.name);
+    $('edEditBtns').hidden = false;
+    setMsg($('edMsg'), ''); setMsg($('edTestMsg'), '');
+    refreshBand();
+    $('edTitle').scrollIntoView({ block: 'start' });
+  }
+  function exitEdit(){
+    if (!editing && !gSel.disabled) return;
+    editing = null; gSel.disabled = false;
+    $('edTitle').textContent = 'ADD A STATION';
+    $('edAdd').textContent = 'ADD STATION';
+    $('edEditBtns').hidden = true;
+    $('edManual').parentElement.hidden = false;
+    $('edName').value = ''; $('edUrl').value = ''; $('edFreq').value = '';
+    rSel.value = REGION_FOR_GROUP[STATION_GROUPS[+gSel.value].name] || 'AU'; updateRegionVisibility();
+    resetLogoUi('');
+    refreshBand();
+  }
+  function saveEdit(rec, msg){
+    const st = editing, oldName = st.name;
+    if (st.user) {
+      const i = userData.added.findIndex(a => Math.abs(a.freq - st.freq) < 1e-6);
+      if (i < 0) return setMsg(msg, 'Could not find that station.', 'warn');
+      const old = userData.added[i]; userData.added[i] = rec;
+      if (!persist()) { userData.added[i] = old; return setMsg(msg, 'Could not save. Try again.', 'warn'); }
+      Object.assign(st, rec, { user: true });
+      if (!rec.dab) delete st.dab;
+      if (!rec.hls) delete st.hls;
+    } else {
+      const k = keyOf(st);
+      const old = userData.edited[k];
+      const e = { name: rec.name, real: rec.real, cc: rec.cc, url: rec.url };
+      if (rec.dab) e.dab = rec.dab;
+      if (Math.abs(rec.freq - parseFloat(k)) > 1e-6) e.freq = rec.freq;
+      userData.edited[k] = e;
+      if (!persist()) { if (old) userData.edited[k] = old; else delete userData.edited[k]; return setMsg(msg, 'Could not save. Try again.', 'warn'); }
+      st.name = rec.name; st.real = rec.real; st.cc = rec.cc; st.freq = rec.freq;
+      if (rec.url !== st.url) { st.url = rec.url; delete st.hls; if (rec.hls) st.hls = true; }
+      if (rec.dab) st.dab = rec.dab; else delete st.dab;
+    }
+    stations.sort((a, b) => a.freq - b.freq);
+    applyLogo(rec.name, oldName);
+    dirty = true; stopTest();
+    const f = st.freq.toFixed(2);
+    exitEdit(); renderList(); refreshSlot();
+    setMsg($('edFindMsg'), 'Saved ' + f + '. Close this screen to tune to it.', 'ok');
+    scr.scrollTop = 0;
+  }
+  function findStation(f){
+    return stations.find(s => Math.abs(s.freq - f) < 0.005);
+  }
+  function doFind(f){
+    const m = $('edFindMsg');
+    if (!isFinite(f)) return setMsg(m, 'Enter a dial number like 90.08.', 'warn');
+    const st = findStation(f);
+    if (!st) return setMsg(m, 'No station is on ' + f.toFixed(2) + '.', 'warn');
+    setMsg(m, 'Found ' + st.name + '.', 'ok');
+    enterEdit(st);
+  }
+  $('edFindBtn').addEventListener('click', () => doFind(parseFloat($('edFind').value)));
+  $('edFind').addEventListener('keydown', e => { if (e.key === 'Enter') doFind(parseFloat($('edFind').value)); });
+  $('edCurBtn').addEventListener('click', () => {
+    const f = wh.getCurrentFreq ? wh.getCurrentFreq() : NaN;
+    $('edFind').value = isFinite(f) ? f.toFixed(2) : '';
+    doFind(f);
+  });
+  $('edCancel').addEventListener('click', () => { exitEdit(); setMsg($('edFindMsg'), ''); setMsg($('edMsg'), ''); });
+  let delArmed = false, delTimer = null;
+  $('edDelete').addEventListener('click', () => {
+    const st = editing, msg = $('edMsg');
+    if (!st) return;
+    if (!st.user && startKeys.has(keyOf(st))) {
+      return setMsg(msg, st.name + ' is the first station of ' + STATION_GROUPS[groupOf(st.freq)].name + ', which the group buttons need. Edit it instead of deleting it.', 'warn');
+    }
+    if (!delArmed) {
+      delArmed = true; $('edDelete').textContent = 'TAP AGAIN TO DELETE';
+      delTimer = setTimeout(() => { delArmed = false; $('edDelete').textContent = 'DELETE STATION'; }, 3500);
+      return;
+    }
+    clearTimeout(delTimer); delArmed = false; $('edDelete').textContent = 'DELETE STATION';
+    const snapshot = JSON.stringify(userData);
+    if (st.user) userData.added = userData.added.filter(a => Math.abs(a.freq - st.freq) > 1e-6);
+    else { const k = keyOf(st); if (!userData.hidden.includes(k)) userData.hidden.push(k); delete userData.edited[k]; }
+    if (!persist()) { Object.assign(userData, JSON.parse(snapshot)); return setMsg(msg, 'Could not save. Try again.', 'warn'); }
+    const i = stations.indexOf(st); if (i >= 0) stations.splice(i, 1);
+    dirty = true; stopTest();
+    const nm = st.name;
+    try { if (native && window.AndroidBridge.clearUserLogo) window.AndroidBridge.clearUserLogo(nm); } catch (e) {}
+    exitEdit(); renderList(); refreshSlot();
+    setMsg($('edFindMsg'), 'Deleted ' + nm + '. Close this screen to update the dial.', 'ok');
+    scr.scrollTop = 0;
+  });
+  let resetArmed = false, resetTimer = null;
+  $('edReset').addEventListener('click', () => {
+    const m = $('edResetMsg');
+    if (!resetArmed) {
+      resetArmed = true; $('edReset').textContent = 'TAP AGAIN TO RESET';
+      setMsg(m, 'This puts back every built-in station and removes the ones you added or edited, and your custom logos.', 'warn');
+      resetTimer = setTimeout(() => { resetArmed = false; $('edReset').textContent = 'RESET TO DEFAULTS'; setMsg(m, ''); }, 5000);
+      return;
+    }
+    clearTimeout(resetTimer);
+    try { if (native && window.AndroidBridge.clearUserLogo) stations.forEach(st => window.AndroidBridge.clearUserLogo(st.name)); } catch (e) {}
+    userData.added = []; userData.hidden = []; userData.edited = {};
+    if (!persist()) return setMsg(m, 'Could not reset. Try again.', 'warn');
+    stopTest(); dirty = false;
+    try { if (wh.getBandLock()) sessionStorage.setItem('wh_keep_lock', '1'); } catch (e) {}
+    location.reload();
+  });
+
+
+  // ---- backup: export and import -------------------------------------
+  // One small .json file: the stations you added, the built-ins you removed or
+  // edited, and your custom logos. Import replaces what is on the phone now.
+  const REAL_OK = /^(\d{1,4}(\.\d{1,3})? (AM|FM)|DAB only|Internet only)$/;
+  const str = (v, max) => typeof v === 'string' && v.length <= max;
+  function buildBackup(){
+    const logos = {};
+    if (native && window.AndroidBridge.getUserLogo) {
+      const names = new Set(stations.map(s => s.name));
+      names.forEach(n => { try { const d = window.AndroidBridge.getUserLogo(n); if (d) logos[n] = d; } catch (e) {} });
+    }
+    return JSON.stringify({ app: 'Radio Wavehopper', format: 1, exported: new Date().toISOString(),
+      added: userData.added, hidden: userData.hidden, edited: userData.edited, logos });
+  }
+  window.__whBackupError = m => setMsg($('edBackupMsg'), m, 'warn');
+  window.__whBackupDone = (ok, msg) => setMsg($('edBackupMsg'), msg || '', ok ? 'ok' : (msg ? 'warn' : ''));
+  function doExport(mode){
+    const m = $('edBackupMsg');
+    if (!userData.added.length && !userData.hidden.length && !Object.keys(userData.edited).length) {
+      let any = false;
+      if (native && window.AndroidBridge.getUserLogo) stations.forEach(s => { try { if (window.AndroidBridge.getUserLogo(s.name)) any = true; } catch (e) {} });
+      if (!any) return setMsg(m, 'Nothing to back up yet: you have not added, edited or removed anything.', 'warn');
+    }
+    const json = buildBackup();
+    if (native && mode === 'share' && window.AndroidBridge.shareBackup) { window.AndroidBridge.shareBackup(json); setMsg(m, 'Choose where to send the backup.', 'ok'); return; }
+    if (native && window.AndroidBridge.saveBackup) { window.AndroidBridge.saveBackup(json); return; }
+    try {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+      a.download = 'radiowavehopper-backup.json';
+      document.body.appendChild(a); a.click(); a.remove();
+      setMsg(m, 'Backup downloaded.', 'ok');
+    } catch (e) { setMsg(m, 'Could not create the backup.', 'warn'); }
+  }
+  $('edExport').addEventListener('click', () => doExport('save'));
+  $('edShare').addEventListener('click', () => doExport('share'));
+
+  let pendingImport = null;
+  // Checks a backup and keeps only what is safe and fits the dial.
+  function cleanBackup(d){
+    if (!d || typeof d !== 'object' || d.app !== 'Radio Wavehopper') return null;
+    const builtIn = new Set(stations.filter(x => !x.user).map(x => x._key));
+    userData.hidden.forEach(k => builtIn.add(k));
+    const hidden = (Array.isArray(d.hidden) ? d.hidden : []).filter(k => typeof k === 'string' && builtIn.has(k));
+    const hiddenSet = new Set(hidden);
+    const used = new Set(); builtIn.forEach(k => { if (!hiddenSet.has(k)) used.add(k); });
+    const added = []; let dropped = 0;
+    // Built-in stations moved to another slot: free the old slot, claim the new one.
+    const movedTo = {};
+    if (d.edited && typeof d.edited === 'object' && !Array.isArray(d.edited)) {
+      Object.keys(d.edited).forEach(k => {
+        const e = d.edited[k];
+        if (!e || typeof e.freq !== 'number' || !isFinite(e.freq) || !builtIn.has(k) || hiddenSet.has(k) || startKeys.has(k)) return;
+        const k2 = (Math.round(e.freq * 100) / 100).toFixed(2);
+        if (e.freq > 87.5 && e.freq < 102.1 && !startKeys.has(k2) && !used.has(k2)) { used.delete(k); used.add(k2); movedTo[k] = Math.round(e.freq * 100) / 100; }
+      });
+    }
+    (Array.isArray(d.added) ? d.added : []).forEach(u => {
+      const ok = u && str(u.name, 40) && u.name.trim() && /^https?:\/\/\S+$/i.test(u.url || '') && str(u.real, 20) && REAL_OK.test(u.real)
+        && typeof u.freq === 'number' && isFinite(u.freq) && u.freq > 87.5 && u.freq < 102.1 && str(u.cc || '', 3)
+        && (u.dab === undefined || (typeof u.dab === 'string' && DAB_BLOCKS && DAB_BLOCKS[u.dab]));
+      const k = ok ? (Math.round(u.freq * 100) / 100).toFixed(2) : '';
+      if (!ok || used.has(k) || startKeys.has(k)) { dropped++; return; }
+      used.add(k);
+      const rec = { freq: Math.round(u.freq * 100) / 100, name: u.name.trim(), real: u.real, cc: u.cc || '', url: u.url };
+      if (u.dab) rec.dab = u.dab;
+      if (/\.m3u8(\?|$)/i.test(u.url)) rec.hls = true;
+      added.push(rec);
+    });
+    const edited = {};
+    if (d.edited && typeof d.edited === 'object' && !Array.isArray(d.edited)) {
+      Object.keys(d.edited).forEach(k => {
+        const e = d.edited[k];
+        if (!builtIn.has(k) || hiddenSet.has(k) || !e || !str(e.name, 40) || !e.name.trim() || !/^https?:\/\/\S+$/i.test(e.url || '') || !str(e.real, 20) || !REAL_OK.test(e.real) || !str(e.cc || '', 3)) { dropped++; return; }
+        const o = { name: e.name.trim(), real: e.real, cc: e.cc || '', url: e.url };
+        if (movedTo[k] !== undefined) o.freq = movedTo[k];
+        if (e.dab && DAB_BLOCKS && DAB_BLOCKS[e.dab]) o.dab = e.dab;
+        edited[k] = o;
+      });
+    }
+    const logos = {};
+    if (d.logos && typeof d.logos === 'object') {
+      Object.keys(d.logos).forEach(n => { const v = d.logos[n]; if (str(n, 60) && typeof v === 'string' && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+\/=]+$/.test(v) && v.length < 3000000) logos[n] = v; });
+    }
+    return { added, hidden, edited, logos, dropped };
+  }
+  function handleImportText(text){
+    const m = $('edBackupMsg');
+    let d; try { d = JSON.parse(text); } catch (e) { return setMsg(m, 'That is not a Radio Wavehopper backup file.', 'warn'); }
+    const c = cleanBackup(d);
+    if (!c) return setMsg(m, 'That is not a Radio Wavehopper backup file.', 'warn');
+    pendingImport = c;
+    $('edImportGoRow').hidden = false;
+    setMsg(m, 'Backup: ' + c.added.length + ' added, ' + Object.keys(c.edited).length + ' edited, ' + c.hidden.length + ' removed, ' + Object.keys(c.logos).length + ' logos'
+      + (c.dropped ? ' (' + c.dropped + ' skipped: they did not fit the dial)' : '') + '. Replace what is on this phone now?', 'warn');
+  }
+  window.__whImportResult = function(ok, text){
+    if (!ok) { setMsg($('edBackupMsg'), text || '', text ? 'warn' : ''); return; }
+    handleImportText(text);
+  };
+  $('edImport').addEventListener('click', () => {
+    $('edImportGoRow').hidden = true; pendingImport = null; setMsg($('edBackupMsg'), '');
+    if (native && window.AndroidBridge.pickBackup) { window.AndroidBridge.pickBackup(); return; }
+    $('edImportFile').value = ''; $('edImportFile').click();
+  });
+  $('edImportFile').addEventListener('change', () => {
+    const f = $('edImportFile').files && $('edImportFile').files[0];
+    if (!f) return;
+    const r = new FileReader(); r.onload = () => handleImportText(String(r.result)); r.onerror = () => setMsg($('edBackupMsg'), 'That file could not be read.', 'warn');
+    r.readAsText(f);
+  });
+  $('edImportNo').addEventListener('click', () => { pendingImport = null; $('edImportGoRow').hidden = true; setMsg($('edBackupMsg'), ''); });
+  $('edImportGo').addEventListener('click', () => {
+    const c = pendingImport; if (!c) return;
+    const m = $('edBackupMsg');
+    const before = JSON.stringify(userData);
+    // Clear the current custom logos first, then restore the backup's.
+    const oldNames = stations.map(s => s.name);
+    userData.added = c.added; userData.hidden = c.hidden; userData.edited = c.edited;
+    if (!persist()) { Object.assign(userData, JSON.parse(before)); return setMsg(m, 'Could not import. Nothing was changed.', 'warn'); }
+    if (native) {
+      try {
+        const b = window.AndroidBridge;
+        oldNames.forEach(n => b.clearUserLogo(n));
+        Object.keys(c.logos).forEach(n => b.saveUserLogo(n, c.logos[n]));
+      } catch (e) {}
+    }
+    pendingImport = null; dirty = false; stopTest();
+    try { if (wh.getBandLock()) sessionStorage.setItem('wh_keep_lock', '1'); } catch (e) {}
+    location.reload();
+  });
+
+  function openEdit(){
+    scr.hidden = false; scr.scrollTop = 0;
+    if (!gSel.dataset.init) { gSel.dataset.init = '1'; gSel.value = '0'; rSel.value = 'AU'; }
+    updateRegionVisibility();
+    exitEdit(); setMsg($('edMsg'), ''); setMsg($('edTestMsg'), ''); setMsg($('edBackupMsg'), ''); $('edImportGoRow').hidden = true; pendingImport = null;
+    resetLogoUi('');
+    refreshBand(); renderList();
+  }
+  function closeEdit(){
+    stopTest(); exitEdit(); scr.hidden = true;
+    if (dirty) {
+      dirty = false;
+      try { if (wh.getBandLock()) sessionStorage.setItem('wh_keep_lock', '1'); } catch (e) {}
+      location.reload();
+    }
+  }
+  btn.addEventListener('click', openEdit);
+  $('edClose').addEventListener('click', closeEdit);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !scr.hidden) closeEdit(); });
+  // Android back button / gesture closes the screen rather than leaving the app.
+  window.__whEditOpen = () => !scr.hidden;
+  window.__whEditClose = closeEdit;
+})();
+</script>
+</body>
+</html>

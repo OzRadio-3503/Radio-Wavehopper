@@ -1,0 +1,23 @@
+# Android Studio / Gradle
+.gradle/
+build/
+*/build/
+local.properties
+.idea/
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Signing: never publish these
+*.jks
+*.keystore
+keystore.properties
+signing.properties
+
+# Generated / OS
+*.apk
+*.aab
+*.log
+.DS_Store
+Thumbs.db

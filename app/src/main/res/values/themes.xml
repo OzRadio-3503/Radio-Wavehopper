@@ -1,0 +1,7 @@
+<resources>
+    <style name="Theme.RadioTuner" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">#120a1e</item>
+        <item name="android:navigationBarColor">#120a1e</item>
+        <item name="android:windowBackground">#120a1e</item>
+    </style>
+</resources>

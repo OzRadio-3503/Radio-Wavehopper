@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">Radio Wavehopper</string>
+    <string name="widget_description">Play, pause and change station from your home screen</string>
+    <string name="widget_small_description">Station logo and a play/pause button</string>
+    <string name="widget_wide_label">Radio Wavehopper - wide</string>
+    <string name="widget_small_label">Radio Wavehopper - small</string>
+    <string name="widget_tiny_description">Tap the logo to play or pause</string>
+    <string name="widget_tiny_label">Radio Wavehopper - tiny</string>
+</resources>
