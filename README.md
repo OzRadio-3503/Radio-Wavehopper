@@ -28,6 +28,40 @@ Download the latest APK from the **Releases** page, open it on your phone, and
 allow "install unknown apps" for the app you used to open it. Requires
 Android 8.0 (API 26) or newer.
 
+## How to use
+
+**Tuning.** Turn or drag the dial to move through the stations. The arrows step
+to the next or previous station. Station groups (Sport, Talk, each state, and so
+on) sit side by side on the dial.
+
+**Real frequency.** Switch the display to real mode to see each station's real
+on-air frequency (AM, FM or DAB+). Touch the dial in real mode and **Band Lock**
+switches on, so you tune along one band at a time.
+
+**Add your own station.**
+1. Tap the **pencil** icon to open the Edit screen, then **Add a station**.
+2. Enter the name, pick a **category** and **band**, and paste the **streaming URL**.
+3. Press **Test play** to check it works before saving.
+4. The dial position is chosen for you. Tick the manual option if you want to pick it yourself.
+5. In the NSW and ACT category, choose NSW or ACT under **Region**.
+
+**Edit, move or delete.** Open the pencil, find the station (or use **Find** with
+a dial number), and change it, move it to another category, or delete it. Deleting
+and resetting ask you to tap twice, so you can't do it by accident. **Reset to
+defaults** puts the original list back.
+
+**Logos.** Logos show in Android Auto and the widgets. For your own station choose
+**Upload from phone**, **Fetch logo from website**, or leave the default tile.
+
+**Back up your stations.** Your added stations and logos are saved on the phone
+and are lost if you uninstall the app. Before uninstalling, open the pencil, go to
+**Backup** and use **Save to phone** (or **Share backup**). After reinstalling, use
+**Import backup** to get them back.
+
+**Updating.** Install the newer APK over the old one and your stations stay.
+It must come from the same Releases page, because updates only install over
+apps signed with the same key.
+
 ## Build it yourself
 
 1. Open the project in **Android Studio** (File > Open, select this folder).
