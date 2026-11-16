@@ -291,3 +291,4 @@ Station logos belong to their owners; they are included to identify the stations
 ## Logo tiles without the white frame
 - `StationArtworkProvider.composeOnWhite` now looks at the logo's outer edge. If it is mostly one solid, non-white colour (a black, green or red tile), the square is filled with that colour and the logo fills it, so there is no white border. Logos with a transparent or white edge, or a photo/gradient edge, keep the white square as before. `STYLE_VERSION` was bumped (4) so cached tiles are redrawn.
 - `trimToSolidTile`: a logo that is a solid-coloured tile inside a white/transparent margin (SEN) is trimmed to the tile, which then fills the square. Only done when the trimmed edge is solid; otherwise the logo is left as it was. `STYLE_VERSION` is 5.
+- Add/Edit: when the category is NSW (and ACT) the Region dropdown always shows, offering only NSW or ACT. Both stay in the same dial block.

@@ -2646,8 +2646,19 @@
   }
   // Region is only asked for when the category doesn't already say it
   // (Sport, Talk, Pacific, music blocks, Internet). Otherwise it's filled in.
+  // A category that holds more than one region (NSW and ACT share a block) always
+  // asks, but only offers those regions.
+  const REGION_CHOICES = { 'NSW (and ACT)': ['NSW', 'ACT'] };
   function updateRegionVisibility(){
-    const auto = REGION_FOR_GROUP[STATION_GROUPS[+gSel.value].name];
+    const gname = STATION_GROUPS[+gSel.value].name;
+    const auto = REGION_FOR_GROUP[gname];
+    const choices = REGION_CHOICES[gname];
+    Array.from(rSel.options).forEach(o => { const ok = !choices || choices.includes(o.value); o.hidden = !ok; o.disabled = !ok; });
+    if (choices) {
+      if (!choices.includes(rSel.value)) rSel.value = choices[0];
+      rSel.parentElement.hidden = false;
+      return;
+    }
     rSel.parentElement.hidden = !!auto && (!editing || rSel.value === auto);
   }
   gSel.addEventListener('change', () => { if (!editing) rSel.value = REGION_FOR_GROUP[STATION_GROUPS[+gSel.value].name] || 'AU'; updateRegionVisibility(); refreshSlot(); });
