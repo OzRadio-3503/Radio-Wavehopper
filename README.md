@@ -1,5 +1,3 @@
-# Radio Wavehopper
-
 An Android radio app that works like a real tuner dial. Turn the dial from
 87.5 to 102.1 and it tunes to live Australian and international internet
 radio streams: commercial, community, sport, talk, music, and more.
@@ -103,6 +101,16 @@ changed, please open an issue and it will be taken out promptly.
 
 Streams are provided by the stations themselves and can change or stop at any
 time. Please only add and use streams you have the right to listen to.
+
+<img width="1280" height="2856" alt="Screenshot_20261117-094938" src="https://github.com/user-attachments/assets/f54e32f9-2554-4b3e-96e0-6d251c730f3d" />
+<img width="1280" height="2856" alt="Screenshot_20261117-095007" src="https://github.com/user-attachments/assets/8ca28d22-ed31-4bad-9085-ae1ed49ec2d5" />
+<img width="1280" height="541" alt="Screenshot_20261117-095028" src="https://github.com/user-attachments/assets/fb568b9a-a3d4-4d6d-b217-9dcb80f89ecf" />
+<img width="479" height="682" alt="Screenshot_20261117-095042" src="https://github.com/user-attachments/assets/ff6bb8d6-f70b-4776-a0bc-e0598edc7b4a" />
+<img width="1280" height="2856" alt="Screenshot_20261117-094506" src="https://github.com/user-attachments/assets/536ffa11-3ba4-4b86-864f-167e6fa2118b" />
+<img width="1280" height="2856" alt="Screenshot_20261117-094515" src="https://github.com/user-attachments/assets/57b0ed8c-753b-409c-b0cb-6bf5edc1facc" />
+<img width="1280" height="2856" alt="Screenshot_20261117-094649" src="https://github.com/user-attachments/assets/2387e4fd-7bf8-44cf-8aec-c9302937986e" />
+# Radio Wavehopper
+
 
 ## Licence
 
