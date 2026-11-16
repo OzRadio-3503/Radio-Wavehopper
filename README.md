@@ -38,6 +38,14 @@ on) sit side by side on the dial.
 on-air frequency (AM, FM or DAB+). Touch the dial in real mode and **Band Lock**
 switches on, so you tune along one band at a time.
 
+**Shortcuts.**
+- **Speakers:** tap the **right speaker** to jump to the next group of stations (Sport,
+  Talk, NSW and so on). The **left speaker** goes back to the start of the current
+  group, and a second tap goes to the previous group. The groups wrap round at either end.
+- **Hold the dial still** to magnify it for fine tuning.
+- **Hold the RADIO WAVEHOPPER badge** at the top to set the sleep timer (120, 60, 30, 10 minutes or off).
+- **AU only:** the button beside BAND skips overseas stations.
+
 **Add your own station.**
 1. Tap the **pencil** icon to open the Edit screen, then **Add a station**.
 2. Enter the name, pick a **category** and **band**, and paste the **streaming URL**.
