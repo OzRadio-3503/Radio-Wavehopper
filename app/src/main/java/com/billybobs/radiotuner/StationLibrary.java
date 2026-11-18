@@ -231,8 +231,12 @@ public final class StationLibrary {
             BY_NAME.put("Powerzone", "AU");
             BY_NAME.put("Radio Free Phoenix", "US");
             BY_NAME.put("Retro Hit Radio", "NZ");
-            BY_NAME.put("Retro Stream (weekends only)", "AU");
+            BY_NAME.put("Retro Stream (weekends only)", "NSW");
             BY_NAME.put("Station X", "NSW");
+            BY_NAME.put("Forever Classic 60s", "NSW");
+            BY_NAME.put("XLFM", "NSW");
+            BY_NAME.put("Vintage FM", "NSW");
+            BY_NAME.put("Forever Classic 70s", "NSW");
             BY_NAME.put("The Fresh Mix", "AU");
         }
         static String forName(String name) {
@@ -379,9 +383,45 @@ public final class StationLibrary {
     public static List<Station> getStations() {
         List<Station> stations = getBuiltInStations();
         UserStations.applyOverrides(stations);
-        stations.addAll(UserStations.added());
+        addUserStations(stations, UserStations.added());
         java.util.Collections.sort(stations, (a, b) -> Double.compare(a.freq, b.freq));
         return stations;
+    }
+
+    private static String normUrl(String u) {
+        String s = u == null ? "" : u.trim().toLowerCase(java.util.Locale.ROOT);
+        int hash = s.indexOf('#');
+        if (hash >= 0) s = s.substring(0, hash);
+        s = s.replaceFirst("^https?://", "");
+        return s.replaceAll("/+$", "");
+    }
+
+    /**
+     * Adds the listener's own stations to the built-in list. The page tidies the saved
+     * list when it loads (drops a station the app now ships, moves one that a built-in
+     * now sits on). This is the same check for the moments before the page has run after
+     * an update - Android Auto or a widget - and it never changes what is saved: a
+     * duplicate is skipped, and a clash nudges the station up to the next free hundredth.
+     */
+    private static void addUserStations(List<Station> stations, List<Station> mine) {
+        java.util.Set<String> urls = new java.util.HashSet<>();
+        java.util.Set<Long> used = new java.util.HashSet<>();
+        for (Station s : stations) { urls.add(normUrl(s.url)); used.add(Math.round(s.freq * 100)); }
+        for (Station u : mine) {
+            if (urls.contains(normUrl(u.url))) continue;
+            long k = Math.round(u.freq * 100);
+            boolean start = false;
+            for (String[] g : GROUPS) if (Math.round(Double.parseDouble(g[0]) * 100) == k) start = true;
+            Station put = u;
+            if (used.contains(k) || start) {
+                long n = k + 1;
+                while (n < 10210 && used.contains(n)) n++;
+                if (n < 10210) put = new Station(n / 100.0, u.name, u.real, u.url, null, false, u.region);
+                k = n;
+            }
+            used.add(k);
+            stations.add(put);
+        }
     }
 
     public static List<Station> getBuiltInStations() {
@@ -418,9 +458,10 @@ public final class StationLibrary {
         // ---- NSW (and ACT) ----
         stations.add(new Station(90.0, "2WEB", "585 AM", "https://s1.viastreaming.net:7230/stream"));
         stations.add(new Station(90.05, "2UE 954", "954 AM", "https://sa46.scastream.com.au/live/2ue_128.stream/playlist.m3u8?dist=listnr-web", "application/x-mpegURL"));
-        stations.add(new Station(90.08, "Station X", "1611 AM", "https://us01.xrn.com.au/listen/stx/StxSd"));
-        stations.add(new Station(90.1, "2RDJ", "88.1 FM", "https://billybobtuner.onrender.com/relay?url=http://104.128.238.80:8000/"));
+        stations.add(new Station(90.07, "Forever Classic 70s", "88.0 FM", "https://playerservices.streamtheworld.com/api/livestream-redirect/70S_MUSIC_GOULBURNAAC.aac"));
+        stations.add(new Station(90.1, "2RDJ", "88.1 FM", "http://104.128.238.80:8000/radio%202rdj"));
         stations.add(new Station(90.2, "2RRR Ryde", "88.5 FM", "https://28803.live.streamtheworld.com/2RRRAAC.aac"));
+        stations.add(new Station(90.25, "Vintage FM", "88.7 FM", "https://stream.radio.co/sd60e90ab1/listen"));
         stations.add(new Station(90.3, "2BRW", "88.9 FM", "https://audio-edge-d34v9.syd.o.radiomast.io/ba864be6-11d1-4e13-aa74-f8e8781f64f6#.mp3"));
         stations.add(new Station(90.4, "2BLU Katoomba", "89.1 FM", "https://23193.live.streamtheworld.com/2BLU.mp3"));
         stations.add(new Station(90.5, "2GLF", "89.3 FM", "https://23093.live.streamtheworld.com/2GLFAAC.aac"));
@@ -430,9 +471,11 @@ public final class StationLibrary {
         stations.add(new Station(90.9, "2YYY Young", "92.3 FM", "https://streaming.2yyyradio.com/radio/8000/radio.mp3"));
         stations.add(new Station(90.95, "2EC", "94.5 FM", "https://playerservices.streamtheworld.com/api/livestream-redirect/BEG_2ECAAC.aac"));
         stations.add(new Station(91.0, "2MIA Griffith", "95.1 FM", "https://28853.live.streamtheworld.com/2MIA.mp3"));
+        stations.add(new Station(91.05, "XLFM", "96.1 FM", "https://playerservices.streamtheworld.com/api/livestream-redirect/xlfmaac.aac"));
         stations.add(new Station(91.1, "2TVR Sounds Of The Mountains", "96.3 FM", "https://stream.mjm-webhosting.com.au:8342/;?type=http"));
         stations.add(new Station(91.2, "Coast FM Gosford", "96.3 FM", "https://28863.live.streamtheworld.com/2CCCAAC.aac"));
         stations.add(new Station(91.3, "2GHR Holbrook", "96.7 FM", "https://stream.2ghr.org.au:8000/2ghr"));
+        stations.add(new Station(91.35, "Forever Classic 60s", "97.5 FM", "https://28863.live.streamtheworld.com/FOREVER_CLASSIC_60S_CANBERRAAAC.aac"));
         stations.add(new Station(91.4, "Northside Radio", "99.3 FM", "https://28793.live.streamtheworld.com/2NSBAAC.aac"));
         stations.add(new Station(91.5, "2SSR", "99.7 FM", "https://radio12.shoutcast.net.au:8000/stream"));
         stations.add(new Station(91.6, "SWR FM Blacktown", "99.9 FM", "https://23193.live.streamtheworld.com/SWRFMAAC.aac"));
@@ -454,18 +497,18 @@ public final class StationLibrary {
         stations.add(new Station(93.2, "2EAR Moruya", "107.5 FM", "https://23193.live.streamtheworld.com/2EARAAC.aac"));
         stations.add(new Station(93.3, "2OCW Orange", "107.5 FM", "https://23093.live.streamtheworld.com/2OCWAAC.aac"));
         // ---- Victoria ----
-        stations.add(new Station(93.4, "3MFM", "88.1 FM", "https://billybobtuner.onrender.com/relay?url=http://listen.southcoastfm.au:881/aac"));
-        stations.add(new Station(93.5, "Southern FM", "88.3 FM", "https://billybobtuner.onrender.com/relay?url=https://stream.swifthosting.com.au/"));
+        stations.add(new Station(93.4, "3MFM", "88.1 FM", "http://listen.southcoastfm.au:881/aac"));
+        stations.add(new Station(93.5, "Southern FM", "88.3 FM", "https://stream.swifthosting.com.au/;stream.mp3"));
         stations.add(new Station(93.6, "Plenty Valley FM", "88.6 FM", "https://28803.live.streamtheworld.com/3PVRAAC.aac"));
         stations.add(new Station(93.7, "WYN FM", "88.9 FM", "https://streamer5.rightclickitservices.com:19740/aac"));
         stations.add(new Station(93.8, "Pulse FM Geelong", "94.7 FM", "https://23193.live.streamtheworld.com/3PLSAAC.aac"));
         stations.add(new Station(93.9, "Joy FM Melbourne", "94.9 FM", "https://stream.joy.org.au/proxy/joy949?mp=/live"));
-        stations.add(new Station(94.0, "Main FM", "94.9 FM", "https://billybobtuner.onrender.com/relay?url=http://s1.communitybroadcastnetwork.com.au:8000/MAINFM/stream"));
+        stations.add(new Station(94.0, "Main FM", "94.9 FM", "http://s1.communitybroadcastnetwork.com.au:8000/MAINFM/stream"));
         stations.add(new Station(94.1, "Inner FM", "96.5 FM", "https://28793.live.streamtheworld.com/3NRAAC.aac"));
         stations.add(new Station(94.2, "3MDR", "97.1 FM", "https://23163.live.streamtheworld.com/3MDRAAC.aac"));
         stations.add(new Station(94.3, "Casey Radio", "97.7 FM", "https://23193.live.streamtheworld.com/3SERAAC.aac"));
         stations.add(new Station(94.4, "3RPP", "98.7 FM", "https://streaming.radio.co/sfbd79db12/listen"));
-        stations.add(new Station(94.5, "Yarra Valley FM", "99.1 FM", "https://billybobtuner.onrender.com/relay?url=https://live.yarravalleyfm.org.au:8443/stream"));
+        stations.add(new Station(94.5, "Yarra Valley FM", "99.1 FM", "https://live.yarravalleyfm.org.au:8443/stream"));
         stations.add(new Station(94.6, "Sunbury Radio", "99.3 FM", "https://23203.live.streamtheworld.com/3NRGAAC.aac"));
         stations.add(new Station(94.7, "3MGB Mallacoota", "101.7 FM", "https://23163.live.streamtheworld.com/3MGBAAC.aac"));
         stations.add(new Station(94.8, "3RRR FM", "102.7 FM", "https://realtime.rrr.org.au/p1h"));
@@ -486,7 +529,7 @@ public final class StationLibrary {
         stations.add(new Station(96.2, "4ZZZ", "102.1 FM", "https://iheart.4zzz.org.au/4zzz"));
         stations.add(new Station(96.3, "Sunshine FM", "104.9 FM", "https://23163.live.streamtheworld.com/4SFM_SC"));
         // ---- South Australia ----
-        stations.add(new Station(96.4, "Coast FM Adelaide", "88.7 FM", "https://billybobtuner.onrender.com/relay?url=http://streaming1.coastfm.com.au:8000/broadwavehigh.mp3"));
+        stations.add(new Station(96.4, "Coast FM Adelaide", "88.7 FM", "http://streaming1.coastfm.com.au:8000/broadwavehigh.mp3"));
         stations.add(new Station(96.5, "Lofty Radio", "88.9 FM", "https://stream04.sigile.net/lofty-48-aac"));
         stations.add(new Station(96.6, "Fleurieu FM", "89.3 FM", "https://stream.sigile.net/fleurieufm-128-mp3"));
         stations.add(new Station(96.7, "5PBA FM", "89.7 FM", "https://23093.live.streamtheworld.com/5PBAAAC.aac"));
@@ -503,10 +546,10 @@ public final class StationLibrary {
         stations.add(new Station(97.7, "Wave Mandurah", "91.7 FM", "https://sa47.scastream.com.au/live/6mm_128.stream/playlist.m3u8"));
         stations.add(new Station(97.8, "Curtin Radio", "100.1 FM", "https://28853.live.streamtheworld.com/6NRAAC.aac"));
         stations.add(new Station(97.9, "Bunbury Community Radio", "103.7 FM", "https://23203.live.streamtheworld.com/6BCRAAC.aac"));
-        stations.add(new Station(98.0, "H FM Armadale", "107.3 FM", "https://billybobtuner.onrender.com/relay?url=https://stream.hfm.radio:8443/"));
+        stations.add(new Station(98.0, "H FM Armadale", "107.3 FM", "https://stream.hfm.radio:8443/;?type=http"));
         stations.add(new Station(98.1, "Radio Fremantle", "107.9 FM", "https://23193.live.streamtheworld.com/6CCRAAC.aac"));
         // ---- Tasmania ----
-        stations.add(new Station(98.2, "Star FM St Helens", "93.7 FM", "https://billybobtuner.onrender.com/relay?url=https://s6.myradiostream.com:11056/"));
+        stations.add(new Station(98.2, "Star FM St Helens", "93.7 FM", "https://s6.myradiostream.com:11056/;stream.mp3"));
         stations.add(new Station(98.3, "Huon FM", "95.3 FM", "https://stream3.rcast.net/72445"));
         stations.add(new Station(98.4, "Hobart FM", "96.1 FM", "https://radio12.shoutcast.net.au:2020/stream/8032"));
         stations.add(new Station(98.5, "MV FM", "96.9 FM", "https://23093.live.streamtheworld.com/MVFMAAC.aac"));
@@ -530,7 +573,7 @@ public final class StationLibrary {
         // ---- Singapore ----
         stations.add(new Station(99.9, "Gold FM Singapore", "90.5 FM", "https://28393.live.streamtheworld.com/GOLD905_PREM.aac"));
         // ---- South Africa ----
-        stations.add(new Station(100.0, "Magic 828", "828 AM", "https://billybobtuner.onrender.com/relay?url=http://cast.fabrik.fm:8106/"));
+        stations.add(new Station(100.0, "Magic 828", "828 AM", "http://cast.fabrik.fm:8106/"));
         stations.add(new Station(100.1, "LM Radio", "87.8 FM", "https://ukwestb.streaming.broadcast.radio/lmradio"));
         // ---- UK ----
         stations.add(new Station(100.2, "Radio Caroline", "648 AM", "https://stream.radiocaroline.net/rc128/stream.mp3"));
@@ -555,6 +598,7 @@ public final class StationLibrary {
         stations.add(new Station(101.7, "Radio Free Phoenix", "Internet only", "https://s6.reliastream.com/proxy/radiofre?mp=/stream"));
         stations.add(new Station(101.8, "Retro Hit Radio", "Internet only", "https://riphel02.radioca.st/stream"));
         stations.add(new Station(101.9, "Retro Stream (weekends only)", "Internet only", "http://retrostream.duckdns.org:8000/retro_stream_aac"));
+        stations.add(new Station(102.0, "Station X", "Internet only", "https://us01.xrn.com.au/listen/stx/StxSd"));
         stations.add(new Station(102.1, "The Fresh Mix", "Internet only", "https://streaming.starterfm.com/listen/freshmix/mix192"));
         return stations;
     }

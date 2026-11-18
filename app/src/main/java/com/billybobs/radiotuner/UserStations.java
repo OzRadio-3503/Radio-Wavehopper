@@ -29,6 +29,12 @@ public final class UserStations {
     /** Built-in stations the listener edited: dial key -> {name, real, cc, url}. */
     private static volatile java.util.Map<String, JSONObject> edited = new java.util.HashMap<>();
 
+    /** Name of the built-in each saved removal/edit was made on: dial key -> built-in's own name. */
+    private static volatile java.util.Map<String, String> names = new java.util.HashMap<>();
+    /** Built-ins that moved in an update, so older saved entries still know who they belong to. */
+    private static final java.util.Map<String, String> LEGACY_KEY_NAMES = new java.util.HashMap<>();
+    static { LEGACY_KEY_NAMES.put("90.08", "Station X"); }
+
     private UserStations() {}
 
     /** Load once per process (safe to call from anywhere, repeatedly). */
@@ -79,6 +85,11 @@ public final class UserStations {
         for (int i = list.size() - 1; i >= 0; i--) {
             StationLibrary.Station st = list.get(i);
             String k = key(st.freq);
+            // A saved removal or edit only applies to the station it was made on. If an
+            // update has put a different station on that key, leave the new one alone.
+            String expected = names.get(k);
+            if (expected == null) expected = LEGACY_KEY_NAMES.get(k);
+            if (expected != null && !expected.equals(st.name)) continue;
             if (h.contains(k)) { list.remove(i); continue; }
             JSONObject o = e.get(k);
             if (o == null) continue;
@@ -97,11 +108,17 @@ public final class UserStations {
         List<StationLibrary.Station> out = new ArrayList<>();
         java.util.Set<String> hid = new java.util.HashSet<>();
         java.util.Map<String, JSONObject> edt = new java.util.HashMap<>();
+        java.util.Map<String, String> nm = new java.util.HashMap<>();
         try {
             if (json != null && !json.isEmpty()) {
                 JSONObject root = new JSONObject(json);
                 JSONArray hArr = root.optJSONArray("hidden");
                 if (hArr != null) for (int i = 0; i < hArr.length(); i++) hid.add(hArr.optString(i));
+                JSONObject nObj = root.optJSONObject("names");
+                if (nObj != null) {
+                    java.util.Iterator<String> nit = nObj.keys();
+                    while (nit.hasNext()) { String k = nit.next(); String v = nObj.optString(k, ""); if (!v.isEmpty()) nm.put(k, v); }
+                }
                 JSONObject eObj = root.optJSONObject("edited");
                 if (eObj != null) {
                     java.util.Iterator<String> it = eObj.keys();
@@ -131,8 +148,10 @@ public final class UserStations {
             out = new ArrayList<>();
             hid = new java.util.HashSet<>();
             edt = new java.util.HashMap<>();
+            nm = new java.util.HashMap<>();
         }
         added = out;
+        names = nm;
         hidden = hid;
         edited = edt;
     }
