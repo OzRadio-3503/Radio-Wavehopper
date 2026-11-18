@@ -498,7 +498,7 @@ public final class StationLibrary {
         stations.add(new Station(93.3, "2OCW Orange", "107.5 FM", "https://23093.live.streamtheworld.com/2OCWAAC.aac"));
         // ---- Victoria ----
         stations.add(new Station(93.4, "3MFM", "88.1 FM", "http://listen.southcoastfm.au:881/aac"));
-        stations.add(new Station(93.5, "Southern FM", "88.3 FM", "https://stream.swifthosting.com.au/;?type=http&nocache=6846"));
+        stations.add(new Station(93.5, "Southern FM", "88.3 FM", "https://stream.swifthosting.com.au/;stream.mp3"));
         stations.add(new Station(93.6, "Plenty Valley FM", "88.6 FM", "https://28803.live.streamtheworld.com/3PVRAAC.aac"));
         stations.add(new Station(93.7, "WYN FM", "88.9 FM", "https://streamer5.rightclickitservices.com:19740/aac"));
         stations.add(new Station(93.8, "Pulse FM Geelong", "94.7 FM", "https://23193.live.streamtheworld.com/3PLSAAC.aac"));
@@ -549,7 +549,7 @@ public final class StationLibrary {
         stations.add(new Station(98.0, "H FM Armadale", "107.3 FM", "https://stream.hfm.radio:8443/;?type=http"));
         stations.add(new Station(98.1, "Radio Fremantle", "107.9 FM", "https://23193.live.streamtheworld.com/6CCRAAC.aac"));
         // ---- Tasmania ----
-        stations.add(new Station(98.2, "Star FM St Helens", "93.7 FM", "https://s6.myradiostream.com:11056/;?type=http&nocache=1795038414?0.47655228893962276"));
+        stations.add(new Station(98.2, "Star FM St Helens", "93.7 FM", "https://s6.myradiostream.com:11056/;stream.mp3"));
         stations.add(new Station(98.3, "Huon FM", "95.3 FM", "https://stream3.rcast.net/72445"));
         stations.add(new Station(98.4, "Hobart FM", "96.1 FM", "https://radio12.shoutcast.net.au:2020/stream/8032"));
         stations.add(new Station(98.5, "MV FM", "96.9 FM", "https://23093.live.streamtheworld.com/MVFMAAC.aac"));
