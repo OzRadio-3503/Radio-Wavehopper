@@ -115,7 +115,8 @@ A small station change that doesn't shift anything doesn't need a new layout: sw
 5. **Stall watchdog:** both players reconnect a stream that says it's playing but isn't progressing. It only runs while `playWhenReady` is true, and the car gives a new station a grace period before the first audio.
 6. **MP3 ID3 metadata is disabled** (`Mp3Extractor.FLAG_DISABLE_ID3_METADATA`) on the phone. It was a workaround from the StreamTheWorld investigation; it's left in place because it does no harm.
 7. **Plain `http://` streams** are allowed (`usesCleartextTraffic="true"` in the manifest). The **web version** served over https can't play them, though. Browsers block mixed content, so prefer `https://` links where a station offers one.
-8. **The relay:** some URLs go through `https://billybobtuner.onrender.com/relay?url=…`, a separate relay server. Its code isn't in this project. If those stations all fail together, check the relay first.
+8. **No relay:** the old relay server (`billybobtuner.onrender.com`) is gone; every station URL is direct. The page's website-only fallback uses `corsproxy.io`.
+9. **Merging user data:** built-in edits and hides are keyed by the built-in's original frequency and sealed with its name (`names`), so if a built-in moves, saved edits follow it by name. User-added stations are checked for duplicate URLs and clashing dial spots (`mergeUserStations()` in index.html, `StationLibrary.addUserStations()` in Java). Saved data is never destroyed by this.
 
 ## 4. Android Auto rules
 

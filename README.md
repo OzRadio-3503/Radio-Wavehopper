@@ -88,9 +88,11 @@ and the station list, and is worth reading before changing playback code.
 - Nothing is uploaded by the app. It connects to the radio streams you play,
   to station websites to fetch logos, and to some stations' "now playing"
   pages for song titles.
-- Some streams are fetched through a small relay server run by the author
-  (`billybobtuner.onrender.com`) because those stations block direct requests.
-  The relay only passes the stream through.
+- Every station plays straight from its own stream. There is no relay server.
+- Your own stations and edits are merged with the built-in list on every
+  update. If one of your stations lands on a dial spot a new built-in station
+  now uses, yours is moved to the nearest free spot (AM, then FM, then DAB,
+  then Internet) and nothing is deleted. Back up first from Edit > Backup.
 
 ## Logos and streams
 
