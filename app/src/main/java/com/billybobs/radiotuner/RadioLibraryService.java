@@ -460,7 +460,8 @@ public class RadioLibraryService extends MediaLibraryService {
      * through them: AM and FM by real broadcast frequency (lowest first,
      * mixing regions - like tuning a real radio), with stations on the same
      * frequency kept in dial order; DAB/Internet, which have no frequency,
-     * in dial order. Indices into {@code stations}.
+     * as all the DAB stations A-Z then all the Internet ones A-Z. Indices
+     * into {@code stations}.
      */
     private List<Integer> bandOrder() {
         List<Integer> band = new ArrayList<>();
@@ -474,6 +475,15 @@ public class RadioLibraryService extends MediaLibraryService {
                 Double fa = StationLibrary.realFreqValue(stations.get(a));
                 Double fb = StationLibrary.realFreqValue(stations.get(b));
                 return Double.compare(fa == null ? 0 : fa, fb == null ? 0 : fb);
+            });
+        } else {
+            // DAB/Internet: all DAB stations first, then Internet, each
+            // alphabetical by name (ignoring case).
+            java.util.Collections.sort(band, (a, b) -> {
+                boolean da = StationLibrary.realBand(stations.get(a)).equals("dab");
+                boolean db = StationLibrary.realBand(stations.get(b)).equals("dab");
+                if (da != db) return da ? -1 : 1;
+                return stations.get(a).name.compareToIgnoreCase(stations.get(b).name);
             });
         }
         return band;
