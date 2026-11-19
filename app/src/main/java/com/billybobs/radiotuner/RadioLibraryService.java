@@ -456,33 +456,56 @@ public class RadioLibraryService extends MediaLibraryService {
     }
 
     /**
-     * With a band filter on, the group-jump buttons and the car's fast-
-     * forward/rewind controls all do the same thing instead: jump to the
-     * first station of the current filter (AM/FM, or DAB/Internet), in
-     * dial order. Pressing it again lands on the same station - there's
-     * nowhere else to go, which is the "always back to the start" behaviour
-     * that was asked for.
+     * The stations in the current band filter, in the order the car steps
+     * through them: AM and FM by real broadcast frequency (lowest first,
+     * mixing regions - like tuning a real radio), with stations on the same
+     * frequency kept in dial order; DAB/Internet, which have no frequency,
+     * in dial order. Indices into {@code stations}.
+     */
+    private List<Integer> bandOrder() {
+        List<Integer> band = new ArrayList<>();
+        if (carBandFilter == null || stations == null) return band;
+        for (int i = 0; i < stations.size(); i++) {
+            if (carFilterBandOf(stations.get(i)).equals(carBandFilter)) band.add(i);
+        }
+        if ("am".equals(carBandFilter) || "fm".equals(carBandFilter)) {
+            // Stable sort, so equal frequencies keep their dial order.
+            java.util.Collections.sort(band, (a, b) -> {
+                Double fa = StationLibrary.realFreqValue(stations.get(a));
+                Double fb = StationLibrary.realFreqValue(stations.get(b));
+                return Double.compare(fa == null ? 0 : fa, fb == null ? 0 : fb);
+            });
+        }
+        return band;
+    }
+
+    private void tuneTo(int idx) {
+        if (player.getMediaItemCount() == stations.size()) {
+            player.seekToDefaultPosition(idx);
+        } else {
+            player.setMediaItems(fullPlaylist(), idx, 0L);
+        }
+        player.prepare();
+        player.play();
+    }
+
+    /**
+     * Jumps to the first station of the current band filter - the lowest
+     * frequency for AM/FM, the first on the dial for DAB/Internet. Used when
+     * a band is picked with the band button.
      */
     private void jumpBandStart() {
-        if (carBandFilter == null || stations == null) return;
-        for (int i = 0; i < stations.size(); i++) {
-            if (!carFilterBandOf(stations.get(i)).equals(carBandFilter)) continue;
-            DiagLog.log("carUI jumpBandStart: " + carBandFilter + " from index "
-                    + player.getCurrentMediaItemIndex() + " to " + i + " (" + stations.get(i).name + ")");
-            if (player.getMediaItemCount() == stations.size()) {
-                player.seekToDefaultPosition(i);
-            } else {
-                player.setMediaItems(fullPlaylist(), i, 0L);
-            }
-            player.prepare();
-            player.play();
-            return;
-        }
+        List<Integer> band = bandOrder();
+        if (band.isEmpty()) return;
+        int idx = band.get(0);
+        DiagLog.log("carUI jumpBandStart: " + carBandFilter + " from index "
+                + player.getCurrentMediaItemIndex() + " to " + idx + " (" + stations.get(idx).name + ")");
+        tuneTo(idx);
     }
 
     /**
      * With a band filter on, the double arrows move through that band in
-     * thirds: the band's stations (in dial order) are split into three
+     * thirds: the band's stations (in bandOrder) are split into three
      * sections, and +1 jumps to the start of the next section (start -> 1/3
      * -> 2/3 -> back to the start), -1 to the previous one. Like "previous
      * track", -1 from partway through a section goes to that section's own
@@ -490,11 +513,7 @@ public class RadioLibraryService extends MediaLibraryService {
      * sections.
      */
     private void jumpBandThird(int direction) {
-        if (carBandFilter == null || stations == null || stations.isEmpty()) return;
-        List<Integer> band = new ArrayList<>();
-        for (int i = 0; i < stations.size(); i++) {
-            if (carFilterBandOf(stations.get(i)).equals(carBandFilter)) band.add(i);
-        }
+        List<Integer> band = bandOrder();
         int n = band.size();
         if (n == 0) return;
         int current = player.getCurrentMediaItemIndex();
@@ -518,32 +537,30 @@ public class RadioLibraryService extends MediaLibraryService {
         DiagLog.log("carUI jumpBandThird: " + carBandFilter + " section " + (s + 1) + "/" + sections
                 + " -> " + (target + 1) + "/" + sections + ", index " + current + " -> " + idx
                 + " (" + stations.get(idx).name + ")");
-        player.seekToDefaultPosition(idx);
-        player.prepare();
-        player.play();
+        tuneTo(idx);
     }
 
     /**
-     * Steps to the next (direction +1) or previous (-1) station whose car
-     * band matches the current filter, wrapping past either end of the
-     * whole dial. Returns false - meaning "step normally, no filter is on"
-     * - when there's no band filter active.
+     * Steps to the next (direction +1) or previous (-1) station in the
+     * current band (in bandOrder - so by real frequency for AM/FM), wrapping
+     * past either end. Returns false - meaning "step normally, no filter is
+     * on" - when there's no band filter active.
      */
     private boolean stepWithinBand(int direction) {
         if (carBandFilter == null || stations == null || stations.isEmpty()) return false;
+        List<Integer> band = bandOrder();
+        int n = band.size();
+        if (n == 0) return false;
         int current = player.getCurrentMediaItemIndex();
-        if (current < 0 || current >= stations.size()) return false;
-        int n = stations.size();
-        for (int step = 1; step <= n; step++) {
-            int idx = ((current + direction * step) % n + n) % n;
-            if (carFilterBandOf(stations.get(idx)).equals(carBandFilter)) {
-                player.seekToDefaultPosition(idx);
-                player.prepare();
-                player.play();
-                return true;
-            }
+        int p = band.indexOf(current);
+        int idx;
+        if (p < 0) {
+            idx = band.get(direction > 0 ? 0 : n - 1); // off-band: start from the end you're heading into
+        } else {
+            idx = band.get(((p + direction) % n + n) % n);
         }
-        return false; // nothing on the dial matches the filter - shouldn't happen
+        tuneTo(idx);
+        return true;
     }
 
     /**
