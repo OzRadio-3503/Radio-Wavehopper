@@ -71,6 +71,19 @@ public class RadioLibraryService extends MediaLibraryService {
     private ImmutableList<CommandButton> groupButtons;
     private boolean logoRefreshPending = false;
 
+    // Three more Now Playing buttons: lock the skip buttons to one band
+    // (AM/FM, or DAB/Internet combined - the car's own split, coarser than
+    // the phone's, since a small screen has less room for it), or back to
+    // every station. Car-only; doesn't touch the phone's own band lock.
+    private static final String CMD_BAND_AMFM = "com.billybobs.radiotuner.BAND_AMFM";
+    private static final String CMD_BAND_DABNET = "com.billybobs.radiotuner.BAND_DABNET";
+    private static final String CMD_BAND_ALL = "com.billybobs.radiotuner.BAND_ALL";
+    private final SessionCommand bandAmfmCommand = new SessionCommand(CMD_BAND_AMFM, android.os.Bundle.EMPTY);
+    private final SessionCommand bandDabnetCommand = new SessionCommand(CMD_BAND_DABNET, android.os.Bundle.EMPTY);
+    private final SessionCommand bandAllCommand = new SessionCommand(CMD_BAND_ALL, android.os.Bundle.EMPTY);
+    /** null (no filter / "All"), "amfm" or "dabnet". */
+    private String carBandFilter = null;
+
     private static final String TAG = "RadioLibraryService";
     private static final int MAX_CONSECUTIVE_STATION_FAILURES = 5;
 
@@ -127,22 +140,40 @@ public class RadioLibraryService extends MediaLibraryService {
     }
 
     /**
-     * Index of the best name/frequency match for a free-text query, or -1.
-     * This is what lets a voice command ("Ok Google, tune to 2BRW" / "...
-     * play ABC News on Radio Wavehopper") actually resolve to a station:
-     * Assistant and Android Auto hand voice requests to onSetMediaItems as
-     * a single MediaItem with no mediaId at all, just this raw spoken text
-     * in its RequestMetadata.searchQuery, so matching only by mediaId (as
-     * tapping a station from the browse list does) would silently fail to
-     * resolve it and never actually start playing anything.
+     * A voice/search request that named no station at all - just the app
+     * itself ("play Radio Wavehopper"), or nothing ("play" with an empty
+     * search query). Resolved the same way onPlaybackResumption resolves a
+     * bare resume, instead of matching nothing and silently doing nothing.
+     */
+    private static final java.util.Set<String> APP_NAME_QUERIES = new java.util.HashSet<>(java.util.Arrays.asList(
+            "", "radiowavehopper", "billybobsradiotuner", "billybobsradio", "billybobradiotuner", "billybobradio"));
+
+    /**
+     * Index of the best name/frequency match for a free-text query, or -1
+     * only if even the app-name/empty fallback above doesn't apply. This is
+     * what lets a voice command ("Ok Google, tune to 2BRW" / "...play ABC
+     * News on Radio Wavehopper") actually resolve to a station: Assistant
+     * and Android Auto hand voice requests to onSetMediaItems as a single
+     * MediaItem with no mediaId at all, just this raw spoken text in its
+     * RequestMetadata.searchQuery, so matching only by mediaId (as tapping
+     * a station from the browse list does) would silently fail to resolve
+     * it and never actually start playing anything.
      */
     private int indexOfQuery(String query) {
         List<Integer> matches = searchStations(query);
-        return matches.isEmpty() ? -1 : matches.get(0);
+        if (!matches.isEmpty()) return matches.get(0);
+        if (APP_NAME_QUERIES.contains(normalise(query == null ? "" : query))) {
+            return combinedLastStationIndex();
+        }
+        return -1;
     }
 
     private static final String[] NUMBER_WORDS = {
             "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"};
+
+    /** A spoken/typed real frequency, with an optional band: "97.3fm", "873am", "97.3". */
+    private static final java.util.regex.Pattern REAL_FREQ_QUERY =
+            java.util.regex.Pattern.compile("^(\\d+(?:\\.\\d+)?)(fm|am|dab)?$");
 
     /**
      * Lower-cases, turns spoken numbers into digits and drops spaces and
@@ -151,19 +182,53 @@ public class RadioLibraryService extends MediaLibraryService {
      */
     private static String normalise(String text) {
         String s = " " + text.toLowerCase(java.util.Locale.ROOT) + " ";
-        s = s.replaceAll("^\\s*play\\s+", " ").replaceAll("\\s+on (billy bob'?s( radio)?|radio wavehopper)\\s*$", " ");
+        // "tune to"/"tune in to"/"listen to" as well as "play" - name
+        // matching already tolerated these via substring containment, but
+        // the real-frequency match below needs the exact remaining text,
+        // so strip the same filler words plain "play" was getting.
+        s = s.replaceAll("^\\s*(play|tune( in)? to|listen to)\\s+", " ")
+                .replaceAll("\\s+on (billy bob'?s( radio)?|radio wavehopper)\\s*$", " ");
         for (int n = 0; n < NUMBER_WORDS.length; n++) {
             s = s.replaceAll("(?<=[^a-z])" + NUMBER_WORDS[n] + "(?=[^a-z])", String.valueOf(n));
         }
         return s.replaceAll("[^a-z0-9.]", "");
     }
 
-    /** Station indices matching a typed or spoken query, best matches first. */
+    /**
+     * Station indices matching a typed or spoken query, best matches first:
+     * a real-frequency match ("tune to 97.3 FM", "873 AM"), then an exact
+     * name/dial-frequency match, then a partial one. Real-frequency matches
+     * are checked against the station's actual broadcast label (see
+     * StationLibrary.realBand/realFreqValue), not its position on our dial,
+     * since that's what a listener means by "97.3 FM" - several stations
+     * can share one real frequency across different states, so (as with
+     * everything else here) the first one in dial order wins. A bare
+     * number with no AM/FM/DAB word tries FM first, then AM, since that's
+     * how most real frequencies people say are meant.
+     */
     private List<Integer> searchStations(String query) {
-        List<Integer> exact = new ArrayList<>(), partial = new ArrayList<>();
-        if (query == null) return exact;
+        List<Integer> result = new ArrayList<>();
+        java.util.Set<Integer> seen = new java.util.HashSet<>();
+        if (query == null) return result;
         String q = normalise(query);
-        if (q.isEmpty()) return exact;
+        if (q.isEmpty()) return result;
+
+        java.util.regex.Matcher rm = REAL_FREQ_QUERY.matcher(q);
+        if (rm.matches()) {
+            double num = Double.parseDouble(rm.group(1));
+            String wantBand = rm.group(2);
+            String[] tryBands = wantBand != null ? new String[]{wantBand} : new String[]{"fm", "am"};
+            for (String band : tryBands) {
+                for (int i = 0; i < stations.size(); i++) {
+                    StationLibrary.Station s = stations.get(i);
+                    if (!StationLibrary.realBand(s).equals(band)) continue;
+                    Double v = StationLibrary.realFreqValue(s);
+                    if (v != null && Math.abs(v - num) < 0.05 && seen.add(i)) result.add(i);
+                }
+            }
+        }
+
+        List<Integer> partial = new ArrayList<>();
         for (int i = 0; i < stations.size(); i++) {
             StationLibrary.Station s = stations.get(i);
             String name = normalise(s.name);
@@ -172,13 +237,13 @@ public class RadioLibraryService extends MediaLibraryService {
             String shortFreq = freq.endsWith("0") ? freq.substring(0, freq.length() - 1) : freq;
             if (name.equals(q) || freq.equals(q) || shortFreq.equals(q)
                     || freq.replace(".", "").equals(q) || shortFreq.replace(".", "").equals(q)) {
-                exact.add(i);
+                if (seen.add(i)) result.add(i);
             } else if (name.contains(q) || (name.length() >= 3 && q.contains(name)) || freq.startsWith(q)) {
-                partial.add(i);
+                if (seen.add(i)) partial.add(i);
             }
         }
-        exact.addAll(partial);
-        return exact;
+        result.addAll(partial);
+        return result;
     }
 
     private List<MediaItem> fullPlaylist() {
@@ -189,6 +254,7 @@ public class RadioLibraryService extends MediaLibraryService {
 
     private static final String PREFS = "RadioAutoPrefs";
     private static final String KEY_LAST_STATION = "last_station_id";
+    private static final String KEY_LAST_STATION_AT = "last_station_id_at";
 
     private static final String KEY_LAYOUT = "station_layout";
 
@@ -268,6 +334,45 @@ public class RadioLibraryService extends MediaLibraryService {
         return id != null ? indexOfStation(id) : -1;
     }
 
+    /** Index of the station nearest this dial frequency, or -1 if there are none. */
+    private int nearestStationIndex(double freq) {
+        if (stations == null || stations.isEmpty()) return -1;
+        int best = 0;
+        double bestDiff = Math.abs(stations.get(0).freq - freq);
+        for (int i = 1; i < stations.size(); i++) {
+            double diff = Math.abs(stations.get(i).freq - freq);
+            if (diff < bestDiff) {
+                bestDiff = diff;
+                best = i;
+            }
+        }
+        return best;
+    }
+
+    /**
+     * Whichever was played more recently: the station last played in the
+     * car, or the one last played on the phone - so getting in the car
+     * after listening on the phone resumes that same station, instead of
+     * whatever the car happened to have on last. Falls back to the car's
+     * own last station when the phone has never saved one (or is older).
+     */
+    private int combinedLastStationIndex() {
+        android.content.SharedPreferences carPrefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        long carAt = carPrefs.getLong(KEY_LAST_STATION_AT, 0L);
+        int carIdx = savedStationIndex();
+
+        android.content.SharedPreferences phonePrefs = getSharedPreferences("RadioPrefs", MODE_PRIVATE);
+        long phoneAt = phonePrefs.getLong("last_station_at", 0L);
+        double phoneFreq = Double.longBitsToDouble(
+                phonePrefs.getLong("last_station_freq_bits", Double.doubleToLongBits(-1)));
+
+        if (phoneAt > carAt && phoneFreq >= 0) {
+            int idx = nearestStationIndex(phoneFreq);
+            if (idx >= 0) return idx;
+        }
+        return carIdx;
+    }
+
     /**
      * Reconnects the current station without player.stop(). stop() puts the
      * player into IDLE, which Android Auto reads as "playback ended": it
@@ -337,9 +442,92 @@ public class RadioLibraryService extends MediaLibraryService {
         player.play();
     }
 
+    /**
+     * With a band filter on, the group-jump buttons and the car's fast-
+     * forward/rewind controls all do the same thing instead: jump to the
+     * first station of the current filter (AM/FM, or DAB/Internet), in
+     * dial order. Pressing it again lands on the same station - there's
+     * nowhere else to go, which is the "always back to the start" behaviour
+     * that was asked for.
+     */
+    private void jumpBandStart() {
+        if (carBandFilter == null || stations == null) return;
+        for (int i = 0; i < stations.size(); i++) {
+            if (!StationLibrary.carBand(stations.get(i)).equals(carBandFilter)) continue;
+            Log.i(TAG, "Band lock: jumped to the start of " + carBandFilter + " (" + stations.get(i).name + ")");
+            if (player.getMediaItemCount() == stations.size()) {
+                player.seekToDefaultPosition(i);
+            } else {
+                player.setMediaItems(fullPlaylist(), i, 0L);
+            }
+            player.prepare();
+            player.play();
+            return;
+        }
+    }
+
+    /**
+     * Steps to the next (direction +1) or previous (-1) station whose car
+     * band matches the current filter, wrapping past either end of the
+     * whole dial. Returns false - meaning "step normally, no filter is on"
+     * - when there's no band filter active.
+     */
+    private boolean stepWithinBand(int direction) {
+        if (carBandFilter == null || stations == null || stations.isEmpty()) return false;
+        int current = player.getCurrentMediaItemIndex();
+        if (current < 0 || current >= stations.size()) return false;
+        int n = stations.size();
+        for (int step = 1; step <= n; step++) {
+            int idx = ((current + direction * step) % n + n) % n;
+            if (StationLibrary.carBand(stations.get(idx)).equals(carBandFilter)) {
+                player.seekToDefaultPosition(idx);
+                player.prepare();
+                player.play();
+                return true;
+            }
+        }
+        return false; // nothing on the dial matches the filter - shouldn't happen
+    }
+
+    /**
+     * The Now Playing screen's custom buttons: the two group-jump buttons,
+     * then the three band filter buttons, with whichever one matches the
+     * current filter shown pressed-in (disabled, so you can't press the
+     * mode you're already in - the same idea as the phone's band lock).
+     */
+    private ImmutableList<CommandButton> customLayout() {
+        return ImmutableList.<CommandButton>builder()
+                .addAll(groupButtons)
+                .add(new CommandButton.Builder()
+                        .setDisplayName("AM/FM")
+                        .setIconResId(R.drawable.ic_band_amfm)
+                        .setSessionCommand(bandAmfmCommand)
+                        .setEnabled(!"amfm".equals(carBandFilter))
+                        .build())
+                .add(new CommandButton.Builder()
+                        .setDisplayName("DAB/Internet")
+                        .setIconResId(R.drawable.ic_band_dabnet)
+                        .setSessionCommand(bandDabnetCommand)
+                        .setEnabled(!"dabnet".equals(carBandFilter))
+                        .build())
+                .add(new CommandButton.Builder()
+                        .setDisplayName("All stations")
+                        .setIconResId(R.drawable.ic_band_all)
+                        .setSessionCommand(bandAllCommand)
+                        .setEnabled(carBandFilter != null)
+                        .build())
+                .build();
+    }
+
+    private void refreshCustomLayout() {
+        if (mediaLibrarySession != null) mediaLibrarySession.setCustomLayout(customLayout());
+    }
+
     private static MediaItem buildMediaItem(StationLibrary.Station s) {
-        // e.g. "2SM 1269 (1269 AM · NSW)": real frequency, then state or country.
-        String title = s.name + " (" + s.real + (s.region.isEmpty() ? "" : " \u00b7 " + s.region) + ")";
+        // e.g. "1269 AM · 2SM 1269 · NSW": real frequency first, so Now
+        // Playing shows it the same prominent way the phone's dial does,
+        // then the name, then the state or country.
+        String title = s.real + " \u00b7 " + s.name + (s.region.isEmpty() ? "" : " \u00b7 " + s.region);
         MediaItem.Builder builder = new MediaItem.Builder()
                 .setMediaId(mediaIdFor(s))
                 .setUri(s.url)
@@ -534,10 +722,23 @@ public class RadioLibraryService extends MediaLibraryService {
                 lastKnownPositionMs = -1;
                 stallPollCount = 0;
                 currentStationHasPlayed = false;
+                // With a filter on, follow wherever you just went (e.g. a
+                // station picked from browse, or by voice) instead of letting
+                // the old filter immediately skip away from it on the next
+                // next/previous press.
+                if (carBandFilter != null && lastStationIndex >= 0 && lastStationIndex < stations.size()) {
+                    String newBand = StationLibrary.carBand(stations.get(lastStationIndex));
+                    if (!newBand.equals(carBandFilter)) {
+                        carBandFilter = newBand;
+                        refreshCustomLayout();
+                    }
+                }
                 // Remember it for the next time the car connects.
                 if (mediaItem != null && !mediaItem.mediaId.isEmpty()) {
                     getSharedPreferences(PREFS, MODE_PRIVATE).edit()
-                            .putString(KEY_LAST_STATION, mediaItem.mediaId).apply();
+                            .putString(KEY_LAST_STATION, mediaItem.mediaId)
+                            .putLong(KEY_LAST_STATION_AT, System.currentTimeMillis())
+                            .apply();
                 }
             }
 
@@ -584,6 +785,9 @@ public class RadioLibraryService extends MediaLibraryService {
                 SessionCommands commands = defaults.availableSessionCommands.buildUpon()
                         .add(prevGroupCommand)
                         .add(nextGroupCommand)
+                        .add(bandAmfmCommand)
+                        .add(bandDabnetCommand)
+                        .add(bandAllCommand)
                         .build();
                 return MediaSession.ConnectionResult.accept(commands, defaults.availablePlayerCommands);
             }
@@ -592,7 +796,7 @@ public class RadioLibraryService extends MediaLibraryService {
             public void onPostConnect(
                     @NonNull MediaSession session,
                     @NonNull MediaSession.ControllerInfo controller) {
-                session.setCustomLayout(controller, groupButtons);
+                session.setCustomLayout(controller, customLayout());
             }
 
             @NonNull
@@ -603,11 +807,26 @@ public class RadioLibraryService extends MediaLibraryService {
                     @NonNull SessionCommand customCommand,
                     @NonNull android.os.Bundle args) {
                 if (CMD_NEXT_GROUP.equals(customCommand.customAction)) {
-                    jumpGroup(1);
+                    if (carBandFilter != null) jumpBandStart(); else jumpGroup(1);
                     return Futures.immediateFuture(new SessionResult(SessionResult.RESULT_SUCCESS));
                 }
                 if (CMD_PREV_GROUP.equals(customCommand.customAction)) {
-                    jumpGroup(-1);
+                    if (carBandFilter != null) jumpBandStart(); else jumpGroup(-1);
+                    return Futures.immediateFuture(new SessionResult(SessionResult.RESULT_SUCCESS));
+                }
+                if (CMD_BAND_AMFM.equals(customCommand.customAction)) {
+                    carBandFilter = "amfm";
+                    refreshCustomLayout();
+                    return Futures.immediateFuture(new SessionResult(SessionResult.RESULT_SUCCESS));
+                }
+                if (CMD_BAND_DABNET.equals(customCommand.customAction)) {
+                    carBandFilter = "dabnet";
+                    refreshCustomLayout();
+                    return Futures.immediateFuture(new SessionResult(SessionResult.RESULT_SUCCESS));
+                }
+                if (CMD_BAND_ALL.equals(customCommand.customAction)) {
+                    carBandFilter = null;
+                    refreshCustomLayout();
                     return Futures.immediateFuture(new SessionResult(SessionResult.RESULT_SUCCESS));
                 }
                 return MediaLibrarySession.Callback.super.onCustomCommand(session, controller, customCommand, args);
@@ -720,7 +939,7 @@ public class RadioLibraryService extends MediaLibraryService {
             public ListenableFuture<MediaSession.MediaItemsWithStartPosition> onPlaybackResumption(
                     @NonNull MediaSession mediaSession,
                     @NonNull MediaSession.ControllerInfo controller) {
-                int idx = Math.max(0, savedStationIndex());
+                int idx = Math.max(0, combinedLastStationIndex());
                 return Futures.immediateFuture(
                         new MediaSession.MediaItemsWithStartPosition(fullPlaylist(), idx, 0L));
             }
@@ -777,38 +996,52 @@ public class RadioLibraryService extends MediaLibraryService {
         Player sessionPlayer = new ForwardingPlayer(player) {
             @Override
             public void seekForward() {
+                if (carBandFilter != null) {
+                    Log.i(TAG, "Car sent FAST FORWARD - band locked, jumping to the start of the band");
+                    jumpBandStart();
+                    return;
+                }
                 Log.i(TAG, "Car sent FAST FORWARD - jumping to the next group");
                 jumpGroup(1);
             }
 
             @Override
             public void seekBack() {
+                if (carBandFilter != null) {
+                    Log.i(TAG, "Car sent REWIND - band locked, jumping to the start of the band");
+                    jumpBandStart();
+                    return;
+                }
                 Log.i(TAG, "Car sent REWIND - jumping back a group");
                 jumpGroup(-1);
             }
 
+            // Single-station next/previous: stepped by real band while a
+            // filter is on (AM/FM, or DAB/Internet), station by station,
+            // wrapping past either end of the whole dial - normal stepping
+            // otherwise.
             @Override
             public void seekToNext() {
                 Log.i(TAG, "Car sent NEXT");
-                super.seekToNext();
+                if (!stepWithinBand(1)) super.seekToNext();
             }
 
             @Override
             public void seekToNextMediaItem() {
                 Log.i(TAG, "Car sent NEXT (item)");
-                super.seekToNextMediaItem();
+                if (!stepWithinBand(1)) super.seekToNextMediaItem();
             }
 
             @Override
             public void seekToPrevious() {
                 Log.i(TAG, "Car sent PREVIOUS");
-                super.seekToPrevious();
+                if (!stepWithinBand(-1)) super.seekToPrevious();
             }
 
             @Override
             public void seekToPreviousMediaItem() {
                 Log.i(TAG, "Car sent PREVIOUS (item)");
-                super.seekToPreviousMediaItem();
+                if (!stepWithinBand(-1)) super.seekToPreviousMediaItem();
             }
 
             // Always the station's own fixed details (name, real frequency,
@@ -838,7 +1071,7 @@ public class RadioLibraryService extends MediaLibraryService {
         mediaLibrarySession = new MediaLibrarySession.Builder(this, sessionPlayer, callback).build();
         // Also the session-wide layout: Android Auto reads its extra Now
         // Playing buttons from this (as the session's custom actions).
-        mediaLibrarySession.setCustomLayout(groupButtons);
+        mediaLibrarySession.setCustomLayout(customLayout());
 
         // Real station logos: look them up from the stations' websites in the
         // background. Each time some arrive, tell the car the station list
@@ -858,7 +1091,7 @@ public class RadioLibraryService extends MediaLibraryService {
 
         // Show the last station on the car's player as soon as it connects,
         // ready to play (not auto-playing, and not connecting until asked).
-        int savedIdx = savedStationIndex();
+        int savedIdx = combinedLastStationIndex();
         if (savedIdx >= 0) {
             player.setMediaItems(fullPlaylist(), savedIdx, 0L);
         }

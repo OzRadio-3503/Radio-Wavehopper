@@ -379,6 +379,45 @@ public final class StationLibrary {
         return -1;
     }
 
+    private static final java.util.regex.Pattern REAL_FREQ_PATTERN =
+            java.util.regex.Pattern.compile("^([\\d.]+) (FM|AM)$");
+
+    /**
+     * The station's real band - "am", "fm", "dab" or "net" (internet-only) -
+     * read from its {@link Station#real} label. Mirrors realBandFor() in the
+     * page's own JS (index.html), so Android Auto's band filter agrees with
+     * the phone's band lock about what counts as what.
+     */
+    public static String realBand(Station s) {
+        if (s.real != null) {
+            java.util.regex.Matcher m = REAL_FREQ_PATTERN.matcher(s.real);
+            if (m.matches()) return m.group(2).equals("FM") ? "fm" : "am";
+            if (s.real.equals("DAB only")) return "dab";
+        }
+        return "net";
+    }
+
+    /**
+     * The real frequency value matching {@link #realBand}, or null for a
+     * DAB/Internet station (no single comparable number). Used for voice
+     * tuning by real frequency ("tune to 97.3 FM" / "873 AM").
+     */
+    public static Double realFreqValue(Station s) {
+        if (s.real == null) return null;
+        java.util.regex.Matcher m = REAL_FREQ_PATTERN.matcher(s.real);
+        return m.matches() ? Double.valueOf(m.group(1)) : null;
+    }
+
+    /**
+     * Android Auto's band filter groups DAB and Internet together (car
+     * screens are smaller and the split matters less there than on the
+     * phone's dial) - "amfm" or "dabnet".
+     */
+    public static String carBand(Station s) {
+        String b = realBand(s);
+        return (b.equals("fm") || b.equals("am")) ? "amfm" : "dabnet";
+    }
+
     /** Built-in stations plus any the listener added, in dial order. */
     public static List<Station> getStations() {
         List<Station> stations = getBuiltInStations();

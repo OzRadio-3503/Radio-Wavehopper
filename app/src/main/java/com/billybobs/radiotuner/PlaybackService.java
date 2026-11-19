@@ -859,6 +859,10 @@ public class PlaybackService extends Service {
                             .putString("last_station_sub", station.real
                                     + (station.region.isEmpty() ? "" : " \u00b7 " + station.region))
                             .putLong("last_station_freq_bits", Double.doubleToLongBits(station.freq))
+                            // When this was played - so Android Auto can tell whether
+                            // the phone or the car was played more recently, and
+                            // resume whichever is newer. See RadioLibraryService.
+                            .putLong("last_station_at", System.currentTimeMillis())
                             .putBoolean("is_playing", true)
                             .apply();
                     updateState(true);
