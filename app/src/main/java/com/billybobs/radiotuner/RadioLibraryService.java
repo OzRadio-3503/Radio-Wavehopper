@@ -816,17 +816,35 @@ public class RadioLibraryService extends MediaLibraryService {
                 DiagLog.log("carUI onConnect: controller=" + controller.getPackageName()
                         + " trusted=" + controller.isTrusted()
                         + " legacy=" + controller.getControllerVersion());
-                return MediaSession.ConnectionResult.accept(commands, defaults.availablePlayerCommands);
+                try {
+                    return MediaSession.ConnectionResult.accept(commands, defaults.availablePlayerCommands);
+                } catch (Throwable t) {
+                    DiagLog.log("carUI onConnect THREW: " + android.util.Log.getStackTraceString(t));
+                    throw t;
+                }
             }
 
             @Override
             public void onPostConnect(
                     @NonNull MediaSession session,
                     @NonNull MediaSession.ControllerInfo controller) {
-                ImmutableList<CommandButton> layout = customLayout();
-                DiagLog.log("carUI onPostConnect: controller=" + controller.getPackageName()
-                        + " customLayout size=" + layout.size());
-                session.setCustomLayout(controller, layout);
+                DiagLog.log("carUI onPostConnect ENTERED: controller=" + controller.getPackageName());
+                try {
+                    ImmutableList<CommandButton> layout = customLayout();
+                    DiagLog.log("carUI onPostConnect: controller=" + controller.getPackageName()
+                            + " customLayout size=" + layout.size());
+                    session.setCustomLayout(controller, layout);
+                } catch (Throwable t) {
+                    DiagLog.log("carUI onPostConnect THREW: " + android.util.Log.getStackTraceString(t));
+                }
+            }
+
+            @Override
+            public void onDisconnected(
+                    @NonNull MediaSession session,
+                    @NonNull MediaSession.ControllerInfo controller) {
+                DiagLog.log("carUI onDisconnected: controller=" + controller.getPackageName()
+                        + " trusted=" + controller.isTrusted());
             }
 
             @NonNull
@@ -871,6 +889,7 @@ public class RadioLibraryService extends MediaLibraryService {
                     @NonNull MediaLibrarySession session,
                     @NonNull MediaSession.ControllerInfo browser,
                     @Nullable LibraryParams params) {
+                DiagLog.log("carUI onGetLibraryRoot: controller=" + browser.getPackageName());
                 MediaItem rootItem = new MediaItem.Builder()
                         .setMediaId(ROOT_ID)
                         .setMediaMetadata(new MediaMetadata.Builder()
