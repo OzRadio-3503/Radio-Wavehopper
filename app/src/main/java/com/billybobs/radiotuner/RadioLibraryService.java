@@ -266,6 +266,8 @@ public class RadioLibraryService extends MediaLibraryService {
 
     private static final String PREFS = "RadioAutoPrefs";
     private static final String KEY_LAST_STATION = "last_station_id";
+    /** + "am" / "fm" / "dabnet": the last station played in that band. */
+    private static final String KEY_LAST_IN_BAND_PREFIX = "last_station_in_band_";
     private static final String KEY_LAST_STATION_AT = "last_station_id_at";
 
     private static final String KEY_LAYOUT = "station_layout";
@@ -511,6 +513,26 @@ public class RadioLibraryService extends MediaLibraryService {
         DiagLog.log("carUI jumpBandStart: " + carBandFilter + " from index "
                 + player.getCurrentMediaItemIndex() + " to " + idx + " (" + stations.get(idx).name + ")");
         tuneTo(idx);
+    }
+
+    /**
+     * Picking a band with the band button: go back to the last station you
+     * listened to in that band, like a real radio remembering where each
+     * band was tuned. If nothing in that band has been played yet (or that
+     * station has since been removed), go to the band's first station.
+     */
+    private void jumpBandRemembered() {
+        if (carBandFilter == null || stations == null) return;
+        String id = getSharedPreferences(PREFS, MODE_PRIVATE)
+                .getString(KEY_LAST_IN_BAND_PREFIX + carBandFilter, null);
+        int idx = id == null ? -1 : indexOfStation(id);
+        if (idx >= 0 && carFilterBandOf(stations.get(idx)).equals(carBandFilter)) {
+            DiagLog.log("carUI jumpBandRemembered: " + carBandFilter + " from index "
+                    + player.getCurrentMediaItemIndex() + " to " + idx + " (" + stations.get(idx).name + ")");
+            if (idx != player.getCurrentMediaItemIndex()) tuneTo(idx);
+            return;
+        }
+        jumpBandStart();
     }
 
     /**
@@ -820,12 +842,19 @@ public class RadioLibraryService extends MediaLibraryService {
                         refreshCustomLayout();
                     }
                 }
-                // Remember it for the next time the car connects.
+                // Remember it for the next time the car connects - and as
+                // the last station in its band (AM, FM or DAB/Internet), so
+                // the band button can come back to it.
                 if (mediaItem != null && !mediaItem.mediaId.isEmpty()) {
-                    getSharedPreferences(PREFS, MODE_PRIVATE).edit()
-                            .putString(KEY_LAST_STATION, mediaItem.mediaId)
-                            .putLong(KEY_LAST_STATION_AT, System.currentTimeMillis())
-                            .apply();
+                    android.content.SharedPreferences.Editor edit =
+                            getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                                    .putString(KEY_LAST_STATION, mediaItem.mediaId)
+                                    .putLong(KEY_LAST_STATION_AT, System.currentTimeMillis());
+                    if (lastStationIndex >= 0 && lastStationIndex < stations.size()) {
+                        edit.putString(KEY_LAST_IN_BAND_PREFIX
+                                + carFilterBandOf(stations.get(lastStationIndex)), mediaItem.mediaId);
+                    }
+                    edit.apply();
                 }
             }
 
@@ -930,14 +959,15 @@ public class RadioLibraryService extends MediaLibraryService {
                 if (CMD_BAND_AMFM.equals(customCommand.customAction)) {
                     // The single band button: each tap moves one step round
                     // AM -> FM -> DAB/Internet -> Normal -> AM. Landing on a
-                    // band jumps straight to its first station; landing on
+                    // band goes back to the last station you played in it
+                    // (or its first station, the first time); landing on
                     // Normal leaves you where you are.
                     carBandFilter = carBandFilter == null ? "am"
                             : "am".equals(carBandFilter) ? "fm"
                             : "fm".equals(carBandFilter) ? "dabnet"
                             : null;
                     refreshCustomLayout();
-                    if (carBandFilter != null) jumpBandStart();
+                    if (carBandFilter != null) jumpBandRemembered();
                     return Futures.immediateFuture(new SessionResult(SessionResult.RESULT_SUCCESS));
                 }
                 if (CMD_BAND_DABNET.equals(customCommand.customAction)) {
