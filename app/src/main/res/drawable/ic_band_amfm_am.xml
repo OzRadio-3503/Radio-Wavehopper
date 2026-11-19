@@ -1,10 +1,14 @@
-<!-- AM/FM band toggle (Android Auto), AM-active state - left half lit
-     in the app's accent colour, right half dim. -->
+<!-- AM/FM band toggle (Android Auto), AM-active state - left block
+     solid (the "lit" side), right block hollow, so the two states are
+     told apart by shape rather than colour (colour/tint is usually
+     the host's call, not ours - see ic_band_amfm_neutral.xml). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
-    android:viewportHeight="24">
-    <path android:fillColor="#8D93FF" android:pathData="M2,9h9v6H2z" />
-    <path android:fillColor="#55575D" android:pathData="M13,9h9v6h-9z" />
+    android:viewportHeight="24"
+    android:tint="#FFFFFF">
+    <path android:fillColor="#FF000000" android:pathData="M2.8,9.8h8.4v5.4H2.8z" />
+    <path android:fillColor="#00000000" android:strokeColor="#FF000000" android:strokeWidth="1.6"
+          android:pathData="M12.8,9.8h8.4v5.4h-8.4z" />
 </vector>
