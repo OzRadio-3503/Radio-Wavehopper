@@ -2980,6 +2980,10 @@
       else if (pendingLogo === null) b.clearUserLogo(name);
       else if (oldName && oldName !== name && b.renameUserLogo) b.renameUserLogo(oldName, name);
     } catch (e) {}
+    // Renamed: the band memory (shared with the car) follows the new name.
+    try {
+      if (oldName && oldName !== name && b.renameBandStation) b.renameBandStation(oldName, name);
+    } catch (e) {}
     pendingLogo = undefined;
   }
 

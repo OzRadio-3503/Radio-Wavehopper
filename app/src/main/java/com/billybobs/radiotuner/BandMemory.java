@@ -33,6 +33,17 @@ final class BandMemory {
                 .apply();
     }
 
+    /** A station was renamed in the editor: keep remembering it (time unchanged). */
+    static void rename(Context ctx, String oldName, String newName) {
+        if (oldName == null || newName == null || oldName.equals(newName)) return;
+        SharedPreferences p = prefs(ctx);
+        SharedPreferences.Editor e = p.edit();
+        for (String band : new String[]{"am", "fm", "dab", "net"}) {
+            if (oldName.equals(p.getString("name_" + band, null))) e.putString("name_" + band, newName);
+        }
+        e.apply();
+    }
+
     static String name(Context ctx, String band) {
         return prefs(ctx).getString("name_" + band, null);
     }

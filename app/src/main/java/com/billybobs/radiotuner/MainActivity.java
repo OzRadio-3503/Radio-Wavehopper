@@ -314,6 +314,11 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public void renameBandStation(String oldName, String newName) {
+            BandMemory.rename(MainActivity.this, oldName, newName);
+        }
+
+        @JavascriptInterface
         public void clearUserLogo(String name) {
             UserLogos.remove(MainActivity.this, name);
         }
