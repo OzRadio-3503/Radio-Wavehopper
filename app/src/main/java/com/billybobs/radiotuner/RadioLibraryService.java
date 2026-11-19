@@ -481,6 +481,49 @@ public class RadioLibraryService extends MediaLibraryService {
     }
 
     /**
+     * With a band filter on, the double arrows move through that band in
+     * thirds: the band's stations (in dial order) are split into three
+     * sections, and +1 jumps to the start of the next section (start -> 1/3
+     * -> 2/3 -> back to the start), -1 to the previous one. Like "previous
+     * track", -1 from partway through a section goes to that section's own
+     * start first. Bands with fewer than three stations just use fewer
+     * sections.
+     */
+    private void jumpBandThird(int direction) {
+        if (carBandFilter == null || stations == null || stations.isEmpty()) return;
+        List<Integer> band = new ArrayList<>();
+        for (int i = 0; i < stations.size(); i++) {
+            if (carFilterBandOf(stations.get(i)).equals(carBandFilter)) band.add(i);
+        }
+        int n = band.size();
+        if (n == 0) return;
+        int current = player.getCurrentMediaItemIndex();
+        int p = band.indexOf(current);
+        if (p < 0) { // not on a station in this band - just go to its start
+            jumpBandStart();
+            return;
+        }
+        int sections = Math.min(3, n);
+        int[] starts = new int[sections];
+        for (int k = 0; k < sections; k++) starts[k] = k * n / sections;
+        int s = 0;
+        for (int k = 0; k < sections; k++) if (starts[k] <= p) s = k;
+        int target;
+        if (direction < 0 && p != starts[s]) {
+            target = s;
+        } else {
+            target = ((s + direction) % sections + sections) % sections;
+        }
+        int idx = band.get(starts[target]);
+        DiagLog.log("carUI jumpBandThird: " + carBandFilter + " section " + (s + 1) + "/" + sections
+                + " -> " + (target + 1) + "/" + sections + ", index " + current + " -> " + idx
+                + " (" + stations.get(idx).name + ")");
+        player.seekToDefaultPosition(idx);
+        player.prepare();
+        player.play();
+    }
+
+    /**
      * Steps to the next (direction +1) or previous (-1) station whose car
      * band matches the current filter, wrapping past either end of the
      * whole dial. Returns false - meaning "step normally, no filter is on"
@@ -849,12 +892,12 @@ public class RadioLibraryService extends MediaLibraryService {
                     @NonNull android.os.Bundle args) {
                 if (CMD_NEXT_GROUP.equals(customCommand.customAction)) {
                     DiagLog.log("carUI CMD_NEXT_GROUP: carBandFilter=" + carBandFilter);
-                    if (carBandFilter != null) jumpBandStart(); else jumpGroup(1);
+                    if (carBandFilter != null) jumpBandThird(1); else jumpGroup(1);
                     return Futures.immediateFuture(new SessionResult(SessionResult.RESULT_SUCCESS));
                 }
                 if (CMD_PREV_GROUP.equals(customCommand.customAction)) {
                     DiagLog.log("carUI CMD_PREV_GROUP: carBandFilter=" + carBandFilter);
-                    if (carBandFilter != null) jumpBandStart(); else jumpGroup(-1);
+                    if (carBandFilter != null) jumpBandThird(-1); else jumpGroup(-1);
                     return Futures.immediateFuture(new SessionResult(SessionResult.RESULT_SUCCESS));
                 }
                 if (CMD_BAND_AMFM.equals(customCommand.customAction)) {
@@ -1050,7 +1093,7 @@ public class RadioLibraryService extends MediaLibraryService {
             public void seekForward() {
                 DiagLog.log("carUI seekForward: carBandFilter=" + carBandFilter);
                 if (carBandFilter != null) {
-                    jumpBandStart();
+                    jumpBandThird(1);
                     return;
                 }
                 jumpGroup(1);
@@ -1060,7 +1103,7 @@ public class RadioLibraryService extends MediaLibraryService {
             public void seekBack() {
                 DiagLog.log("carUI seekBack: carBandFilter=" + carBandFilter);
                 if (carBandFilter != null) {
-                    jumpBandStart();
+                    jumpBandThird(-1);
                     return;
                 }
                 jumpGroup(-1);
