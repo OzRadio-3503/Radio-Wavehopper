@@ -1562,15 +1562,42 @@
   const mainBody = document.querySelector('.main-body');
   const streamSub = streamDisplay.querySelector('.stream-sub');
   const streamSubHTML = streamSub.innerHTML;
+  // The memory is shared with Android Auto through the app (so a band picked
+  // in the car and on the phone opens on the same station); this page's own
+  // copy is only a fallback for when the app bridge isn't there.
   let bandLast = {};
   try { bandLast = JSON.parse(localStorage.getItem('band_last') || '{}') || {}; } catch (e) { bandLast = {}; }
-  function rememberBand(station){
+  function loadSharedBandMemory(){
+    if (!window.AndroidBridge || !AndroidBridge.getBandMemory) return;
+    try {
+      const shared = JSON.parse(AndroidBridge.getBandMemory() || '{}') || {};
+      // First run with the shared memory: hand over what this page already
+      // remembered, for any band the app doesn't know yet.
+      Object.keys(bandLast).forEach(band => {
+        if (!shared[band] && bandLast[band] && AndroidBridge.rememberBand) {
+          try { AndroidBridge.rememberBand(band, bandLast[band]); } catch (e) {}
+          shared[band] = bandLast[band];
+        }
+      });
+      bandLast = shared;
+    } catch (e) {}
+  }
+  loadSharedBandMemory();
+  function rememberBand(station, tuned){
     const band = realBandFor(station).band;
+    // Tell the app whenever a station is actually tuned (even if it's the
+    // same one as before), so the "played most recently" time the car uses
+    // for DAB vs Internet stays current. Just opening the app on a station
+    // doesn't count.
+    if (tuned && window.AndroidBridge && AndroidBridge.rememberBand) {
+      try { AndroidBridge.rememberBand(band, station.name); } catch (e) {}
+    }
     if (bandLast[band] === station.name) return;
     bandLast[band] = station.name;
     try { localStorage.setItem('band_last', JSON.stringify(bandLast)); } catch (e) {}
   }
   function bandOpeningStation(band){
+    loadSharedBandMemory(); // pick up anything the car tuned meanwhile
     const list = realBandStations(band).filter(allowed);
     return list.find(s => s.name === bandLast[band]) || list[0] || null;
   }
@@ -1765,7 +1792,7 @@
     // with a connection attempt. The scan is committed with a normal,
     // non-silent render() call once the button is released.
     if (opts.silent) return station;
-    rememberBand(station);
+    rememberBand(station, !opts.initial && station !== tunedStation);
 
     if (station !== tunedStation) {
       tunedStation = station;

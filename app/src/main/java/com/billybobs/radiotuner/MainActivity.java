@@ -302,6 +302,17 @@ public class MainActivity extends Activity {
             return UserLogos.getDataUrl(MainActivity.this, name);
         }
 
+        /** Shared with Android Auto: the last station tuned in each band. */
+        @JavascriptInterface
+        public String getBandMemory() {
+            return BandMemory.toJson(MainActivity.this);
+        }
+
+        @JavascriptInterface
+        public void rememberBand(String band, String name) {
+            BandMemory.remember(MainActivity.this, band, name);
+        }
+
         @JavascriptInterface
         public void clearUserLogo(String name) {
             UserLogos.remove(MainActivity.this, name);

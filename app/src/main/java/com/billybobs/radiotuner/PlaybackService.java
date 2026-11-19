@@ -865,6 +865,12 @@ public class PlaybackService extends Service {
                             .putLong("last_station_at", System.currentTimeMillis())
                             .putBoolean("is_playing", true)
                             .apply();
+                    // Also the last station in its band, shared with Android
+                    // Auto's band button - covers the widget and notification
+                    // too, when the app's page isn't open.
+                    if (testUrl == null) {
+                        BandMemory.remember(this, StationLibrary.realBand(station), station.name);
+                    }
                     updateState(true);
                 }
                 return START_STICKY;

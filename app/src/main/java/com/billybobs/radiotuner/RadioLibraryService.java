@@ -266,8 +266,6 @@ public class RadioLibraryService extends MediaLibraryService {
 
     private static final String PREFS = "RadioAutoPrefs";
     private static final String KEY_LAST_STATION = "last_station_id";
-    /** + "am" / "fm" / "dabnet": the last station played in that band. */
-    private static final String KEY_LAST_IN_BAND_PREFIX = "last_station_in_band_";
     private static final String KEY_LAST_STATION_AT = "last_station_id_at";
 
     private static final String KEY_LAYOUT = "station_layout";
@@ -516,23 +514,40 @@ public class RadioLibraryService extends MediaLibraryService {
     }
 
     /**
-     * Picking a band with the band button: go back to the last station you
-     * listened to in that band, like a real radio remembering where each
-     * band was tuned. If nothing in that band has been played yet (or that
-     * station has since been removed), go to the band's first station.
+     * Picking a band with the band button: go back to the last station
+     * tuned in that band - on the phone or in the car (see BandMemory) -
+     * like a real radio remembering where each band was. For the combined
+     * DAB/Internet band, whichever of the last DAB and last Internet station
+     * was played more recently (the other one if that station is gone). If
+     * nothing in the band has been played yet, go to its first station.
      */
     private void jumpBandRemembered() {
         if (carBandFilter == null || stations == null) return;
-        String id = getSharedPreferences(PREFS, MODE_PRIVATE)
-                .getString(KEY_LAST_IN_BAND_PREFIX + carBandFilter, null);
-        int idx = id == null ? -1 : indexOfStation(id);
-        if (idx >= 0 && carFilterBandOf(stations.get(idx)).equals(carBandFilter)) {
-            DiagLog.log("carUI jumpBandRemembered: " + carBandFilter + " from index "
-                    + player.getCurrentMediaItemIndex() + " to " + idx + " (" + stations.get(idx).name + ")");
-            if (idx != player.getCurrentMediaItemIndex()) tuneTo(idx);
-            return;
+        String[] slots;
+        if ("dabnet".equals(carBandFilter)) {
+            boolean dabNewer = BandMemory.at(this, "dab") >= BandMemory.at(this, "net");
+            slots = dabNewer ? new String[]{"dab", "net"} : new String[]{"net", "dab"};
+        } else {
+            slots = new String[]{carBandFilter};
+        }
+        for (String slot : slots) {
+            int idx = indexOfStationNamed(BandMemory.name(this, slot));
+            if (idx >= 0 && carFilterBandOf(stations.get(idx)).equals(carBandFilter)) {
+                DiagLog.log("carUI jumpBandRemembered: " + carBandFilter + " (" + slot + ") from index "
+                        + player.getCurrentMediaItemIndex() + " to " + idx + " (" + stations.get(idx).name + ")");
+                if (idx != player.getCurrentMediaItemIndex()) tuneTo(idx);
+                return;
+            }
         }
         jumpBandStart();
+    }
+
+    private int indexOfStationNamed(String name) {
+        if (name == null || stations == null) return -1;
+        for (int i = 0; i < stations.size(); i++) {
+            if (name.equals(stations.get(i).name)) return i;
+        }
+        return -1;
     }
 
     /**
@@ -842,19 +857,18 @@ public class RadioLibraryService extends MediaLibraryService {
                         refreshCustomLayout();
                     }
                 }
-                // Remember it for the next time the car connects - and as
-                // the last station in its band (AM, FM or DAB/Internet), so
-                // the band button can come back to it.
+                // Remember it for the next time the car connects - and, in
+                // the memory shared with the phone, as the last station in
+                // its band (AM, FM, DAB or Internet) for the band button.
                 if (mediaItem != null && !mediaItem.mediaId.isEmpty()) {
-                    android.content.SharedPreferences.Editor edit =
-                            getSharedPreferences(PREFS, MODE_PRIVATE).edit()
-                                    .putString(KEY_LAST_STATION, mediaItem.mediaId)
-                                    .putLong(KEY_LAST_STATION_AT, System.currentTimeMillis());
+                    getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                            .putString(KEY_LAST_STATION, mediaItem.mediaId)
+                            .putLong(KEY_LAST_STATION_AT, System.currentTimeMillis())
+                            .apply();
                     if (lastStationIndex >= 0 && lastStationIndex < stations.size()) {
-                        edit.putString(KEY_LAST_IN_BAND_PREFIX
-                                + carFilterBandOf(stations.get(lastStationIndex)), mediaItem.mediaId);
+                        StationLibrary.Station s = stations.get(lastStationIndex);
+                        BandMemory.remember(RadioLibraryService.this, StationLibrary.realBand(s), s.name);
                     }
-                    edit.apply();
                 }
             }
 
