@@ -855,10 +855,12 @@ public class RadioLibraryService extends MediaLibraryService {
                     @NonNull SessionCommand customCommand,
                     @NonNull android.os.Bundle args) {
                 if (CMD_NEXT_GROUP.equals(customCommand.customAction)) {
+                    DiagLog.log("carUI CMD_NEXT_GROUP: carBandFilter=" + carBandFilter);
                     if (carBandFilter != null) jumpBandStart(); else jumpGroup(1);
                     return Futures.immediateFuture(new SessionResult(SessionResult.RESULT_SUCCESS));
                 }
                 if (CMD_PREV_GROUP.equals(customCommand.customAction)) {
+                    DiagLog.log("carUI CMD_PREV_GROUP: carBandFilter=" + carBandFilter);
                     if (carBandFilter != null) jumpBandStart(); else jumpGroup(-1);
                     return Futures.immediateFuture(new SessionResult(SessionResult.RESULT_SUCCESS));
                 }
@@ -1048,23 +1050,21 @@ public class RadioLibraryService extends MediaLibraryService {
         Player sessionPlayer = new ForwardingPlayer(player) {
             @Override
             public void seekForward() {
+                DiagLog.log("carUI seekForward: carBandFilter=" + carBandFilter);
                 if (carBandFilter != null) {
-                    Log.i(TAG, "Car sent FAST FORWARD - band locked, jumping to the start of the band");
                     jumpBandStart();
                     return;
                 }
-                Log.i(TAG, "Car sent FAST FORWARD - jumping to the next group");
                 jumpGroup(1);
             }
 
             @Override
             public void seekBack() {
+                DiagLog.log("carUI seekBack: carBandFilter=" + carBandFilter);
                 if (carBandFilter != null) {
-                    Log.i(TAG, "Car sent REWIND - band locked, jumping to the start of the band");
                     jumpBandStart();
                     return;
                 }
-                Log.i(TAG, "Car sent REWIND - jumping back a group");
                 jumpGroup(-1);
             }
 
@@ -1074,25 +1074,25 @@ public class RadioLibraryService extends MediaLibraryService {
             // otherwise.
             @Override
             public void seekToNext() {
-                Log.i(TAG, "Car sent NEXT");
+                DiagLog.log("carUI seekToNext: carBandFilter=" + carBandFilter);
                 if (!stepWithinBand(1)) super.seekToNext();
             }
 
             @Override
             public void seekToNextMediaItem() {
-                Log.i(TAG, "Car sent NEXT (item)");
+                DiagLog.log("carUI seekToNextMediaItem: carBandFilter=" + carBandFilter);
                 if (!stepWithinBand(1)) super.seekToNextMediaItem();
             }
 
             @Override
             public void seekToPrevious() {
-                Log.i(TAG, "Car sent PREVIOUS");
+                DiagLog.log("carUI seekToPrevious: carBandFilter=" + carBandFilter);
                 if (!stepWithinBand(-1)) super.seekToPrevious();
             }
 
             @Override
             public void seekToPreviousMediaItem() {
-                Log.i(TAG, "Car sent PREVIOUS (item)");
+                DiagLog.log("carUI seekToPreviousMediaItem: carBandFilter=" + carBandFilter);
                 if (!stepWithinBand(-1)) super.seekToPreviousMediaItem();
             }
 
