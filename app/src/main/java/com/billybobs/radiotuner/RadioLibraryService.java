@@ -444,7 +444,8 @@ public class RadioLibraryService extends MediaLibraryService {
         int group = (direction < 0 && !atStart) ? here : (here + direction + groups) % groups;
         int target = StationLibrary.firstStationOfGroup(stations, group);
         if (target < 0) return;
-        Log.i(TAG, "Group jump to " + StationLibrary.GROUPS[group][1] + " (" + stations.get(target).name + ")");
+        DiagLog.log("carUI jumpGroup: from index " + current + " to " + target + " ("
+                + StationLibrary.GROUPS[group][1] + ", " + stations.get(target).name + ")");
         if (player.getMediaItemCount() == stations.size()) {
             player.seekToDefaultPosition(target);
         } else {
@@ -466,7 +467,8 @@ public class RadioLibraryService extends MediaLibraryService {
         if (carBandFilter == null || stations == null) return;
         for (int i = 0; i < stations.size(); i++) {
             if (!carFilterBandOf(stations.get(i)).equals(carBandFilter)) continue;
-            Log.i(TAG, "Band lock: jumped to the start of " + carBandFilter + " (" + stations.get(i).name + ")");
+            DiagLog.log("carUI jumpBandStart: " + carBandFilter + " from index "
+                    + player.getCurrentMediaItemIndex() + " to " + i + " (" + stations.get(i).name + ")");
             if (player.getMediaItemCount() == stations.size()) {
                 player.seekToDefaultPosition(i);
             } else {
@@ -503,39 +505,30 @@ public class RadioLibraryService extends MediaLibraryService {
 
     /**
      * The Now Playing screen's custom buttons: the two group-jump buttons,
-     * then the band filter buttons. DAB/Internet and All disable themselves
-     * while already active (the same idea as the phone's band lock - you
-     * can't press the mode you're already in). AM/FM is different: it's a
-     * toggle, always pressable, that flips between AM only and FM only one
-     * tap at a time (never a combined AM+FM state). Its label always reads
-     * "AM/FM" - only the icon changes, to the AM-lit or FM-lit variant, so
-     * which side is active is shown without the button relabelling itself.
-     * NOTE: unverified on a real head unit - some car UIs recolour custom
-     * button icons with a single accent tint, which could flatten out the
-     * two-colour "lit side" look these icons are drawn with.
+     * then ONE band button that cycles AM -> FM -> DAB/Internet -> Normal.
+     * Its icon is four blocks in a row (AM, FM, DAB, Normal); the solid one
+     * is the current mode, the rest are hollow. One button instead of three
+     * because the Mazda only showed some of them on the main row - the rest
+     * were tucked behind the "more" menu.
      */
     private ImmutableList<CommandButton> customLayout() {
-        int amFmIcon = "am".equals(carBandFilter) ? R.drawable.ic_band_amfm_am
-                : "fm".equals(carBandFilter) ? R.drawable.ic_band_amfm_fm
-                : R.drawable.ic_band_amfm_neutral;
+        int icon;
+        String label;
+        if ("am".equals(carBandFilter)) {
+            icon = R.drawable.ic_band_mode_am; label = "Band: AM";
+        } else if ("fm".equals(carBandFilter)) {
+            icon = R.drawable.ic_band_mode_fm; label = "Band: FM";
+        } else if ("dabnet".equals(carBandFilter)) {
+            icon = R.drawable.ic_band_mode_dab; label = "Band: DAB/Internet";
+        } else {
+            icon = R.drawable.ic_band_mode_normal; label = "Band: Normal";
+        }
         return ImmutableList.<CommandButton>builder()
                 .addAll(groupButtons)
                 .add(new CommandButton.Builder()
-                        .setDisplayName("AM/FM")
-                        .setIconResId(amFmIcon)
+                        .setDisplayName(label)
+                        .setIconResId(icon)
                         .setSessionCommand(bandAmfmCommand)
-                        .build())
-                .add(new CommandButton.Builder()
-                        .setDisplayName("DAB/Internet")
-                        .setIconResId(R.drawable.ic_band_dabnet)
-                        .setSessionCommand(bandDabnetCommand)
-                        .setEnabled(!"dabnet".equals(carBandFilter))
-                        .build())
-                .add(new CommandButton.Builder()
-                        .setDisplayName("All stations")
-                        .setIconResId(R.drawable.ic_band_all)
-                        .setSessionCommand(bandAllCommand)
-                        .setEnabled(carBandFilter != null)
                         .build())
                 .build();
     }
@@ -865,11 +858,16 @@ public class RadioLibraryService extends MediaLibraryService {
                     return Futures.immediateFuture(new SessionResult(SessionResult.RESULT_SUCCESS));
                 }
                 if (CMD_BAND_AMFM.equals(customCommand.customAction)) {
-                    // A toggle, not a pick: AM <-> FM one tap at a time.
-                    // From anything else (All, DAB/Internet, or the very
-                    // first press) it lands on AM.
-                    carBandFilter = "am".equals(carBandFilter) ? "fm" : "am";
+                    // The single band button: each tap moves one step round
+                    // AM -> FM -> DAB/Internet -> Normal -> AM. Landing on a
+                    // band jumps straight to its first station; landing on
+                    // Normal leaves you where you are.
+                    carBandFilter = carBandFilter == null ? "am"
+                            : "am".equals(carBandFilter) ? "fm"
+                            : "fm".equals(carBandFilter) ? "dabnet"
+                            : null;
                     refreshCustomLayout();
+                    if (carBandFilter != null) jumpBandStart();
                     return Futures.immediateFuture(new SessionResult(SessionResult.RESULT_SUCCESS));
                 }
                 if (CMD_BAND_DABNET.equals(customCommand.customAction)) {
