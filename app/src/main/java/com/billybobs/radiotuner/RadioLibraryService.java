@@ -541,6 +541,8 @@ public class RadioLibraryService extends MediaLibraryService {
     }
 
     private void refreshCustomLayout() {
+        DiagLog.log("carUI refreshCustomLayout: session=" + (mediaLibrarySession != null)
+                + " carBandFilter=" + carBandFilter);
         if (mediaLibrarySession != null) mediaLibrarySession.setCustomLayout(customLayout());
     }
 
@@ -577,6 +579,7 @@ public class RadioLibraryService extends MediaLibraryService {
     @Override
     public void onCreate() {
         super.onCreate();
+        DiagLog.init(this); // in case the car binds here before PlaybackService has started
         UserStations.ensure(this);
         initializeStations();
         migrateSavedStation();
@@ -810,6 +813,9 @@ public class RadioLibraryService extends MediaLibraryService {
                         .add(bandDabnetCommand)
                         .add(bandAllCommand)
                         .build();
+                DiagLog.log("carUI onConnect: controller=" + controller.getPackageName()
+                        + " trusted=" + controller.isTrusted()
+                        + " legacy=" + controller.getControllerVersion());
                 return MediaSession.ConnectionResult.accept(commands, defaults.availablePlayerCommands);
             }
 
@@ -817,7 +823,10 @@ public class RadioLibraryService extends MediaLibraryService {
             public void onPostConnect(
                     @NonNull MediaSession session,
                     @NonNull MediaSession.ControllerInfo controller) {
-                session.setCustomLayout(controller, customLayout());
+                ImmutableList<CommandButton> layout = customLayout();
+                DiagLog.log("carUI onPostConnect: controller=" + controller.getPackageName()
+                        + " customLayout size=" + layout.size());
+                session.setCustomLayout(controller, layout);
             }
 
             @NonNull
