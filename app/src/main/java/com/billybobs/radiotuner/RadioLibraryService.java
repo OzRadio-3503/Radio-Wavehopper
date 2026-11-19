@@ -507,16 +507,22 @@ public class RadioLibraryService extends MediaLibraryService {
      * while already active (the same idea as the phone's band lock - you
      * can't press the mode you're already in). AM/FM is different: it's a
      * toggle, always pressable, that flips between AM only and FM only one
-     * tap at a time (never a combined AM+FM state), so its label changes to
-     * show which one you're currently on, or "AM/FM" when neither is active.
+     * tap at a time (never a combined AM+FM state). Its label always reads
+     * "AM/FM" - only the icon changes, to the AM-lit or FM-lit variant, so
+     * which side is active is shown without the button relabelling itself.
+     * NOTE: unverified on a real head unit - some car UIs recolour custom
+     * button icons with a single accent tint, which could flatten out the
+     * two-colour "lit side" look these icons are drawn with.
      */
     private ImmutableList<CommandButton> customLayout() {
-        String amFmLabel = "am".equals(carBandFilter) ? "AM" : "fm".equals(carBandFilter) ? "FM" : "AM/FM";
+        int amFmIcon = "am".equals(carBandFilter) ? R.drawable.ic_band_amfm_am
+                : "fm".equals(carBandFilter) ? R.drawable.ic_band_amfm_fm
+                : R.drawable.ic_band_amfm_neutral;
         return ImmutableList.<CommandButton>builder()
                 .addAll(groupButtons)
                 .add(new CommandButton.Builder()
-                        .setDisplayName(amFmLabel)
-                        .setIconResId(R.drawable.ic_band_amfm)
+                        .setDisplayName("AM/FM")
+                        .setIconResId(amFmIcon)
                         .setSessionCommand(bandAmfmCommand)
                         .build())
                 .add(new CommandButton.Builder()

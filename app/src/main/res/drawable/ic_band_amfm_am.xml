@@ -1,0 +1,10 @@
+<!-- AM/FM band toggle (Android Auto), AM-active state - left half lit
+     in the app's accent colour, right half dim. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path android:fillColor="#8D93FF" android:pathData="M2,9h9v6H2z" />
+    <path android:fillColor="#55575D" android:pathData="M13,9h9v6h-9z" />
+</vector>

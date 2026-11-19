@@ -1,0 +1,11 @@
+<!-- AM/FM band toggle (Android Auto), neutral state - filter is off
+     (All) or on DAB/Internet, so neither AM nor FM is lit. Two plain
+     grey halves split by a thin gap. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path android:fillColor="#9A9CA3" android:pathData="M2,9h9v6H2z" />
+    <path android:fillColor="#9A9CA3" android:pathData="M13,9h9v6h-9z" />
+</vector>
