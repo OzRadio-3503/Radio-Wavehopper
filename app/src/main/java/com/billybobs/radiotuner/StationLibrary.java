@@ -408,16 +408,6 @@ public final class StationLibrary {
         return m.matches() ? Double.valueOf(m.group(1)) : null;
     }
 
-    /**
-     * Android Auto's band filter groups DAB and Internet together (car
-     * screens are smaller and the split matters less there than on the
-     * phone's dial) - "amfm" or "dabnet".
-     */
-    public static String carBand(Station s) {
-        String b = realBand(s);
-        return (b.equals("fm") || b.equals("am")) ? "amfm" : "dabnet";
-    }
-
     /** Built-in stations plus any the listener added, in dial order. */
     public static List<Station> getStations() {
         List<Station> stations = getBuiltInStations();

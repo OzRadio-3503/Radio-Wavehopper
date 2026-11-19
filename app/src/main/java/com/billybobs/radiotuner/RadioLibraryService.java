@@ -71,18 +71,30 @@ public class RadioLibraryService extends MediaLibraryService {
     private ImmutableList<CommandButton> groupButtons;
     private boolean logoRefreshPending = false;
 
-    // Three more Now Playing buttons: lock the skip buttons to one band
-    // (AM/FM, or DAB/Internet combined - the car's own split, coarser than
-    // the phone's, since a small screen has less room for it), or back to
-    // every station. Car-only; doesn't touch the phone's own band lock.
+    // Three more Now Playing buttons: lock the skip buttons to one band -
+    // AM, FM (one button, toggling between the two), or DAB/Internet
+    // combined (the car's own split there, coarser than the phone's, since
+    // a small screen has less room for it) - or back to every station.
+    // Car-only; doesn't touch the phone's own band lock.
     private static final String CMD_BAND_AMFM = "com.billybobs.radiotuner.BAND_AMFM";
     private static final String CMD_BAND_DABNET = "com.billybobs.radiotuner.BAND_DABNET";
     private static final String CMD_BAND_ALL = "com.billybobs.radiotuner.BAND_ALL";
     private final SessionCommand bandAmfmCommand = new SessionCommand(CMD_BAND_AMFM, android.os.Bundle.EMPTY);
     private final SessionCommand bandDabnetCommand = new SessionCommand(CMD_BAND_DABNET, android.os.Bundle.EMPTY);
     private final SessionCommand bandAllCommand = new SessionCommand(CMD_BAND_ALL, android.os.Bundle.EMPTY);
-    /** null (no filter / "All"), "amfm" or "dabnet". */
+    /** null (no filter / "All"), "am", "fm" or "dabnet". */
     private String carBandFilter = null;
+
+    /**
+     * The car filter bucket this station falls into: its own exact "am" or
+     * "fm", or "dabnet" for a DAB/Internet station (those two stay combined
+     * on the car - see CMD_BAND_DABNET). Unlike the AM/FM button, which
+     * toggles between the two real bands one at a time.
+     */
+    private static String carFilterBandOf(StationLibrary.Station s) {
+        String b = StationLibrary.realBand(s);
+        return (b.equals("am") || b.equals("fm")) ? b : "dabnet";
+    }
 
     private static final String TAG = "RadioLibraryService";
     private static final int MAX_CONSECUTIVE_STATION_FAILURES = 5;
@@ -453,7 +465,7 @@ public class RadioLibraryService extends MediaLibraryService {
     private void jumpBandStart() {
         if (carBandFilter == null || stations == null) return;
         for (int i = 0; i < stations.size(); i++) {
-            if (!StationLibrary.carBand(stations.get(i)).equals(carBandFilter)) continue;
+            if (!carFilterBandOf(stations.get(i)).equals(carBandFilter)) continue;
             Log.i(TAG, "Band lock: jumped to the start of " + carBandFilter + " (" + stations.get(i).name + ")");
             if (player.getMediaItemCount() == stations.size()) {
                 player.seekToDefaultPosition(i);
@@ -479,7 +491,7 @@ public class RadioLibraryService extends MediaLibraryService {
         int n = stations.size();
         for (int step = 1; step <= n; step++) {
             int idx = ((current + direction * step) % n + n) % n;
-            if (StationLibrary.carBand(stations.get(idx)).equals(carBandFilter)) {
+            if (carFilterBandOf(stations.get(idx)).equals(carBandFilter)) {
                 player.seekToDefaultPosition(idx);
                 player.prepare();
                 player.play();
@@ -491,18 +503,21 @@ public class RadioLibraryService extends MediaLibraryService {
 
     /**
      * The Now Playing screen's custom buttons: the two group-jump buttons,
-     * then the three band filter buttons, with whichever one matches the
-     * current filter shown pressed-in (disabled, so you can't press the
-     * mode you're already in - the same idea as the phone's band lock).
+     * then the band filter buttons. DAB/Internet and All disable themselves
+     * while already active (the same idea as the phone's band lock - you
+     * can't press the mode you're already in). AM/FM is different: it's a
+     * toggle, always pressable, that flips between AM only and FM only one
+     * tap at a time (never a combined AM+FM state), so its label changes to
+     * show which one you're currently on, or "AM/FM" when neither is active.
      */
     private ImmutableList<CommandButton> customLayout() {
+        String amFmLabel = "am".equals(carBandFilter) ? "AM" : "fm".equals(carBandFilter) ? "FM" : "AM/FM";
         return ImmutableList.<CommandButton>builder()
                 .addAll(groupButtons)
                 .add(new CommandButton.Builder()
-                        .setDisplayName("AM/FM")
+                        .setDisplayName(amFmLabel)
                         .setIconResId(R.drawable.ic_band_amfm)
                         .setSessionCommand(bandAmfmCommand)
-                        .setEnabled(!"amfm".equals(carBandFilter))
                         .build())
                 .add(new CommandButton.Builder()
                         .setDisplayName("DAB/Internet")
@@ -727,7 +742,7 @@ public class RadioLibraryService extends MediaLibraryService {
                 // the old filter immediately skip away from it on the next
                 // next/previous press.
                 if (carBandFilter != null && lastStationIndex >= 0 && lastStationIndex < stations.size()) {
-                    String newBand = StationLibrary.carBand(stations.get(lastStationIndex));
+                    String newBand = carFilterBandOf(stations.get(lastStationIndex));
                     if (!newBand.equals(carBandFilter)) {
                         carBandFilter = newBand;
                         refreshCustomLayout();
@@ -815,7 +830,10 @@ public class RadioLibraryService extends MediaLibraryService {
                     return Futures.immediateFuture(new SessionResult(SessionResult.RESULT_SUCCESS));
                 }
                 if (CMD_BAND_AMFM.equals(customCommand.customAction)) {
-                    carBandFilter = "amfm";
+                    // A toggle, not a pick: AM <-> FM one tap at a time.
+                    // From anything else (All, DAB/Internet, or the very
+                    // first press) it lands on AM.
+                    carBandFilter = "am".equals(carBandFilter) ? "fm" : "am";
                     refreshCustomLayout();
                     return Futures.immediateFuture(new SessionResult(SessionResult.RESULT_SUCCESS));
                 }
