@@ -97,7 +97,6 @@ public class RadioLibraryService extends MediaLibraryService {
     }
 
     private static final String TAG = "RadioLibraryService";
-    private static final int MAX_CONSECUTIVE_STATION_FAILURES = 5;
 
     // Same stall watchdog as PlaybackService - see its comment for the full
     // story (confirmed via logcat: some StreamTheWorld ad-stitched stations
@@ -113,7 +112,6 @@ public class RadioLibraryService extends MediaLibraryService {
     private int lastPlaybackState = Player.STATE_IDLE;
     private MediaLibrarySession mediaLibrarySession;
     private List<StationLibrary.Station> stations;
-    private int consecutiveFailures = 0;
 
     // Live stations never genuinely "end" - see PlaybackService's
     // ENDED-reconnect comment. Here, with REPEAT_MODE_ALL over the whole
@@ -808,16 +806,15 @@ public class RadioLibraryService extends MediaLibraryService {
                 String stationId = current != null ? current.mediaId : "unknown";
                 Log.e(TAG, "Playback error on " + stationId + ": "
                         + error.getErrorCodeName() + " - " + error.getMessage(), error);
+                int idx = player.getCurrentMediaItemIndex();
+                DiagLog.log("carUI ERROR " + (stations != null && idx >= 0 && idx < stations.size()
+                        ? stations.get(idx).name : stationId)
+                        + ": " + error.getErrorCodeName() + " - " + error.getMessage());
 
-                consecutiveFailures++;
-                if (consecutiveFailures <= MAX_CONSECUTIVE_STATION_FAILURES) {
-                    player.seekToNextMediaItem();
-                    player.prepare();
-                    player.play();
-                } else {
-                    Log.e(TAG, MAX_CONSECUTIVE_STATION_FAILURES
-                            + " stations in a row failed to play; stopping auto-skip.");
-                }
+                // Stay on the station that failed (it may be offline, or need
+                // a VPN) and let the car show the error, rather than skipping
+                // to the next station on its own. Pressing play tries it
+                // again; next/previous move on.
             }
 
             @Override
@@ -892,7 +889,6 @@ public class RadioLibraryService extends MediaLibraryService {
             public void onIsPlayingChanged(boolean isPlaying) {
                 if (isPlaying) {
                     cancelPhoneSleepTimer();
-                    consecutiveFailures = 0;
                     currentStationHasPlayed = true;
                     lastKnownPositionMs = -1;
                     stallPollCount = 0;
