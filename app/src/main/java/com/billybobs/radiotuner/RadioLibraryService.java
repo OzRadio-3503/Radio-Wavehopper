@@ -266,6 +266,8 @@ public class RadioLibraryService extends MediaLibraryService {
 
     private static final String PREFS = "RadioAutoPrefs";
     private static final String KEY_LAST_STATION = "last_station_id";
+    /** + group name (e.g. "Sport", "NSW (and ACT)"): last station played in that group. */
+    private static final String KEY_LAST_IN_GROUP_PREFIX = "last_in_group_";
     private static final String KEY_LAST_STATION_AT = "last_station_id_at";
 
     private static final String KEY_LAYOUT = "station_layout";
@@ -438,14 +440,20 @@ public class RadioLibraryService extends MediaLibraryService {
         if (current < 0) current = 0;
         int groups = StationLibrary.GROUPS.length;
         int here = StationLibrary.groupIndexFor(stations.get(current).freq);
-        // Back works like "previous track": from partway through a group, go
-        // to its first station; from the first station, the previous group.
-        boolean atStart = StationLibrary.firstStationOfGroup(stations, here) == current;
-        int group = (direction < 0 && !atStart) ? here : (here + direction + groups) % groups;
-        int target = StationLibrary.firstStationOfGroup(stations, group);
+        // Next/previous group, wrapping round. Each group opens on the last
+        // station you listened to in it (like the band button does for
+        // bands), or on its first station if you haven't played one yet.
+        int group = ((here + direction) % groups + groups) % groups;
+        int target = -1;
+        String remembered = getSharedPreferences(PREFS, MODE_PRIVATE)
+                .getString(KEY_LAST_IN_GROUP_PREFIX + StationLibrary.GROUPS[group][1], null);
+        int r = indexOfStationNamed(remembered);
+        if (r >= 0 && StationLibrary.groupIndexFor(stations.get(r).freq) == group) target = r;
+        if (target < 0) target = StationLibrary.firstStationOfGroup(stations, group);
         if (target < 0) return;
         DiagLog.log("carUI jumpGroup: from index " + current + " to " + target + " ("
-                + StationLibrary.GROUPS[group][1] + ", " + stations.get(target).name + ")");
+                + StationLibrary.GROUPS[group][1] + ", " + stations.get(target).name
+                + (target == r ? ", last played" : ", first") + ")");
         if (player.getMediaItemCount() == stations.size()) {
             player.seekToDefaultPosition(target);
         } else {
@@ -868,6 +876,14 @@ public class RadioLibraryService extends MediaLibraryService {
                     if (lastStationIndex >= 0 && lastStationIndex < stations.size()) {
                         StationLibrary.Station s = stations.get(lastStationIndex);
                         BandMemory.remember(RadioLibraryService.this, StationLibrary.realBand(s), s.name);
+                        // And the last station in its group, for the double
+                        // arrows on All stations.
+                        int g = StationLibrary.groupIndexFor(s.freq);
+                        if (g >= 0 && g < StationLibrary.GROUPS.length) {
+                            getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                                    .putString(KEY_LAST_IN_GROUP_PREFIX + StationLibrary.GROUPS[g][1], s.name)
+                                    .apply();
+                        }
                     }
                 }
             }
