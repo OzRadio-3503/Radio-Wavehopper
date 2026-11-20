@@ -150,6 +150,22 @@ public class RadioLibraryService extends MediaLibraryService {
     }
 
     /**
+     * Where the current station sits in {@code stations}, found by its ID.
+     * The player's own position only matches the station list when it holds
+     * the full playlist - starting from a browse list or a resume can give
+     * it a shorter one, which threw the first band/group step off.
+     */
+    private int currentStationIndex() {
+        if (stations == null) return -1;
+        MediaItem item = player.getCurrentMediaItem();
+        if (item != null) {
+            int i = indexOfStation(item.mediaId);
+            if (i >= 0) return i;
+        }
+        return player.getMediaItemCount() == stations.size() ? player.getCurrentMediaItemIndex() : -1;
+    }
+
+    /**
      * A voice/search request that named no station at all - just the app
      * itself ("play Radio Wavehopper"), or nothing ("play" with an empty
      * search query). Resolved the same way onPlaybackResumption resolves a
@@ -433,8 +449,8 @@ public class RadioLibraryService extends MediaLibraryService {
      */
     private void jumpGroup(int direction) {
         if (stations == null || stations.isEmpty()) return;
-        int current = player.getMediaItemCount() == stations.size()
-                ? player.getCurrentMediaItemIndex() : savedStationIndex();
+        int current = currentStationIndex();
+        if (current < 0) current = savedStationIndex();
         if (current < 0) current = 0;
         int groups = StationLibrary.GROUPS.length;
         int here = StationLibrary.groupIndexFor(stations.get(current).freq);
@@ -515,7 +531,7 @@ public class RadioLibraryService extends MediaLibraryService {
         if (band.isEmpty()) return;
         int idx = band.get(0);
         DiagLog.log("carUI jumpBandStart: " + carBandFilter + " from index "
-                + player.getCurrentMediaItemIndex() + " to " + idx + " (" + stations.get(idx).name + ")");
+                + currentStationIndex() + " to " + idx + " (" + stations.get(idx).name + ")");
         tuneTo(idx);
     }
 
@@ -540,8 +556,8 @@ public class RadioLibraryService extends MediaLibraryService {
             int idx = indexOfStationNamed(BandMemory.name(this, slot));
             if (idx >= 0 && carFilterBandOf(stations.get(idx)).equals(carBandFilter)) {
                 DiagLog.log("carUI jumpBandRemembered: " + carBandFilter + " (" + slot + ") from index "
-                        + player.getCurrentMediaItemIndex() + " to " + idx + " (" + stations.get(idx).name + ")");
-                if (idx != player.getCurrentMediaItemIndex()) tuneTo(idx);
+                        + currentStationIndex() + " to " + idx + " (" + stations.get(idx).name + ")");
+                if (idx != currentStationIndex()) tuneTo(idx);
                 return;
             }
         }
@@ -569,7 +585,7 @@ public class RadioLibraryService extends MediaLibraryService {
         List<Integer> band = bandOrder();
         int n = band.size();
         if (n == 0) return;
-        int current = player.getCurrentMediaItemIndex();
+        int current = currentStationIndex();
         int p = band.indexOf(current);
         if (p < 0) { // not on a station in this band - just go to its start
             jumpBandStart();
@@ -604,7 +620,7 @@ public class RadioLibraryService extends MediaLibraryService {
         List<Integer> band = bandOrder();
         int n = band.size();
         if (n == 0) return false;
-        int current = player.getCurrentMediaItemIndex();
+        int current = currentStationIndex();
         int p = band.indexOf(current);
         int idx;
         if (p < 0) {
@@ -612,6 +628,8 @@ public class RadioLibraryService extends MediaLibraryService {
         } else {
             idx = band.get(((p + direction) % n + n) % n);
         }
+        DiagLog.log("carUI step " + carBandFilter + ": " + (current >= 0 ? stations.get(current).name : "?")
+                + " -> " + stations.get(idx).name + " [" + stations.get(idx).real + "]");
         tuneTo(idx);
         return true;
     }
@@ -806,7 +824,7 @@ public class RadioLibraryService extends MediaLibraryService {
                 String stationId = current != null ? current.mediaId : "unknown";
                 Log.e(TAG, "Playback error on " + stationId + ": "
                         + error.getErrorCodeName() + " - " + error.getMessage(), error);
-                int idx = player.getCurrentMediaItemIndex();
+                int idx = currentStationIndex();
                 DiagLog.log("carUI ERROR " + (stations != null && idx >= 0 && idx < stations.size()
                         ? stations.get(idx).name : stationId)
                         + ": " + error.getErrorCodeName() + " - " + error.getMessage());
@@ -855,8 +873,9 @@ public class RadioLibraryService extends MediaLibraryService {
                 // station picked from browse, or by voice) instead of letting
                 // the old filter immediately skip away from it on the next
                 // next/previous press.
-                if (carBandFilter != null && lastStationIndex >= 0 && lastStationIndex < stations.size()) {
-                    String newBand = carFilterBandOf(stations.get(lastStationIndex));
+                int st = mediaItem != null ? indexOfStation(mediaItem.mediaId) : -1;
+                if (carBandFilter != null && st >= 0) {
+                    String newBand = carFilterBandOf(stations.get(st));
                     if (!newBand.equals(carBandFilter)) {
                         carBandFilter = newBand;
                         refreshCustomLayout();
@@ -870,8 +889,8 @@ public class RadioLibraryService extends MediaLibraryService {
                             .putString(KEY_LAST_STATION, mediaItem.mediaId)
                             .putLong(KEY_LAST_STATION_AT, System.currentTimeMillis())
                             .apply();
-                    if (lastStationIndex >= 0 && lastStationIndex < stations.size()) {
-                        StationLibrary.Station s = stations.get(lastStationIndex);
+                    if (st >= 0) {
+                        StationLibrary.Station s = stations.get(st);
                         BandMemory.remember(RadioLibraryService.this, StationLibrary.realBand(s), s.name);
                         // And the last station in its group, for the double
                         // arrows on All stations.
