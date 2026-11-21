@@ -134,7 +134,7 @@ public class StationArtworkProvider extends ContentProvider {
         }
         String name = segments.get(1).substring(0, segments.get(1).length() - 4);
         StationLibrary.Station station = null;
-        for (StationLibrary.Station s : StationLibrary.getStations()) {
+        for (StationLibrary.Station s : StationLibrary.getAllStations()) {
             if (s.name.equals(name)) { station = s; break; }
         }
         if (station == null) throw new FileNotFoundException("No station " + name);

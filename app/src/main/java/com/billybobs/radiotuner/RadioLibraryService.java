@@ -580,7 +580,13 @@ public class RadioLibraryService extends MediaLibraryService {
         // Next/previous group, wrapping round. Each group opens on the last
         // station you listened to in it (like the band button does for
         // bands), or on its first station if you haven't played one yet.
-        int group = ((here + direction) % groups + groups) % groups;
+        // Categories with nothing showing (hidden, or not in your list) are
+        // skipped; with only one left, this lands back in it.
+        int group = here;
+        for (int k = 1; k <= groups; k++) {
+            int g = ((here + direction * k) % groups + groups) % groups;
+            if (StationLibrary.firstStationOfGroup(stations, g) >= 0) { group = g; break; }
+        }
         int target = -1;
         String remembered = getSharedPreferences(PREFS, MODE_PRIVATE)
                 .getString(KEY_LAST_IN_GROUP_PREFIX + StationLibrary.GROUPS[group][1], null);
@@ -632,6 +638,38 @@ public class RadioLibraryService extends MediaLibraryService {
             });
         }
         return band;
+    }
+
+    /**
+     * The order of the station list in Android Auto's browse screen: dial
+     * order, unless one of your lists is on and set to A to Z or by frequency
+     * (AM, then FM, then DAB, then Internet, each low to high / A to Z).
+     * Next/previous still follow the dial.
+     */
+    private List<StationLibrary.Station> browseOrder() {
+        List<StationLibrary.Station> out = new ArrayList<>(stations);
+        String sort = UserStations.activeListName() == null ? "dial" : UserStations.activeListSort();
+        if ("az".equals(sort)) {
+            java.util.Collections.sort(out, (a, b) -> a.name.compareToIgnoreCase(b.name));
+        } else if ("freq".equals(sort)) {
+            java.util.Map<String, Integer> rank = new java.util.HashMap<>();
+            rank.put("am", 0); rank.put("fm", 1); rank.put("dab", 2); rank.put("net", 3);
+            java.util.Collections.sort(out, (a, b) -> {
+                int c = Integer.compare(rank.get(StationLibrary.realBand(a)), rank.get(StationLibrary.realBand(b)));
+                if (c != 0) return c;
+                Double fa = StationLibrary.realFreqValue(a), fb = StationLibrary.realFreqValue(b);
+                c = Double.compare(fa == null ? 0 : fa, fb == null ? 0 : fb);
+                return c != 0 ? c : a.name.compareToIgnoreCase(b.name);
+            });
+        }
+        return out;
+    }
+
+    /** Whether any showing station is in this car band ("am", "fm" or "dabnet"). */
+    private boolean bandHasStations(String band) {
+        if (stations == null) return false;
+        for (StationLibrary.Station st : stations) if (carFilterBandOf(st).equals(band)) return true;
+        return false;
     }
 
     private void tuneTo(int idx) {
@@ -753,7 +791,7 @@ public class RadioLibraryService extends MediaLibraryService {
         }
         DiagLog.log("carUI step " + carBandFilter + ": " + (current >= 0 ? stations.get(current).name : "?")
                 + " -> " + stations.get(idx).name + " [" + stations.get(idx).real + "]");
-        tuneTo(idx);
+        if (idx != current) tuneTo(idx);   // the only station in the band: stay on it
         return true;
     }
 
@@ -1137,10 +1175,16 @@ public class RadioLibraryService extends MediaLibraryService {
                     // band goes back to the last station you played in it
                     // (or its first station, the first time); landing on
                     // Normal leaves you where you are.
-                    carBandFilter = carBandFilter == null ? "am"
-                            : "am".equals(carBandFilter) ? "fm"
-                            : "fm".equals(carBandFilter) ? "dabnet"
-                            : null;
+                    // Bands with no stations showing are skipped.
+                    String[] cycle = {null, "am", "fm", "dabnet"};
+                    int at = 0;
+                    for (int i = 0; i < cycle.length; i++) {
+                        if (cycle[i] == null ? carBandFilter == null : cycle[i].equals(carBandFilter)) at = i;
+                    }
+                    for (int k = 1; k <= cycle.length; k++) {
+                        String next = cycle[(at + k) % cycle.length];
+                        if (next == null || bandHasStations(next)) { carBandFilter = next; break; }
+                    }
                     refreshCustomLayout();
                     if (carBandFilter != null) jumpBandRemembered();
                     return Futures.immediateFuture(new SessionResult(SessionResult.RESULT_SUCCESS));
@@ -1186,7 +1230,7 @@ public class RadioLibraryService extends MediaLibraryService {
                     int pageSize,
                     @Nullable LibraryParams params) {
                 List<MediaItem> stationItems = new ArrayList<>();
-                for (StationLibrary.Station s : stations) {
+                for (StationLibrary.Station s : browseOrder()) {
                     stationItems.add(buildMediaItem(s));
                 }
                 return Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.copyOf(stationItems), params));

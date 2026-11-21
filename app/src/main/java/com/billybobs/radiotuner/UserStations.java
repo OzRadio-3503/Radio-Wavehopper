@@ -35,7 +35,22 @@ public final class UserStations {
     private static final java.util.Map<String, String> LEGACY_KEY_NAMES = new java.util.HashMap<>();
     static { LEGACY_KEY_NAMES.put("90.08", "Station X"); }
 
+    /** Categories the listener hid, by name ("France"). */
+    private static volatile java.util.Set<String> hiddenGroups = new java.util.HashSet<>();
+    /** The list switched on in the Edit screen: its name, stations (by name) and order; null if none. */
+    private static volatile String activeListName = null;
+    private static volatile List<String> activeListStations = null;
+    private static volatile String activeListSort = "dial";
+
     private UserStations() {}
+
+    static java.util.Set<String> hiddenGroups() { return hiddenGroups; }
+    /** Name of the list that's on, or null for all stations. */
+    static String activeListName() { return activeListName; }
+    /** The list's stations by name (in the listener's order), or null if no list is on. */
+    static List<String> activeListStations() { return activeListStations; }
+    /** "dial", "az" or "freq". */
+    static String activeListSort() { return activeListSort; }
 
     /** Load once per process (safe to call from anywhere, repeatedly). */
     public static void ensure(Context context) {
@@ -109,6 +124,9 @@ public final class UserStations {
         java.util.Set<String> hid = new java.util.HashSet<>();
         java.util.Map<String, JSONObject> edt = new java.util.HashMap<>();
         java.util.Map<String, String> nm = new java.util.HashMap<>();
+        java.util.Set<String> hg = new java.util.HashSet<>();
+        String alName = null, alSort = "dial";
+        List<String> alStations = null;
         try {
             if (json != null && !json.isEmpty()) {
                 JSONObject root = new JSONObject(json);
@@ -127,6 +145,23 @@ public final class UserStations {
                         JSONObject v = eObj.optJSONObject(k);
                         String u = v == null ? "" : v.optString("url", "");
                         if (v != null && (u.isEmpty() || u.startsWith("http://") || u.startsWith("https://"))) edt.put(k, v);
+                    }
+                }
+                JSONArray hgArr = root.optJSONArray("hiddenGroups");
+                if (hgArr != null) for (int i = 0; i < hgArr.length(); i++) { String g = hgArr.optString(i, ""); if (!g.isEmpty()) hg.add(g); }
+                String active = root.optString("activeList", "");
+                JSONArray lists = root.optJSONArray("lists");
+                if (!active.isEmpty() && lists != null) {
+                    for (int i = 0; i < lists.length(); i++) {
+                        JSONObject l = lists.optJSONObject(i);
+                        if (l == null || !active.equals(l.optString("name", ""))) continue;
+                        JSONArray st = l.optJSONArray("stations");
+                        List<String> names = new ArrayList<>();
+                        if (st != null) for (int j = 0; j < st.length(); j++) { String n = st.optString(j, ""); if (!n.isEmpty()) names.add(n); }
+                        alName = active; alStations = names;
+                        String so = l.optString("sort", "dial");
+                        alSort = ("az".equals(so) || "freq".equals(so)) ? so : "dial";
+                        break;
                     }
                 }
                 JSONArray arr = root.optJSONArray("added");
@@ -149,7 +184,13 @@ public final class UserStations {
             hid = new java.util.HashSet<>();
             edt = new java.util.HashMap<>();
             nm = new java.util.HashMap<>();
+            hg = new java.util.HashSet<>();
+            alName = null; alStations = null; alSort = "dial";
         }
+        hiddenGroups = hg;
+        activeListName = alName;
+        activeListStations = alStations;
+        activeListSort = alSort;
         added = out;
         names = nm;
         hidden = hid;

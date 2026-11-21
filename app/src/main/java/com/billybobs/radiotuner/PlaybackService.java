@@ -843,7 +843,7 @@ public class PlaybackService extends Service {
                 } else {
                     station = null;
                     if (title != null && !title.isEmpty()) {   // by name first: dial spots can move
-                        for (StationLibrary.Station c : StationLibrary.getStations()) {
+                        for (StationLibrary.Station c : StationLibrary.getAllStations()) {
                             if (title.equals(c.name)) { station = c; break; }
                         }
                     }
@@ -953,7 +953,7 @@ public class PlaybackService extends Service {
     private StationLibrary.Station findNearestStation(double freq) {
         StationLibrary.Station best = null;
         double bestDist = Double.MAX_VALUE;
-        for (StationLibrary.Station s : StationLibrary.getStations()) {
+        for (StationLibrary.Station s : StationLibrary.getAllStations()) {
             double d = Math.abs(s.freq - freq);
             if (d < bestDist) {
                 bestDist = d;

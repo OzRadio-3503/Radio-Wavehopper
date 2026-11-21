@@ -94,7 +94,7 @@ public class RadioWidgetProvider extends AppWidgetProvider {
             UserStations.ensure(context);
             StationLibrary.Station best = null;
             double bestDist = Double.MAX_VALUE;
-            for (StationLibrary.Station s : StationLibrary.getStations()) {
+            for (StationLibrary.Station s : StationLibrary.getAllStations()) {
                 double d = Math.abs(s.freq - freq);
                 if (d < bestDist) { bestDist = d; best = s; }
             }

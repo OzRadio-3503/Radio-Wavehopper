@@ -106,7 +106,7 @@ final class LogoFetcher {
     /** Queues a fetch for every listed station that needs one. */
     static void prefetchAll(Context context) {
         UserStations.ensure(context);
-        for (StationLibrary.Station s : StationLibrary.getStations()) request(context, s.name);
+        for (StationLibrary.Station s : StationLibrary.getAllStations()) request(context, s.name);
     }
 
     /** Queues a fetch for one station, if it's listed and due. */

@@ -370,11 +370,17 @@ public final class StationLibrary {
         return g;
     }
 
-    /** Index into the station list of the first station of GROUPS[group], or -1. */
+    /**
+     * Index into the station list of the first station in GROUPS[group], or -1
+     * if none is showing there. (Not only one on the group's exact start: that
+     * one may be hidden by a list or a hidden category.)
+     */
     public static int firstStationOfGroup(List<Station> stations, int group) {
         double start = Double.parseDouble(GROUPS[group][0]);
+        double end = group + 1 < GROUPS.length ? Double.parseDouble(GROUPS[group + 1][0]) : Double.MAX_VALUE;
         for (int i = 0; i < stations.size(); i++) {
-            if (Math.abs(stations.get(i).freq - start) < 0.001) return i;
+            double f = stations.get(i).freq;
+            if (f >= start - 1e-6 && f < end - 1e-6) return i;
         }
         return -1;
     }
@@ -434,8 +440,30 @@ public final class StationLibrary {
         return best;
     }
 
-    /** Built-in stations plus any the listener added, in dial order. */
+    /**
+     * The stations that show, in dial order: built-ins plus the listener's
+     * own, minus hidden categories - or, when one of the listener's lists is
+     * on, only that list's stations. Same rules as the page; if nothing would
+     * be left, everything shows rather than nothing.
+     */
     public static List<Station> getStations() {
+        List<Station> all = getAllStations();
+        java.util.Set<String> hiddenGroups = UserStations.hiddenGroups();
+        List<String> list = UserStations.activeListStations();
+        List<Station> keep = new java.util.ArrayList<>();
+        if (list != null) {
+            java.util.Set<String> names = new java.util.HashSet<>(list);
+            for (Station s : all) if (names.contains(s.name)) keep.add(s);
+        } else if (!hiddenGroups.isEmpty()) {
+            for (Station s : all) if (!hiddenGroups.contains(GROUPS[groupIndexFor(s.freq)][1])) keep.add(s);
+        } else {
+            return all;
+        }
+        return keep.isEmpty() ? all : keep;
+    }
+
+    /** Every station, hidden ones included, in dial order. */
+    public static List<Station> getAllStations() {
         List<Station> stations = getBuiltInStations();
         UserStations.applyOverrides(stations);
         addUserStations(stations, UserStations.added());
