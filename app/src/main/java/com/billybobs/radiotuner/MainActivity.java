@@ -429,6 +429,7 @@ public class MainActivity extends Activity {
             // With Android Auto connected, open on what the car is playing.
             String car = RadioLibraryService.carStationName();
             if (!car.isEmpty()) return car;
+            RadioLibraryService.handBackToPhone(); // left the car: phone shows the car's last station
             return getSharedPreferences("RadioPrefs", MODE_PRIVATE).getString("last_station_title", "");
         }
 

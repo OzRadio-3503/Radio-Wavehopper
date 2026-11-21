@@ -119,11 +119,73 @@ public class RadioLibraryService extends MediaLibraryService {
     // you hear. Same process, main thread on both sides.
     private static final String ANDROID_AUTO = "com.google.android.projection.gearhead";
     private static RadioLibraryService instance;
-    private static int carControllers = 0;
+    private static boolean lastCarConnected = false;
+    private static final String KEY_AA_CAR_MODE_SEEN = "aa_car_mode_seen";
 
-    /** True while Android Auto itself is connected to the car service. */
+    /**
+     * True while Android Auto is really connected. Counting Android Auto's
+     * connections isn't enough: in the car log it connects twice but
+     * disconnects only once, so a count stayed above zero after you'd left
+     * the car. So this needs both: an Android Auto controller still connected
+     * to the session, and the phone actually in car mode (which Android Auto
+     * switches on while it's running and off when it stops). Until the app
+     * has once seen car mode come on with Android Auto, it doesn't rely on it
+     * (so a phone where Android Auto doesn't use car mode still works, just
+     * without that extra check).
+     */
     static boolean carConnected() {
-        return instance != null && carControllers > 0;
+        RadioLibraryService car = instance;
+        if (car == null || car.mediaLibrarySession == null) return false;
+        boolean aa = false;
+        for (MediaSession.ControllerInfo c : car.mediaLibrarySession.getConnectedControllers()) {
+            if (ANDROID_AUTO.equals(c.getPackageName())) { aa = true; break; }
+        }
+        android.app.UiModeManager ui = (android.app.UiModeManager) car.getSystemService(UI_MODE_SERVICE);
+        boolean carMode = ui != null
+                && ui.getCurrentModeType() == android.content.res.Configuration.UI_MODE_TYPE_CAR;
+        android.content.SharedPreferences prefs = car.getSharedPreferences(PREFS, MODE_PRIVATE);
+        if (aa && carMode && !prefs.getBoolean(KEY_AA_CAR_MODE_SEEN, false)) {
+            prefs.edit().putBoolean(KEY_AA_CAR_MODE_SEEN, true).apply();
+        }
+        boolean connected = aa && (carMode || !prefs.getBoolean(KEY_AA_CAR_MODE_SEEN, false));
+        if (connected != lastCarConnected) {
+            lastCarConnected = connected;
+            DiagLog.log("carUI carConnected=" + connected + " (androidAuto=" + aa + " carMode=" + carMode + ")");
+        }
+        return connected;
+    }
+
+    /**
+     * You've left the car (or Android Auto stopped) but the car's player is
+     * still loaded: stop it, and make the car's station the phone's "last
+     * station", so the phone app, widget and notification all show what you
+     * were listening to and play carries on from there on the phone.
+     * Safe to call any time; does nothing while still connected.
+     */
+    static void handBackToPhone() {
+        RadioLibraryService car = instance;
+        if (car == null || carConnected() || car.player == null) return;
+        int idx = car.currentStationIndex();
+        boolean wasPlaying = car.player.getPlayWhenReady()
+                && car.player.getPlaybackState() != Player.STATE_IDLE;
+        if (!wasPlaying && idx < 0) return;
+        // Unload it, so this happens once: afterwards there's nothing left to
+        // hand back, and the phone's own choices aren't overwritten. (The car
+        // resumes from the saved last station next time it connects.)
+        car.player.stop();
+        car.player.clearMediaItems();
+        if (idx >= 0) {
+            StationLibrary.Station s = car.stations.get(idx);
+            car.getSharedPreferences("RadioPrefs", MODE_PRIVATE).edit()
+                    .putString("last_station_title", s.name)
+                    .putString("last_station_sub", s.real + (s.region.isEmpty() ? "" : " \u00b7 " + s.region))
+                    .putLong("last_station_freq_bits", Double.doubleToLongBits(s.freq))
+                    .putLong("last_station_at", System.currentTimeMillis())
+                    .putBoolean("is_playing", false)
+                    .apply();
+            DiagLog.log("carUI handBackToPhone: " + s.name + (wasPlaying ? " (was playing, paused)" : ""));
+        }
+        RadioWidgetProvider.refresh(car);
     }
 
     /** Plays a station picked on the phone on the car's player. False if no car. */
@@ -1011,7 +1073,6 @@ public class RadioLibraryService extends MediaLibraryService {
                         .add(bandDabnetCommand)
                         .add(bandAllCommand)
                         .build();
-                if (ANDROID_AUTO.equals(controller.getPackageName())) carControllers++;
                 DiagLog.log("carUI onConnect: controller=" + controller.getPackageName()
                         + " trusted=" + controller.isTrusted()
                         + " legacy=" + controller.getControllerVersion());
@@ -1042,9 +1103,14 @@ public class RadioLibraryService extends MediaLibraryService {
             public void onDisconnected(
                     @NonNull MediaSession session,
                     @NonNull MediaSession.ControllerInfo controller) {
-                if (ANDROID_AUTO.equals(controller.getPackageName()) && carControllers > 0) carControllers--;
                 DiagLog.log("carUI onDisconnected: controller=" + controller.getPackageName()
                         + " trusted=" + controller.isTrusted());
+                if (ANDROID_AUTO.equals(controller.getPackageName())) {
+                    // Once the session has finished dropping it, check whether
+                    // the car is really gone, and if so hand back to the phone.
+                    new android.os.Handler(android.os.Looper.getMainLooper())
+                            .postDelayed(RadioLibraryService::handBackToPhone, 1500);
+                }
             }
 
             @NonNull
@@ -1405,7 +1471,7 @@ public class RadioLibraryService extends MediaLibraryService {
     @Override
     public void onDestroy() {
         if (instance == this) instance = null;
-        carControllers = 0;
+        lastCarConnected = false;
         stallWatchdogHandler.removeCallbacks(stallWatchdogTick);
         LogoFetcher.setListener(null);
         if (mediaLibrarySession != null) {

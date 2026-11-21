@@ -766,7 +766,12 @@ public class PlaybackService extends Service {
         // While Android Auto is connected, the car's player (RadioLibraryService)
         // does the playing, so the car screen and its buttons control what you
         // hear. The phone's play/pause/widget buttons are handed to it.
-        if (RadioLibraryService.carConnected()) {
+        if (!RadioLibraryService.carConnected()) {
+            // Left the car with its player still loaded: stop it and carry its
+            // station over to the phone, so there's never two players or a
+            // mismatched widget/app.
+            RadioLibraryService.handBackToPhone();
+        } else {
             switch (action) {
                 case ACTION_PLAY:
                     if (RadioLibraryService.resumeFromPhone()) { releasePhoneForCar(true); return START_STICKY; }
