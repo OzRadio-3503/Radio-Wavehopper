@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Station Finder</title>
+<style>
+/* A plain tool for Radio Wavehopper: search Radio Browser, test a stream,
+   copy what the station editor needs. Opened as a local file in Chrome. */
+:root{color-scheme:light dark;
+  --bg:light-dark(#f6f5f2,#141416);--card:light-dark(#fff,#1e1f23);--ink:light-dark(#1b1b1d,#ececef);
+  --dim:light-dark(#5f6068,#9a9ca5);--line:light-dark(#e2e0da,#2e3036);--acc:light-dark(#c2410c,#fb923c);
+  --ok:light-dark(#15803d,#4ade80);--bad:light-dark(#b91c1c,#f87171)}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header,main{max-width:980px;margin:0 auto;padding:20px 16px}
+h1{font-size:28px;margin:0 0 4px}
+header p{margin:0;color:var(--dim)}
+form{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:10px;margin-top:16px}
+input,select,button{font:inherit;font-size:16px;min-height:44px;border-radius:10px;border:1px solid var(--line);
+  background:var(--card);color:var(--ink);padding:0 12px}
+button{cursor:pointer}
+button.main{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+label.chk{display:flex;align-items:center;gap:8px;color:var(--dim);margin-top:10px;font-size:15px}
+#status{color:var(--dim);margin:14px 0}
+.res{display:grid;grid-template-columns:56px 1fr auto;gap:14px;align-items:center;background:var(--card);
+  border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px}
+.logo{width:56px;height:56px;border-radius:10px;background:var(--line);object-fit:contain;display:grid;
+  place-items:center;font-weight:700;color:var(--dim);overflow:hidden}
+.name{font-weight:650;font-size:17px}
+.meta{color:var(--dim);font-size:14px}
+.url{font-size:13px;color:var(--dim);overflow-wrap:anywhere;margin-top:4px}
+.ok{color:var(--ok)}.bad{color:var(--bad)}
+.acts{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;max-width:240px}
+.acts button,.acts a{font-size:14px;min-height:40px;padding:0 10px;border-radius:8px;border:1px solid var(--line);
+  background:transparent;color:var(--ink);text-decoration:none;display:inline-flex;align-items:center}
+.playing{background:var(--acc)!important;color:#fff!important;border-color:var(--acc)!important}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);
+  padding:10px 16px;border-radius:10px;opacity:0;transition:opacity .2s;pointer-events:none}
+#toast.show{opacity:1}
+@media(max-width:700px){form{grid-template-columns:1fr 1fr}form input[name=q]{grid-column:1/-1}
+  .res{grid-template-columns:48px 1fr}.logo{width:48px;height:48px}.acts{grid-column:1/-1;justify-content:flex-start;max-width:none}}
+@media(prefers-reduced-motion:reduce){#toast{transition:none}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Station Finder</h1>
+  <p>Search Radio Browser for a stream, test it, then copy the URL into Radio Wavehopper's station editor.</p>
+  <form id="f">
+    <input name="q" id="q" placeholder="Station name, e.g. Southern FM" autocomplete="off" required>
+    <select id="country">
+      <option value="">Any country</option>
+      <option value="AU" selected>Australia</option>
+      <option value="NZ">New Zealand</option>
+      <option value="GB">United Kingdom</option>
+      <option value="US">United States</option>
+      <option value="SG">Singapore</option>
+      <option value="ZA">South Africa</option>
+      <option value="FR">France</option>
+      <option value="DE">Germany</option>
+    </select>
+    <input id="tag" placeholder="Genre (optional)" autocomplete="off">
+    <button class="main" type="submit">Search</button>
+  </form>
+  <label class="chk"><input type="checkbox" id="hideBroken" checked> Hide streams that failed Radio Browser's last check</label>
+</header>
+<main>
+  <div id="status">Type a station name and press Search.</div>
+  <div id="results"></div>
+</main>
+<div id="toast"></div>
+<audio id="player" preload="none"></audio>
+
+<script>
+{
+const SERVERS = ['de1', 'de2', 'fi1', 'nl1', 'at1'].map(s => `https://${s}.api.radio-browser.info`);
+const $ = id => document.getElementById(id);
+const player = $('player');
+let playingBtn = null, list = [];
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// Try each Radio Browser server in turn (they're run by volunteers and one can be down).
+async function api(path) {
+  let lastErr;
+  for (const base of SERVERS.slice().sort(() => Math.random() - 0.5)) {
+    try {
+      const r = await fetch(base + path, {signal: AbortSignal.timeout(8000)});
+      if (r.ok) return r.json();
+      lastErr = new Error('HTTP ' + r.status);
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr;
+}
+
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+async function copy(text, what) {
+  try { await navigator.clipboard.writeText(text); toast(what + ' copied'); }
+  catch { prompt('Copy this:', text); }
+}
+
+function stopPlay() {
+  player.pause(); player.removeAttribute('src'); player.load();
+  if (playingBtn) { playingBtn.classList.remove('playing'); playingBtn.textContent = 'Play'; playingBtn = null; }
+}
+
+function render() {
+  $('results').innerHTML = list.map((s, i) => {
+    const url = s.url_resolved || s.url;
+    const where = [s.state, s.country].filter(Boolean).join(', ');
+    const fmt = [s.codec, s.bitrate ? s.bitrate + ' kbps' : '', s.hls ? 'HLS' : ''].filter(Boolean).join(' · ');
+    const check = s.lastcheckok ? '<span class="ok">Working at last check</span>' : '<span class="bad">Failed last check</span>';
+    const initials = esc((s.name || '?').trim().slice(0, 2).toUpperCase());
+    const logo = s.favicon
+      ? `<img class="logo" src="${esc(s.favicon)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=logo>${initials}</div>'">`
+      : `<div class="logo">${initials}</div>`;
+    return `<div class="res">
+      ${logo}
+      <div>
+        <div class="name">${esc(s.name.trim())}</div>
+        <div class="meta">${esc(where)}${where && fmt ? ' · ' : ''}${esc(fmt)}</div>
+        <div class="meta">${check}${s.tags ? ' · ' + esc(s.tags.split(',').slice(0, 4).join(', ')) : ''}</div>
+        <div class="url">${esc(url)}</div>
+      </div>
+      <div class="acts">
+        <button data-play="${i}">Play</button>
+        <button data-copy="${i}">Copy URL</button>
+        ${s.homepage ? `<button data-home="${i}">Copy website</button><a href="${esc(s.homepage)}" target="_blank" rel="noopener">Website ↗</a>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+$('f').addEventListener('submit', async e => {
+  e.preventDefault();
+  stopPlay();
+  const p = new URLSearchParams({
+    name: $('q').value.trim(), limit: '60', order: 'clickcount', reverse: 'true',
+    hidebroken: $('hideBroken').checked ? 'true' : 'false'
+  });
+  if ($('country').value) p.set('countrycode', $('country').value);
+  if ($('tag').value.trim()) p.set('tag', $('tag').value.trim());
+  $('status').textContent = 'Searching…';
+  $('results').innerHTML = '';
+  try {
+    const seen = new Set();
+    list = (await api('/json/stations/search?' + p)).filter(s => {
+      const k = (s.url_resolved || s.url).replace(/\/+$/, '');
+      if (seen.has(k)) return false; seen.add(k); return true;
+    });
+    $('status').textContent = list.length
+      ? `${list.length} station${list.length === 1 ? '' : 's'} found. Press Play to test one before adding it.`
+      : 'Nothing found. Try a shorter name, "Any country", or untick "Hide streams".';
+    render();
+  } catch (err) {
+    $('status').textContent = "Couldn't reach Radio Browser (" + err.message + '). Check your connection and try again.';
+  }
+});
+
+$('results').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.copy) { const s = list[b.dataset.copy]; copy(s.url_resolved || s.url, 'Stream URL'); }
+  if (b.dataset.home) copy(list[b.dataset.home].homepage, 'Website');
+  if (b.dataset.play) {
+    if (playingBtn === b) { stopPlay(); return; }
+    stopPlay();
+    const s = list[b.dataset.play];
+    playingBtn = b; b.textContent = 'Loading…'; b.classList.add('playing');
+    player.src = s.url_resolved || s.url;
+    player.play().then(() => { if (playingBtn === b) b.textContent = 'Stop'; })
+      .catch(() => {
+        if (playingBtn === b) stopPlay();
+        toast(s.hls ? "HLS streams don't play in Chrome; try it in the app" : "Won't play in the browser; it may still work in the app");
+      });
+    // Tell Radio Browser the station was listened to (their API asks clients to do this).
+    api('/json/url/' + s.stationuuid).catch(() => {});
+  }
+});
+
+player.addEventListener('error', () => { if (playingBtn) { stopPlay(); toast("That stream didn't play"); } });
+}
+</script>
+</body>
+</html>
