@@ -408,6 +408,32 @@ public final class StationLibrary {
         return m.matches() ? Double.valueOf(m.group(1)) : null;
     }
 
+    /**
+     * The phone's last station, found by its saved name first and only then
+     * by its saved dial spot. A station can move on the dial (e.g. when one of
+     * the listener's stations takes a block's starting spot), so the spot
+     * alone could point at its neighbour. Null if nothing has been played.
+     */
+    public static Station savedPhoneStation(android.content.Context ctx) {
+        android.content.SharedPreferences p =
+                ctx.getSharedPreferences("RadioPrefs", android.content.Context.MODE_PRIVATE);
+        String title = p.getString("last_station_title", "");
+        double freq = Double.longBitsToDouble(p.getLong("last_station_freq_bits", Double.doubleToLongBits(-1)));
+        UserStations.ensure(ctx);
+        List<Station> all = getStations();
+        if (title != null && !title.isEmpty()) {
+            for (Station s : all) if (title.equals(s.name)) return s;
+        }
+        if (freq < 0) return null;
+        Station best = null;
+        double bestDist = Double.MAX_VALUE;
+        for (Station s : all) {
+            double d = Math.abs(s.freq - freq);
+            if (d < bestDist) { bestDist = d; best = s; }
+        }
+        return best;
+    }
+
     /** Built-in stations plus any the listener added, in dial order. */
     public static List<Station> getStations() {
         List<Station> stations = getBuiltInStations();
@@ -439,10 +465,11 @@ public final class StationLibrary {
         for (Station u : mine) {
             if (urls.contains(normUrl(u.url))) continue;
             long k = Math.round(u.freq * 100);
-            boolean start = false;
-            for (String[] g : GROUPS) if (Math.round(Double.parseDouble(g[0]) * 100) == k) start = true;
+            // A listener's station may hold a block's starting spot (the page
+            // puts one there when it comes first in frequency order, and moves
+            // the block's built-in first station up); it only moves if taken.
             Station put = u;
-            if (used.contains(k) || start) {
+            if (used.contains(k)) {
                 long n = k + 1;
                 while (n < 10210 && used.contains(n)) n++;
                 if (n < 10210) put = new Station(n / 100.0, u.name, u.real, u.url, null, false, u.region);

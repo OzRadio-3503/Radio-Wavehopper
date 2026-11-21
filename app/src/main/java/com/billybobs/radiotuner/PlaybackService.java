@@ -841,7 +841,13 @@ public class PlaybackService extends Service {
                     station = new StationLibrary.Station(freq, title == null || title.isEmpty() ? "Test stream" : title,
                             "Test", testUrl, null, false, "");
                 } else {
-                    station = findNearestStation(freq);
+                    station = null;
+                    if (title != null && !title.isEmpty()) {   // by name first: dial spots can move
+                        for (StationLibrary.Station c : StationLibrary.getStations()) {
+                            if (title.equals(c.name)) { station = c; break; }
+                        }
+                    }
+                    if (station == null) station = findNearestStation(freq);
                 }
                 if (testUrl == null && station != null
                         && RadioLibraryService.playFromPhone(station.name, station.freq)) {
@@ -1072,10 +1078,7 @@ public class PlaybackService extends Service {
 
     /** After the process was killed: replay the station the person last had on. */
     private boolean playSavedStation() {
-        double freq = Double.longBitsToDouble(getSharedPreferences("RadioPrefs", MODE_PRIVATE)
-                .getLong("last_station_freq_bits", Double.doubleToLongBits(-1)));
-        if (freq < 0) return false;
-        StationLibrary.Station s = findNearestStation(freq);
+        StationLibrary.Station s = StationLibrary.savedPhoneStation(this);
         if (s == null) return false;
         playStationNow(s);
         return true;
@@ -1104,9 +1107,7 @@ public class PlaybackService extends Service {
             if (all.get(k).url.equals(currentStationUrl)) { idx = k; break; }
         }
         if (idx < 0) {
-            double freq = Double.longBitsToDouble(getSharedPreferences("RadioPrefs", MODE_PRIVATE)
-                    .getLong("last_station_freq_bits", Double.doubleToLongBits(-1)));
-            StationLibrary.Station near = freq >= 0 ? findNearestStation(freq) : null;
+            StationLibrary.Station near = StationLibrary.savedPhoneStation(this);
             if (near != null) {
                 for (int k = 0; k < all.size(); k++) {
                     if (Math.abs(all.get(k).freq - near.freq) < 0.0001) { idx = k; break; }

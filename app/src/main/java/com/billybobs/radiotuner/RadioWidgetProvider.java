@@ -50,6 +50,10 @@ public class RadioWidgetProvider extends AppWidgetProvider {
         String title = prefs.getString("last_station_title", "");
         String sub = prefs.getString("last_station_sub", "");
         double freq = Double.longBitsToDouble(prefs.getLong("last_station_freq_bits", Double.doubleToLongBits(-1)));
+        // Use the station's current dial spot (found by name), in case it has
+        // moved since it was saved - the logo is looked up by dial spot.
+        StationLibrary.Station saved = StationLibrary.savedPhoneStation(app);
+        if (saved != null && saved.name.equals(title)) freq = saved.freq;
         // is_playing can be left over from a killed process, so trust it only while the service lives.
         boolean playing = prefs.getBoolean("is_playing", false) && PlaybackService.running;
 

@@ -793,7 +793,9 @@
       }
       return best === null ? null : best / 100;
     }
-    const clashes = (st, placed) => h(st.freq) <= h(FIRST) || h(st.freq) >= h(END) || starts.has(h(st.freq))
+    // A block's starting spot may hold a listener's station (see 4. below), so
+    // only an occupied spot or one off the dial counts as a clash.
+    const clashes = (st, placed) => h(st.freq) < h(FIRST) || h(st.freq) >= h(END)
       || placed.some(o => o !== st && h(o.freq) === h(st.freq));
     const remap = [];
 
@@ -821,6 +823,7 @@
     // 3. hand-added stations
     userData.added.slice().sort((a, b) => a.freq - b.freq).forEach(u => {
       const st = Object.assign({ user: true }, u);
+      Object.defineProperty(st, '_rec', { value: u });   // its saved record (not saved itself)
       if (clashes(st, placed.concat([st]))) {
         const f = freeSlot(st, placed);
         if (f !== null) {
@@ -830,6 +833,57 @@
       }
       placed.push(st);
       stations.push(st);
+    });
+
+    // 4. Each block's starting spot holds whichever comes first in frequency
+    //    order: the block's own first built-in station, or one of the
+    //    listener's stations (e.g. SENQ 693 AM ahead of talkSPORT 1089 AM in
+    //    Sport). The one that gives up the spot moves to its place in the
+    //    block, and back again if that changes (station removed or edited).
+    STATION_GROUPS.forEach((grp, g) => {
+      const sk = h(grp.start);
+      const anchor = stations.find(st => !st.user && st._key === grp.start.toFixed(2));
+      if (!anchor) return;
+      const users = placed.filter(st => st.user && groupOf(st.freq) === g);
+      let desired = anchor;
+      users.forEach(u => { if (cmpKey(orderKey(u), orderKey(desired)) < 0) desired = u; });
+      const occupant = placed.find(st => h(st.freq) === sk) || null;
+      if (occupant === desired) {
+        // tidy: the built-in back on its own spot needs no saved move
+        if (desired === anchor && userData.edited[anchor._key] && 'freq' in userData.edited[anchor._key]) {
+          delete userData.edited[anchor._key].freq; userDataChanged = true;
+        }
+        return;
+      }
+      const setFreq = (st, f) => {
+        remap.push([st.freq, f]);
+        st.freq = f;
+        if (st.user) { if (st._rec) st._rec.freq = f; }
+        else {
+          const e = userData.edited[st._key] || (userData.edited[st._key] = {});
+          if (st._key === f.toFixed(2)) delete e.freq; else e.freq = f;   // back home: no saved move
+          userData.names[st._key] = st._orig;
+          st._moved = st._key !== f.toFixed(2);
+        }
+        userDataChanged = true;
+      };
+      if (occupant) {
+        // Where the occupant belongs once the desired station holds the start.
+        const others = placed.filter(o => o !== occupant && o !== desired)
+          .concat([Object.assign({}, desired, { freq: grp.start })]);
+        const f = freeSlot(Object.assign({}, occupant, { freq: grp.start + 0.01 }), others);
+        if (f === null) { console.warn('[radio] no room to reorder block', grp.name); return; }
+        setFreq(occupant, f);
+      }
+      setFreq(desired, grp.start);
+    });
+    Object.keys(userData.edited).forEach(k => {
+      const e = userData.edited[k];
+      if (e && typeof e === 'object' && !Object.keys(e).length) {
+        delete userData.edited[k];
+        if (!userData.hidden.includes(k)) delete userData.names[k];
+        userDataChanged = true;
+      }
     });
     stations.sort((a, b) => a.freq - b.freq);
 
@@ -3203,7 +3257,7 @@
     }
     (Array.isArray(d.added) ? d.added : []).forEach(u => {
       const ok = u && str(u.name, 40) && u.name.trim() && /^https?:\/\/\S+$/i.test(u.url || '') && str(u.real, 20) && REAL_OK.test(u.real)
-        && typeof u.freq === 'number' && isFinite(u.freq) && u.freq > 87.5 && u.freq < 102.1 && str(u.cc || '', 3)
+        && typeof u.freq === 'number' && isFinite(u.freq) && u.freq >= 87.5 && u.freq < 102.1 && str(u.cc || '', 3)
         && (u.dab === undefined || (typeof u.dab === 'string' && DAB_BLOCKS && DAB_BLOCKS[u.dab]));
       const k = ok ? (Math.round(u.freq * 100) / 100).toFixed(2) : '';
       if (!ok) { dropped++; return; }          // a clash is fine: the merge re-places it when the dial reloads

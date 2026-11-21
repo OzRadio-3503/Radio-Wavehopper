@@ -517,7 +517,8 @@ public class RadioLibraryService extends MediaLibraryService {
                 phonePrefs.getLong("last_station_freq_bits", Double.doubleToLongBits(-1)));
 
         if (phoneAt > carAt && phoneFreq >= 0) {
-            int idx = nearestStationIndex(phoneFreq);
+            int idx = indexOfStationNamed(phonePrefs.getString("last_station_title", ""));
+            if (idx < 0) idx = nearestStationIndex(phoneFreq);
             if (idx >= 0) return idx;
         }
         return carIdx;
