@@ -426,11 +426,20 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getSavedStation() {
+            // With Android Auto connected, open on what the car is playing.
+            String car = RadioLibraryService.carStationName();
+            if (!car.isEmpty()) return car;
             return getSharedPreferences("RadioPrefs", MODE_PRIVATE).getString("last_station_title", "");
         }
 
         @JavascriptInterface
         public boolean isPlaying() {
+            // With Android Auto connected, the car's player is the one that
+            // counts. (The page re-plays a "playing" station when it opens;
+            // that's handed to the car, which leaves it alone if it's
+            // already on it - so opening the app never restarts or changes
+            // what the car is playing, and never starts a second player.)
+            if (RadioLibraryService.carConnected()) return RadioLibraryService.carIsPlaying();
             return getSharedPreferences("RadioPrefs", MODE_PRIVATE).getBoolean("is_playing", false);
         }
     }

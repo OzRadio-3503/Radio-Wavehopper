@@ -763,6 +763,30 @@ public class PlaybackService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         String action = (intent != null && intent.getAction() != null) ? intent.getAction() : ACTION_PLAY_STATION;
 
+        // While Android Auto is connected, the car's player (RadioLibraryService)
+        // does the playing, so the car screen and its buttons control what you
+        // hear. The phone's play/pause/widget buttons are handed to it.
+        if (RadioLibraryService.carConnected()) {
+            switch (action) {
+                case ACTION_PLAY:
+                    if (RadioLibraryService.resumeFromPhone()) { releasePhoneForCar(true); return START_STICKY; }
+                    break;
+                case ACTION_TOGGLE:
+                    if (RadioLibraryService.carIsPlaying() ? RadioLibraryService.pauseFromPhone()
+                            : RadioLibraryService.resumeFromPhone()) {
+                        releasePhoneForCar(RadioLibraryService.carIsPlaying());
+                        return START_STICKY;
+                    }
+                    break;
+                case ACTION_PAUSE:
+                case ACTION_PAUSE_STATION:
+                    if (RadioLibraryService.pauseFromPhone()) { releasePhoneForCar(false); return START_STICKY; }
+                    break;
+                default:
+                    break;
+            }
+        }
+
         switch (action) {
             // Notification action buttons (these arrive as a real Intent,
             // unlike the lock screen / Bluetooth transport controls, which
@@ -813,6 +837,15 @@ public class PlaybackService extends Service {
                             "Test", testUrl, null, false, "");
                 } else {
                     station = findNearestStation(freq);
+                }
+                if (testUrl == null && station != null
+                        && RadioLibraryService.playFromPhone(station.name, station.freq)) {
+                    // Android Auto is connected: the car's player plays it.
+                    // (Testing a stream from the station editor still plays
+                    // on the phone.)
+                    currentStationName = station.name;
+                    releasePhoneForCar(true);
+                    return START_STICKY;
                 }
                 if (station != null && station.url.equals(currentStationUrl) && isAlreadyStarting(station)) {
                     // The page asked for the station that's already
@@ -917,6 +950,37 @@ public class PlaybackService extends Service {
             }
         }
         return best;
+    }
+
+    /**
+     * A play/pause was handed to the car's player (Android Auto connected):
+     * make sure the phone's own player isn't also playing, step its media
+     * session aside so Android Auto shows the car's, and tell the page what
+     * the car is now doing. Android requires a service started with
+     * startForegroundService to call startForeground, even if it then has
+     * nothing to show - so it does, then removes the notification.
+     */
+    private void releasePhoneForCar(boolean carPlaying) {
+        startForeground(NOTIF_ID, buildNotification(false));
+        releaseWakeLock();
+        stopStallWatchdog();
+        stopLegacyPlaybackForEngineSwitch();
+        player.setPlayWhenReady(false);
+        player.stop();
+        if (mediaSession != null) mediaSession.setActive(false);
+        getSharedPreferences("RadioPrefs", MODE_PRIVATE).edit().putBoolean("is_playing", false).apply();
+        stopForeground(true);
+        RadioWidgetProvider.refresh(this);
+        // After the phone player's own "stopped" callbacks (which can put its
+        // notification back up and tell the page "paused"): clear those, so
+        // the page ends up showing the car's state, not the phone's.
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+            if (!isReallyPlaying()) {
+                if (mediaSession != null) mediaSession.setActive(false);
+                stopForeground(true);
+            }
+            sendJs(carPlaying ? "onNativePlaying" : "onNativePaused");
+        }, 400);
     }
 
     /** Forwards a no-argument command to the page's window.NativeControls bridge. */

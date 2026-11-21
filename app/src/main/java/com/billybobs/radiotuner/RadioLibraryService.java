@@ -111,6 +111,66 @@ public class RadioLibraryService extends MediaLibraryService {
     private final LiveResume liveResume = new LiveResume();
     private int lastPlaybackState = Player.STATE_IDLE;
     private MediaLibrarySession mediaLibrarySession;
+
+    // ---- One player while Android Auto is connected ----
+    // The phone app has its own player (PlaybackService). While Android Auto
+    // is connected, the phone app hands its play/pause to this (the car's)
+    // player instead, so the car screen and its buttons always control what
+    // you hear. Same process, main thread on both sides.
+    private static final String ANDROID_AUTO = "com.google.android.projection.gearhead";
+    private static RadioLibraryService instance;
+    private static int carControllers = 0;
+
+    /** True while Android Auto itself is connected to the car service. */
+    static boolean carConnected() {
+        return instance != null && carControllers > 0;
+    }
+
+    /** Plays a station picked on the phone on the car's player. False if no car. */
+    static boolean playFromPhone(String name, double freq) {
+        RadioLibraryService car = instance;
+        if (!carConnected() || car.stations == null || car.stations.isEmpty()) return false;
+        int idx = car.indexOfStationNamed(name);
+        if (idx < 0) idx = car.nearestStationIndex(freq);
+        if (idx < 0) return false;
+        if (idx == car.currentStationIndex() && car.player.getPlayWhenReady()
+                && car.player.getPlaybackState() != Player.STATE_IDLE) {
+            DiagLog.log("carUI fromPhone: already on " + car.stations.get(idx).name);
+            return true;
+        }
+        DiagLog.log("carUI fromPhone: play " + car.stations.get(idx).name);
+        car.tuneTo(idx);
+        return true;
+    }
+
+    /** The phone app's pause button, while Android Auto is connected. */
+    static boolean pauseFromPhone() {
+        if (!carConnected()) return false;
+        DiagLog.log("carUI fromPhone: pause");
+        instance.player.pause();
+        return true;
+    }
+
+    /** The phone's play button (widget/notification) with no station picked, while Android Auto is connected. */
+    static boolean resumeFromPhone() {
+        if (!carConnected() || instance.player.getMediaItemCount() == 0) return false;
+        DiagLog.log("carUI fromPhone: resume");
+        instance.player.prepare();
+        instance.player.play();
+        return true;
+    }
+
+    /** What the car is on, for the phone app to open on ("" if no car). */
+    static String carStationName() {
+        if (!carConnected()) return "";
+        int idx = instance.currentStationIndex();
+        return idx >= 0 ? instance.stations.get(idx).name : "";
+    }
+
+    static boolean carIsPlaying() {
+        return carConnected() && instance.player.getPlayWhenReady()
+                && instance.player.getPlaybackState() != Player.STATE_IDLE;
+    }
     private List<StationLibrary.Station> stations;
 
     // Live stations never genuinely "end" - see PlaybackService's
@@ -704,6 +764,7 @@ public class RadioLibraryService extends MediaLibraryService {
     public void onCreate() {
         super.onCreate();
         DiagLog.init(this); // in case the car binds here before PlaybackService has started
+        instance = this;
         UserStations.ensure(this);
         initializeStations();
         migrateSavedStation();
@@ -950,6 +1011,7 @@ public class RadioLibraryService extends MediaLibraryService {
                         .add(bandDabnetCommand)
                         .add(bandAllCommand)
                         .build();
+                if (ANDROID_AUTO.equals(controller.getPackageName())) carControllers++;
                 DiagLog.log("carUI onConnect: controller=" + controller.getPackageName()
                         + " trusted=" + controller.isTrusted()
                         + " legacy=" + controller.getControllerVersion());
@@ -980,6 +1042,7 @@ public class RadioLibraryService extends MediaLibraryService {
             public void onDisconnected(
                     @NonNull MediaSession session,
                     @NonNull MediaSession.ControllerInfo controller) {
+                if (ANDROID_AUTO.equals(controller.getPackageName()) && carControllers > 0) carControllers--;
                 DiagLog.log("carUI onDisconnected: controller=" + controller.getPackageName()
                         + " trusted=" + controller.isTrusted());
             }
@@ -1341,6 +1404,8 @@ public class RadioLibraryService extends MediaLibraryService {
 
     @Override
     public void onDestroy() {
+        if (instance == this) instance = null;
+        carControllers = 0;
         stallWatchdogHandler.removeCallbacks(stallWatchdogTick);
         LogoFetcher.setListener(null);
         if (mediaLibrarySession != null) {
