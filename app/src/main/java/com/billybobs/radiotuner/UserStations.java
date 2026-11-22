@@ -56,8 +56,17 @@ public final class UserStations {
     private static volatile String phoneList = "";
     /** What Android Auto shows: "" = same as the phone, "*" = all stations, else a list's name. */
     private static volatile String carList = "";
+    /** Default sleep timer in minutes, started by any play on the phone (0 = off). */
+    private static volatile int sleepDefault = 0;
 
     private UserStations() {}
+
+    static int sleepDefault() { return sleepDefault; }
+
+    /** Only the timer's own steps are allowed. */
+    static int cleanSleepMinutes(int m) {
+        return (m == 10 || m == 30 || m == 60 || m == 120) ? m : 0;
+    }
 
     static java.util.Set<String> hiddenGroups() { return hiddenGroups; }
     /** The list the phone shows, or null for all stations. */
@@ -146,6 +155,7 @@ public final class UserStations {
         java.util.Set<String> hg = new java.util.HashSet<>();
         java.util.Map<String, Showing> ls = new java.util.HashMap<>();
         String pl = "", cl = "";
+        int sd = 0;
         try {
             if (json != null && !json.isEmpty()) {
                 JSONObject root = new JSONObject(json);
@@ -188,6 +198,7 @@ public final class UserStations {
                 if (!ls.containsKey(pl)) pl = "";
                 cl = root.optString("carList", "");
                 if (!cl.isEmpty() && !"*".equals(cl) && !ls.containsKey(cl)) cl = "";
+                sd = cleanSleepMinutes(root.optInt("sleepDefault", 0));
                 JSONArray arr = root.optJSONArray("added");
                 if (arr != null) {
                     for (int i = 0; i < arr.length(); i++) {
@@ -209,8 +220,9 @@ public final class UserStations {
             edt = new java.util.HashMap<>();
             nm = new java.util.HashMap<>();
             hg = new java.util.HashSet<>();
-            ls = new java.util.HashMap<>(); pl = ""; cl = "";
+            ls = new java.util.HashMap<>(); pl = ""; cl = ""; sd = 0;
         }
+        sleepDefault = sd;
         hiddenGroups = hg;
         lists = ls;
         phoneList = pl;

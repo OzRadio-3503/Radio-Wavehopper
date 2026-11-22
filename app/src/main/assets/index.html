@@ -676,6 +676,8 @@
     if (typeof d.activeList !== 'string' || !d.lists.some(l => l.name === d.activeList)) d.activeList = '';
     // What Android Auto shows: '' = same as the phone, '*' = all stations, or a list.
     if (typeof d.carList !== 'string' || (d.carList !== '*' && !d.lists.some(l => l.name === d.carList))) d.carList = '';
+    // Default sleep timer in minutes (0 = off), started by any play on the phone.
+    if (![10, 30, 60, 120].includes(d.sleepDefault)) d.sleepDefault = 0;
     d.added = d.added.filter(u => u && typeof u.name === 'string' && /^https?:\/\//i.test(u.url || '') && isFinite(u.freq));
     return d;
   })();
@@ -1989,6 +1991,7 @@
     function onPlaying(){
       isLoading = false;
       isPlaying = true;
+      startDefaultSleep();
       eqBars.classList.add('playing');
       playIcon.innerHTML = '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>';
       statusText.className = 'status-text ok';
@@ -2563,6 +2566,16 @@
                              : 'Sleep timer off.', 'ok', true);
   }
 
+  // Website only (the app's own player does this itself, so it also covers
+  // the widget and notification): start the default sleep timer from
+  // Settings when playing starts and no timer is running.
+  function startDefaultSleep(){
+    if (nativeSleep) return;
+    const m = userData.sleepDefault || 0;
+    if (!m || sleepEndAt > Date.now()) return;
+    setSleepTimer(m);
+  }
+
   function stepSleepTimer(){
     // In the final countdown a hold is an extension, so start again from the
     // longest setting (120, then 60, 30, 10) rather than stepping to "off".
@@ -2603,6 +2616,18 @@
     onSleepTimerCancelled: function(){
       sleepTimerEnded();
       showSleepMessage('Sleep timer cancelled: Android Auto took over.', '', true);
+    },
+    // The app started your default sleep timer (Settings) as play began.
+    onSleepTimerStarted: function(endAt, minutes){
+      sleepEndAt = Number(endAt) || 0;
+      sleepChoice = minutes;
+      if (sleepEndAt) startSleepTicker();
+      showSleepTimer();
+      if (sleepEndAt) showSleepMessage(`Sleep timer: ${minutes} min (your default). Hold the badge to change.`, 'ok', true);
+    },
+    // A default sleep timer ended because the radio was paused.
+    onSleepTimerOff: function(){
+      sleepTimerEnded();
     },
     onSleepTimerFinished: function(){
       sleepTimerEnded();
@@ -2843,15 +2868,15 @@
   document.head.appendChild(css);
 
   const btn = document.createElement('button');
-  btn.id = 'editBtn'; btn.type = 'button'; btn.title = 'Edit stations'; btn.setAttribute('aria-label', 'Edit stations');
+  btn.id = 'editBtn'; btn.type = 'button'; btn.title = 'Settings'; btn.setAttribute('aria-label', 'Settings');
   btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>';
   document.querySelector('.set').appendChild(btn);
 
   const scr = document.createElement('div');
-  scr.id = 'editScreen'; scr.hidden = true; scr.setAttribute('role', 'dialog'); scr.setAttribute('aria-label', 'Edit stations');
+  scr.id = 'editScreen'; scr.hidden = true; scr.setAttribute('role', 'dialog'); scr.setAttribute('aria-label', 'Settings');
   scr.innerHTML = `
   <div class="ed-wrap">
-    <div class="ed-head"><h2>EDIT STATIONS</h2><button type="button" class="ed-close" id="edClose">CLOSE</button></div>
+    <div class="ed-head"><h2>SETTINGS</h2><button type="button" class="ed-close" id="edClose">CLOSE</button></div>
     <h3>EDIT OR DELETE A STATION</h3>
     <div class="ed-row"><label style="flex-basis:100%">DIAL NUMBER<input type="number" id="edFind" inputmode="decimal" step="0.01" placeholder="90.08"></label><button type="button" class="ed-btn" id="edFindBtn">FIND</button><button type="button" class="ed-btn" id="edCurBtn">THIS ONE</button></div>
     <div class="ed-msg" id="edFindMsg"></div>
@@ -2902,6 +2927,10 @@
       <div class="ed-row"><button type="button" class="ed-btn primary" id="edListSave">SAVE LIST</button><button type="button" class="ed-btn" id="edListCancel">CANCEL</button><button type="button" class="ed-btn" id="edListDel" style="color:var(--warn);border-color:var(--warn)">DELETE LIST</button></div>
     </div>
     <div class="ed-msg" id="edShowMsg"></div>
+    <h3>SLEEP TIMER</h3>
+    <label>DEFAULT SLEEP<select id="edSleep"><option value="0">Off</option><option value="10">10 minutes</option><option value="30">30 minutes</option><option value="60">60 minutes</option><option value="120">120 minutes</option></select></label>
+    <div class="ed-note">Counts down whenever the radio starts playing on this phone (in the app, the widget or the notification), unless a timer is already running. Changing station doesn't restart it; pausing ends it, and the next play starts it again. Never in Android Auto. Hold the RADIO WAVEHOPPER badge to change it for now.</div>
+    <div class="ed-msg" id="edSleepMsg"></div>
     <h3>BACKUP</h3>
     <div class="ed-row"><button type="button" class="ed-btn" id="edExport">SAVE TO PHONE</button><button type="button" class="ed-btn" id="edShare">SHARE BACKUP</button></div>
     <div class="ed-row"><button type="button" class="ed-btn" id="edImport">IMPORT BACKUP</button></div>
@@ -3388,6 +3417,20 @@
       showMsg($('edShowMsg').textContent.replace('Close this screen to update the dial.', 'It takes effect the next time Android Auto connects.'), 'ok');
     }
   });
+  // ---- default sleep timer ---------------------------------------------
+  $('edSleep').value = String(userData.sleepDefault || 0);
+  $('edSleep').addEventListener('change', () => {
+    const before = userData.sleepDefault || 0;
+    const m = Number($('edSleep').value) || 0;
+    userData.sleepDefault = [10, 30, 60, 120].includes(m) ? m : 0;
+    if (!persist()) {
+      userData.sleepDefault = before; $('edSleep').value = String(before);
+      return setMsg($('edSleepMsg'), 'Could not save. Try again.', 'warn');
+    }
+    setMsg($('edSleepMsg'), userData.sleepDefault
+      ? 'Default sleep: ' + userData.sleepDefault + ' minutes. It starts the next time the radio starts playing.'
+      : 'Default sleep is off.', 'ok');
+  });
   $('edCatsAll').addEventListener('click', () => {
     const list = userData.lists.find(l => l.name === userData.activeList);
     if (list) {
@@ -3435,7 +3478,7 @@
     const m = $('edResetMsg');
     if (!resetArmed) {
       resetArmed = true; $('edReset').textContent = 'TAP AGAIN TO RESET';
-      setMsg(m, 'This puts back every built-in station and removes the ones you added or edited, your custom logos, your lists and hidden categories.', 'warn');
+      setMsg(m, 'This puts back every built-in station and removes the ones you added or edited, your custom logos, your lists, hidden categories and default sleep.', 'warn');
       resetTimer = setTimeout(() => { resetArmed = false; $('edReset').textContent = 'RESET TO DEFAULTS'; setMsg(m, ''); }, 5000);
       return;
     }
@@ -3443,6 +3486,7 @@
     try { if (native && window.AndroidBridge.clearUserLogo) stations.forEach(st => window.AndroidBridge.clearUserLogo(st.name)); } catch (e) {}
     userData.added = []; userData.hidden = []; userData.edited = {}; userData.names = {};
     userData.hiddenGroups = []; userData.lists = []; userData.activeList = ''; userData.carList = '';
+    userData.sleepDefault = 0;
     if (!persist()) return setMsg(m, 'Could not reset. Try again.', 'warn');
     stopTest(); dirty = false;
     try { if (wh.getBandLock()) sessionStorage.setItem('wh_keep_lock', '1'); } catch (e) {}
@@ -3463,7 +3507,7 @@
     }
     return JSON.stringify({ app: 'Radio Wavehopper', format: 1, exported: new Date().toISOString(),
       added: userData.added, hidden: userData.hidden, edited: userData.edited, names: userData.names,
-      hiddenGroups: userData.hiddenGroups, lists: userData.lists, activeList: userData.activeList, carList: userData.carList, logos });
+      hiddenGroups: userData.hiddenGroups, lists: userData.lists, activeList: userData.activeList, carList: userData.carList, sleepDefault: userData.sleepDefault || 0, logos });
   }
   window.__whBackupError = m => setMsg($('edBackupMsg'), m, 'warn');
   window.__whBackupDone = (ok, msg) => setMsg($('edBackupMsg'), msg || '', ok ? 'ok' : (msg ? 'warn' : ''));
@@ -3575,7 +3619,8 @@
     });
     const activeList = typeof d.activeList === 'string' && lists.some(l => l.name === d.activeList) ? d.activeList : '';
     const carList = d.carList === '*' || (typeof d.carList === 'string' && lists.some(l => l.name === d.carList)) ? d.carList : '';
-    return { added, hidden, edited, names: keptNames, hiddenGroups, lists, activeList, carList, logos, dropped };
+    const sleepDefault = [10, 30, 60, 120].includes(d.sleepDefault) ? d.sleepDefault : 0;
+    return { added, hidden, edited, names: keptNames, hiddenGroups, lists, activeList, carList, sleepDefault, logos, dropped };
   }
   function handleImportText(text){
     const m = $('edBackupMsg');
@@ -3587,6 +3632,7 @@
     setMsg(m, 'Backup: ' + c.added.length + ' added, ' + Object.keys(c.edited).length + ' edited, ' + c.hidden.length + ' removed, ' + Object.keys(c.logos).length + ' logos'
       + (c.lists.length ? ', ' + c.lists.length + ' list' + (c.lists.length === 1 ? '' : 's') + (c.activeList ? ' (showing “' + c.activeList + '”)' : '') : '')
       + (c.hiddenGroups.length ? ', ' + c.hiddenGroups.length + ' hidden categor' + (c.hiddenGroups.length === 1 ? 'y' : 'ies') : '')
+      + (c.sleepDefault ? ', default sleep ' + c.sleepDefault + ' min' : '')
       + (c.dropped ? ' (' + c.dropped + ' skipped: they did not fit the dial)' : '') + '. Replace what is on this phone now?', 'warn');
   }
   window.__whImportResult = function(ok, text){
@@ -3613,6 +3659,7 @@
     const oldNames = stations.map(s => s.name);
     userData.added = c.added; userData.hidden = c.hidden; userData.edited = c.edited; userData.names = c.names;
     userData.hiddenGroups = c.hiddenGroups; userData.lists = c.lists; userData.activeList = c.activeList; userData.carList = c.carList;
+    userData.sleepDefault = c.sleepDefault;
     if (!persist()) { Object.assign(userData, JSON.parse(before)); return setMsg(m, 'Could not import. Nothing was changed.', 'warn'); }
     if (native) {
       try {

@@ -364,6 +364,7 @@ public class PlaybackService extends Service {
                     updateState(true);
                     sendJs("onNativePlaying");
                     startStallWatchdog();
+                    maybeStartDefaultSleep();
                 } else if (!player.getPlayWhenReady()
                         && player.getPlaybackState() != Player.STATE_BUFFERING) {
                     // playWhenReady is false here either because we (or the
@@ -472,6 +473,7 @@ public class PlaybackService extends Service {
     }
 
     private void doPause() {
+        pausedForDefaultSleep();
         if (usingLegacyPlayer) {
             if (legacyPlayer != null && legacyPlayer.isPlaying()) {
                 legacyPlayer.pause();
@@ -598,6 +600,7 @@ public class PlaybackService extends Service {
             updateState(true);
             sendJs("onNativePlaying");
             startStallWatchdog();
+            maybeStartDefaultSleep();
         } else {
             releaseWakeLock();
             getSharedPreferences("RadioPrefs", MODE_PRIVATE).edit()
@@ -632,6 +635,7 @@ public class PlaybackService extends Service {
 
     private void finishSleepTimer() {
         sleepFading = false;
+        sleepFromDefault = false;
         doPause();
         setEngineVolume(1f); // ready for the next time play is pressed
         saveSleepEnd(0);
@@ -640,6 +644,52 @@ public class PlaybackService extends Service {
                     "window.NativeControls && window.NativeControls.onSleepTimerFinished && "
                             + "window.NativeControls.onSleepTimerFinished();");
         }
+    }
+
+    // ---- Default sleep (Settings > Sleep timer) ----
+    // Any play on the phone - app, widget, notification, lock screen - starts
+    // the default countdown when no timer is running. Changing station
+    // doesn't restart it. Pausing ends a default countdown (after a short
+    // grace, as the app pauses briefly between stations), so the next play
+    // starts a fresh one; a timer set by holding the badge is left alone.
+    private static final long DEFAULT_SLEEP_PAUSE_GRACE_MS = 20_000L;
+    private boolean sleepFromDefault = false;
+    private boolean playingTestStream = false;
+    private final Runnable endDefaultSleepAfterPause = () -> {
+        if (!sleepFromDefault || isReallyPlaying()) return;
+        sleepFromDefault = false;
+        cancelSleepTimer();
+        saveSleepEnd(0);
+        DiagLog.log("sleep: default timer ended (paused)");
+        if (MainActivity.instance != null) {
+            MainActivity.instance.runJs("window.NativeControls && window.NativeControls.onSleepTimerOff"
+                    + " && window.NativeControls.onSleepTimerOff();");
+        }
+    };
+
+    /** Playback just started: start the default sleep timer if one is set and none is running. */
+    private void maybeStartDefaultSleep() {
+        sleepHandler.removeCallbacks(endDefaultSleepAfterPause);
+        if (playingTestStream || RadioLibraryService.carConnected()) return;
+        UserStations.ensure(this);
+        int minutes = UserStations.sleepDefault();
+        if (minutes <= 0) return;
+        long end = getSharedPreferences("RadioPrefs", MODE_PRIVATE).getLong("sleep_end_at", 0L);
+        if (end > System.currentTimeMillis()) return;   // one is already counting down
+        setSleepTimer(minutes);
+        sleepFromDefault = true;
+        long endAt = System.currentTimeMillis() + minutes * 60_000L;
+        DiagLog.log("sleep: default timer started, " + minutes + " min");
+        if (MainActivity.instance != null) {
+            MainActivity.instance.runJs("window.NativeControls && window.NativeControls.onSleepTimerStarted"
+                    + " && window.NativeControls.onSleepTimerStarted(" + endAt + "," + minutes + ");");
+        }
+    }
+
+    /** A real pause: a default countdown ends unless play comes back soon (a station change). */
+    private void pausedForDefaultSleep() {
+        sleepHandler.removeCallbacks(endDefaultSleepAfterPause);
+        if (sleepFromDefault) sleepHandler.postDelayed(endDefaultSleepAfterPause, DEFAULT_SLEEP_PAUSE_GRACE_MS);
     }
 
     /** When the timer ends (epoch ms, 0 = off), so a reopened page can show it. */
@@ -836,6 +886,8 @@ public class PlaybackService extends Service {
                 double freq = intent.getDoubleExtra(EXTRA_FREQ, -1);
                 String title = intent.getStringExtra(EXTRA_TITLE);
                 String testUrl = intent.getStringExtra(EXTRA_TEST_URL);
+                // Trying a stream on the edit screen doesn't start the default sleep timer.
+                playingTestStream = testUrl != null;
                 StationLibrary.Station station;
                 if (testUrl != null && (testUrl.startsWith("http://") || testUrl.startsWith("https://"))) {
                     station = new StationLibrary.Station(freq, title == null || title.isEmpty() ? "Test stream" : title,
@@ -921,6 +973,8 @@ public class PlaybackService extends Service {
             }
 
             case ACTION_SET_SLEEP_TIMER:
+                sleepFromDefault = false;   // set by hand: pausing leaves it alone
+                sleepHandler.removeCallbacks(endDefaultSleepAfterPause);
                 setSleepTimer(intent.getIntExtra(EXTRA_MINUTES, 0));
                 return START_STICKY;
 
@@ -1306,6 +1360,10 @@ public class PlaybackService extends Service {
         unregisterDiagReceivers();
         releaseWakeLock();
         cancelSleepTimer();
+        // The timer can't fire once the service is gone, so don't leave it
+        // looking set (and blocking the default from starting next time).
+        sleepHandler.removeCallbacks(endDefaultSleepAfterPause);
+        saveSleepEnd(0);
         stopStallWatchdog();
         stopLegacyPlaybackForEngineSwitch();
         if (player != null) {
