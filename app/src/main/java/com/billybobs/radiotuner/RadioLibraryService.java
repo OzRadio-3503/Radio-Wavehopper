@@ -165,17 +165,17 @@ public class RadioLibraryService extends MediaLibraryService {
     static void handBackToPhone() {
         RadioLibraryService car = instance;
         if (car == null || carConnected() || car.player == null) return;
-        int idx = car.currentStationIndex();
+        StationLibrary.Station on = car.currentStationAnywhere();
         boolean wasPlaying = car.player.getPlayWhenReady()
                 && car.player.getPlaybackState() != Player.STATE_IDLE;
-        if (!wasPlaying && idx < 0) return;
+        if (!wasPlaying && on == null) return;
         // Unload it, so this happens once: afterwards there's nothing left to
         // hand back, and the phone's own choices aren't overwritten. (The car
         // resumes from the saved last station next time it connects.)
         car.player.stop();
         car.player.clearMediaItems();
-        if (idx >= 0) {
-            StationLibrary.Station s = car.stations.get(idx);
+        if (on != null) {
+            StationLibrary.Station s = on;
             car.getSharedPreferences("RadioPrefs", MODE_PRIVATE).edit()
                     .putString("last_station_title", s.name)
                     .putString("last_station_sub", s.real + (s.region.isEmpty() ? "" : " \u00b7 " + s.region))
@@ -193,8 +193,34 @@ public class RadioLibraryService extends MediaLibraryService {
         RadioLibraryService car = instance;
         if (!carConnected() || car.stations == null || car.stations.isEmpty()) return false;
         int idx = car.indexOfStationNamed(name);
-        if (idx < 0) idx = car.nearestStationIndex(freq);
-        if (idx < 0) return false;
+        if (idx < 0) {
+            // Not in what the car shows (e.g. Android Auto has its own list):
+            // play it anyway, slotted into the car's playlist at its place on
+            // the dial, so next/previous step on from it into the car's list.
+            StationLibrary.Station outside = null;
+            for (StationLibrary.Station s : StationLibrary.getAllStations()) {
+                if (s.name.equals(name)) { outside = s; break; }
+            }
+            if (outside == null) return false;
+            MediaItem cur = car.player.getCurrentMediaItem();
+            if (cur != null && cur.mediaId.equals(mediaIdFor(outside)) && car.player.getPlayWhenReady()
+                    && car.player.getPlaybackState() != Player.STATE_IDLE) {
+                DiagLog.log("carUI fromPhone: already on " + outside.name + " (not in the car's list)");
+                return true;
+            }
+            List<MediaItem> items = new ArrayList<>();
+            int at = 0;
+            for (StationLibrary.Station s : car.stations) {
+                if (s.freq < outside.freq) at++;
+                items.add(car.buildMediaItem(s));
+            }
+            items.add(at, car.buildMediaItem(outside));
+            DiagLog.log("carUI fromPhone: play " + outside.name + " (not in the car's list, played anyway)");
+            car.player.setMediaItems(items, at, 0L);
+            car.player.prepare();
+            car.player.play();
+            return true;
+        }
         if (idx == car.currentStationIndex() && car.player.getPlayWhenReady()
                 && car.player.getPlaybackState() != Player.STATE_IDLE) {
             DiagLog.log("carUI fromPhone: already on " + car.stations.get(idx).name);
@@ -225,8 +251,20 @@ public class RadioLibraryService extends MediaLibraryService {
     /** What the car is on, for the phone app to open on ("" if no car). */
     static String carStationName() {
         if (!carConnected()) return "";
-        int idx = instance.currentStationIndex();
-        return idx >= 0 ? instance.stations.get(idx).name : "";
+        StationLibrary.Station s = instance.currentStationAnywhere();
+        return s != null ? s.name : "";
+    }
+
+    /** The station the car's player is on, even one played from outside the car's list. */
+    private StationLibrary.Station currentStationAnywhere() {
+        int idx = currentStationIndex();
+        if (idx >= 0) return stations.get(idx);
+        MediaItem item = player == null ? null : player.getCurrentMediaItem();
+        if (item == null) return null;
+        for (StationLibrary.Station s : StationLibrary.getAllStations()) {
+            if (mediaIdFor(s).equals(item.mediaId)) return s;
+        }
+        return null;
     }
 
     static boolean carIsPlaying() {
@@ -572,7 +610,7 @@ public class RadioLibraryService extends MediaLibraryService {
      */
     private void jumpGroup(int direction) {
         if (stations == null || stations.isEmpty()) return;
-        if (UserStations.activeListName() != null) { jumpListSection(direction); return; }
+        if (UserStations.carShowing() != null) { jumpListSection(direction); return; }
         int current = currentStationIndex();
         if (current < 0) current = savedStationIndex();
         if (current < 0) current = 0;
@@ -648,13 +686,14 @@ public class RadioLibraryService extends MediaLibraryService {
      * Next/previous still follow the dial.
      */
     private List<StationLibrary.Station> browseOrder() {
-        if (UserStations.activeListName() != null) {
+        UserStations.Showing carList = UserStations.carShowing();
+        if (carList != null) {
             // The list's stations first (in its order), then any categories
             // shown with it, in dial order.
-            java.util.Set<String> inList = new java.util.HashSet<>(UserStations.activeListStations());
+            java.util.Set<String> inList = new java.util.HashSet<>(carList.stations);
             List<StationLibrary.Station> mine = new ArrayList<>(), rest = new ArrayList<>();
             for (StationLibrary.Station st : stations) (inList.contains(st.name) ? mine : rest).add(st);
-            mine = sortedForList(mine, UserStations.activeListSort());
+            mine = sortedForList(mine, carList.sort);
             mine.addAll(rest);
             return mine;
         }
@@ -687,8 +726,10 @@ public class RadioLibraryService extends MediaLibraryService {
      * showing are skipped.
      */
     private void jumpListSection(int direction) {
-        String listName = UserStations.activeListName();
-        java.util.Set<String> inList = new java.util.HashSet<>(UserStations.activeListStations());
+        UserStations.Showing carList = UserStations.carShowing();
+        if (carList == null) return;
+        String listName = carList.name;
+        java.util.Set<String> inList = new java.util.HashSet<>(carList.stations);
         List<String> labels = new ArrayList<>();
         List<List<Integer>> secs = new ArrayList<>();
         List<Integer> first = new ArrayList<>();
@@ -1108,10 +1149,10 @@ public class RadioLibraryService extends MediaLibraryService {
                         BandMemory.remember(RadioLibraryService.this, StationLibrary.realBand(s), s.name);
                         // And the last station in its group, for the double
                         // arrows on All stations.
-                        String ln = UserStations.activeListName();
-                        if (ln != null && UserStations.activeListStations().contains(s.name)) {
+                        UserStations.Showing cl = UserStations.carShowing();
+                        if (cl != null && cl.stations.contains(s.name)) {
                             getSharedPreferences(PREFS, MODE_PRIVATE).edit()
-                                    .putString(KEY_LAST_IN_GROUP_PREFIX + "list:" + ln, s.name).apply();
+                                    .putString(KEY_LAST_IN_GROUP_PREFIX + "list:" + cl.name, s.name).apply();
                         }
                         int g = StationLibrary.groupIndexFor(s.freq);
                         if (g >= 0 && g < StationLibrary.GROUPS.length) {
@@ -1169,6 +1210,7 @@ public class RadioLibraryService extends MediaLibraryService {
                         .add(bandDabnetCommand)
                         .add(bandAllCommand)
                         .build();
+                if (ANDROID_AUTO.equals(controller.getPackageName())) refreshStationsForCar();
                 DiagLog.log("carUI onConnect: controller=" + controller.getPackageName()
                         + " trusted=" + controller.isTrusted()
                         + " legacy=" + controller.getControllerVersion());
@@ -1523,11 +1565,28 @@ public class RadioLibraryService extends MediaLibraryService {
         }
     }
 
+    /**
+     * Android Auto connected: pick up any change made on the phone since the
+     * list was read (lists, hidden categories, added stations). The player
+     * keeps playing; next/previous and jumps use the new list from here on.
+     */
+    private void refreshStationsForCar() {
+        List<StationLibrary.Station> fresh = StationLibrary.getCarStations();
+        boolean same = stations != null && fresh.size() == stations.size();
+        for (int i = 0; same && i < fresh.size(); i++) {
+            same = fresh.get(i).name.equals(stations.get(i).name) && fresh.get(i).freq == stations.get(i).freq;
+        }
+        if (same) return;
+        stations = fresh;
+        DiagLog.log("carUI station list refreshed: " + fresh.size() + " stations");
+        if (mediaLibrarySession != null) mediaLibrarySession.notifyChildrenChanged(ROOT_ID, stations.size(), null);
+    }
+
     private void initializeStations() {
         // Canonical station data now lives in StationLibrary, shared with
         // PlaybackService (the phone), so both surfaces play from exactly
         // the same 147-station list and can never drift apart.
-        stations = StationLibrary.getStations();
+        stations = StationLibrary.getCarStations();
     }
 
     private void checkForStall() {

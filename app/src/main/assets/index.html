@@ -670,6 +670,8 @@
       .map(l => ({ name: l.name.trim(), stations: l.stations.filter(n => typeof n === 'string'), sort: ['dial', 'az', 'freq'].includes(l.sort) ? l.sort : 'dial',
         groups: Array.isArray(l.groups) ? l.groups.filter(g => typeof g === 'string') : [] }));
     if (typeof d.activeList !== 'string' || !d.lists.some(l => l.name === d.activeList)) d.activeList = '';
+    // What Android Auto shows: '' = same as the phone, '*' = all stations, or a list.
+    if (typeof d.carList !== 'string' || (d.carList !== '*' && !d.lists.some(l => l.name === d.carList))) d.carList = '';
     d.added = d.added.filter(u => u && typeof u.name === 'string' && /^https?:\/\//i.test(u.url || '') && isFinite(u.freq));
     return d;
   })();
@@ -2879,8 +2881,9 @@
     <h3>YOUR STATIONS</h3>
     <div class="ed-list" id="edList"></div>
     <h3>CATEGORIES AND LISTS</h3>
-    <label>SHOW<select id="edShow"></select></label>
-    <div class="ed-note">A list shows its stations (plus any categories you tick for it) on the dial, the widget and Android Auto, and the group buttons treat it as a category. The rest stay saved, just hidden.</div>
+    <label>PHONE SHOWS<select id="edShow"></select></label>
+    <label>ANDROID AUTO SHOWS<select id="edCarShow"></select></label>
+    <div class="ed-note">A list shows its stations (plus any categories you tick for it), and the group buttons treat it as a category. The phone and Android Auto can each show a different list. The rest stay saved, just hidden.</div>
     <div class="ed-note" id="edCatsNote">CATEGORIES SHOWING (untick to hide):</div>
     <div class="ed-checks" id="edCats"></div>
     <div class="ed-row"><button type="button" class="ed-btn" id="edCatsAll">SHOW ALL CATEGORIES</button></div>
@@ -3271,9 +3274,9 @@
   let listEditing = null;   // the list being edited, or {} for a new one
   const showMsg = (t, c) => setMsg($('edShowMsg'), t, c);
   function saveShowing(okText){
-    const before = JSON.stringify({ h: userData.hiddenGroups, l: userData.lists, a: userData.activeList });
+    const before = JSON.stringify({ h: userData.hiddenGroups, l: userData.lists, a: userData.activeList, c: userData.carList });
     if (!persist()) {
-      const b = JSON.parse(before); userData.hiddenGroups = b.h; userData.lists = b.l; userData.activeList = b.a;
+      const b = JSON.parse(before); userData.hiddenGroups = b.h; userData.lists = b.l; userData.activeList = b.a; userData.carList = b.c;
       showMsg('Could not save. Try again.', 'warn'); renderShowing(); return false;
     }
     dirty = true;
@@ -3287,6 +3290,12 @@
       const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o);
     });
     sel.value = userData.activeList || '';
+    const car = $('edCarShow');
+    car.textContent = '';
+    [['', 'Same as phone'], ['*', 'All stations']].concat(userData.lists.map(l => [l.name, 'List: ' + l.name])).forEach(([v, t]) => {
+      const o = document.createElement('option'); o.value = v; o.textContent = t; car.appendChild(o);
+    });
+    car.value = userData.carList || '';
     const to = $('edToList'), prevTo = to.value;
     to.textContent = '';
     [['', 'None']].concat(userData.lists.map(l => [l.name, l.name])).forEach(([v, t]) => {
@@ -3368,6 +3377,13 @@
     renderShowing();
     saveShowing(userData.activeList ? 'Showing “' + userData.activeList + '”.' : 'Showing all stations.');
   });
+  $('edCarShow').addEventListener('change', () => {
+    userData.carList = $('edCarShow').value;
+    const v = userData.carList;
+    if (saveShowing(v === '' ? 'Android Auto shows the same as the phone.' : v === '*' ? 'Android Auto shows all stations.' : 'Android Auto shows “' + v + '”.')) {
+      showMsg($('edShowMsg').textContent.replace('Close this screen to update the dial.', 'It takes effect the next time Android Auto connects.'), 'ok');
+    }
+  });
   $('edCatsAll').addEventListener('click', () => {
     const list = userData.lists.find(l => l.name === userData.activeList);
     if (list) {
@@ -3393,6 +3409,7 @@
     if (listEditing && listEditing.name) userData.lists = userData.lists.map(x => x === listEditing ? rec : x);
     else userData.lists = userData.lists.concat([rec]);
     if (wasActive) userData.activeList = name;
+    if (listEditing && listEditing.name && userData.carList === listEditing.name) userData.carList = name;
     closeListEditor(); renderShowing();
     saveShowing('Saved “' + name + '” (' + rec.stations.length + ' station' + (rec.stations.length === 1 ? '' : 's') + '). Choose it under SHOW to use it.');
   });
@@ -3404,6 +3421,7 @@
     const nm = listEditing.name;
     userData.lists = userData.lists.filter(x => x !== listEditing);
     if (userData.activeList === nm) userData.activeList = '';
+    if (userData.carList === nm) userData.carList = '';
     closeListEditor(); renderShowing();
     saveShowing('Deleted the list “' + nm + '”.');
   });
@@ -3420,7 +3438,7 @@
     clearTimeout(resetTimer);
     try { if (native && window.AndroidBridge.clearUserLogo) stations.forEach(st => window.AndroidBridge.clearUserLogo(st.name)); } catch (e) {}
     userData.added = []; userData.hidden = []; userData.edited = {}; userData.names = {};
-    userData.hiddenGroups = []; userData.lists = []; userData.activeList = '';
+    userData.hiddenGroups = []; userData.lists = []; userData.activeList = ''; userData.carList = '';
     if (!persist()) return setMsg(m, 'Could not reset. Try again.', 'warn');
     stopTest(); dirty = false;
     try { if (wh.getBandLock()) sessionStorage.setItem('wh_keep_lock', '1'); } catch (e) {}
@@ -3441,7 +3459,7 @@
     }
     return JSON.stringify({ app: 'Radio Wavehopper', format: 1, exported: new Date().toISOString(),
       added: userData.added, hidden: userData.hidden, edited: userData.edited, names: userData.names,
-      hiddenGroups: userData.hiddenGroups, lists: userData.lists, activeList: userData.activeList, logos });
+      hiddenGroups: userData.hiddenGroups, lists: userData.lists, activeList: userData.activeList, carList: userData.carList, logos });
   }
   window.__whBackupError = m => setMsg($('edBackupMsg'), m, 'warn');
   window.__whBackupDone = (ok, msg) => setMsg($('edBackupMsg'), msg || '', ok ? 'ok' : (msg ? 'warn' : ''));
@@ -3552,7 +3570,8 @@
         groups: Array.isArray(l.groups) ? l.groups.filter(g => groupNames.has(g)) : [] });
     });
     const activeList = typeof d.activeList === 'string' && lists.some(l => l.name === d.activeList) ? d.activeList : '';
-    return { added, hidden, edited, names: keptNames, hiddenGroups, lists, activeList, logos, dropped };
+    const carList = d.carList === '*' || (typeof d.carList === 'string' && lists.some(l => l.name === d.carList)) ? d.carList : '';
+    return { added, hidden, edited, names: keptNames, hiddenGroups, lists, activeList, carList, logos, dropped };
   }
   function handleImportText(text){
     const m = $('edBackupMsg');
@@ -3589,7 +3608,7 @@
     // Clear the current custom logos first, then restore the backup's.
     const oldNames = stations.map(s => s.name);
     userData.added = c.added; userData.hidden = c.hidden; userData.edited = c.edited; userData.names = c.names;
-    userData.hiddenGroups = c.hiddenGroups; userData.lists = c.lists; userData.activeList = c.activeList;
+    userData.hiddenGroups = c.hiddenGroups; userData.lists = c.lists; userData.activeList = c.activeList; userData.carList = c.carList;
     if (!persist()) { Object.assign(userData, JSON.parse(before)); return setMsg(m, 'Could not import. Nothing was changed.', 'warn'); }
     if (native) {
       try {

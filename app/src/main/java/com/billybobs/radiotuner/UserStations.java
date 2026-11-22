@@ -37,23 +37,35 @@ public final class UserStations {
 
     /** Categories the listener hid, by name ("France"). */
     private static volatile java.util.Set<String> hiddenGroups = new java.util.HashSet<>();
-    /** The list switched on in the Edit screen: its name, stations (by name) and order; null if none. */
-    private static volatile String activeListName = null;
-    private static volatile List<String> activeListStations = null;
-    private static volatile String activeListSort = "dial";
-    private static volatile java.util.Set<String> activeListGroups = new java.util.HashSet<>();
+    /** One of the listener's lists: its stations (by name), order, and categories shown with it. */
+    static final class Showing {
+        final String name;
+        final List<String> stations;
+        final String sort;                    // "dial", "az" or "freq"
+        final java.util.Set<String> groups;   // categories shown alongside the list
+        Showing(String name, List<String> stations, String sort, java.util.Set<String> groups) {
+            this.name = name; this.stations = stations; this.sort = sort; this.groups = groups;
+        }
+    }
+    private static volatile java.util.Map<String, Showing> lists = new java.util.HashMap<>();
+    /** The list the phone shows ("" for all stations). */
+    private static volatile String phoneList = "";
+    /** What Android Auto shows: "" = same as the phone, "*" = all stations, else a list's name. */
+    private static volatile String carList = "";
 
     private UserStations() {}
 
     static java.util.Set<String> hiddenGroups() { return hiddenGroups; }
-    /** Name of the list that's on, or null for all stations. */
-    static String activeListName() { return activeListName; }
-    /** The list's stations by name (in the listener's order), or null if no list is on. */
-    static List<String> activeListStations() { return activeListStations; }
-    /** "dial", "az" or "freq". */
-    static String activeListSort() { return activeListSort; }
-    /** Categories shown alongside the list that's on (empty: the list on its own). */
-    static java.util.Set<String> activeListGroups() { return activeListGroups; }
+    /** The list the phone shows, or null for all stations. */
+    static Showing phoneShowing() { return phoneList.isEmpty() ? null : lists.get(phoneList); }
+    /** The list Android Auto shows, or null for all stations. */
+    static Showing carShowing() {
+        String c = carList;
+        if (c.isEmpty()) return phoneShowing();
+        if ("*".equals(c)) return null;
+        Showing l = lists.get(c);
+        return l != null ? l : phoneShowing();   // a list that's gone: same as the phone
+    }
 
     /** Load once per process (safe to call from anywhere, repeatedly). */
     public static void ensure(Context context) {
@@ -128,9 +140,8 @@ public final class UserStations {
         java.util.Map<String, JSONObject> edt = new java.util.HashMap<>();
         java.util.Map<String, String> nm = new java.util.HashMap<>();
         java.util.Set<String> hg = new java.util.HashSet<>();
-        String alName = null, alSort = "dial";
-        List<String> alStations = null;
-        java.util.Set<String> alGroups = new java.util.HashSet<>();
+        java.util.Map<String, Showing> ls = new java.util.HashMap<>();
+        String pl = "", cl = "";
         try {
             if (json != null && !json.isEmpty()) {
                 JSONObject root = new JSONObject(json);
@@ -153,23 +164,26 @@ public final class UserStations {
                 }
                 JSONArray hgArr = root.optJSONArray("hiddenGroups");
                 if (hgArr != null) for (int i = 0; i < hgArr.length(); i++) { String g = hgArr.optString(i, ""); if (!g.isEmpty()) hg.add(g); }
-                String active = root.optString("activeList", "");
-                JSONArray lists = root.optJSONArray("lists");
-                if (!active.isEmpty() && lists != null) {
-                    for (int i = 0; i < lists.length(); i++) {
-                        JSONObject l = lists.optJSONObject(i);
-                        if (l == null || !active.equals(l.optString("name", ""))) continue;
-                        JSONArray st = l.optJSONArray("stations");
-                        List<String> names = new ArrayList<>();
-                        if (st != null) for (int j = 0; j < st.length(); j++) { String n = st.optString(j, ""); if (!n.isEmpty()) names.add(n); }
-                        alName = active; alStations = names;
-                        JSONArray gs = l.optJSONArray("groups");
-                        if (gs != null) for (int j = 0; j < gs.length(); j++) { String g = gs.optString(j, ""); if (!g.isEmpty()) alGroups.add(g); }
+                JSONArray lArr = root.optJSONArray("lists");
+                if (lArr != null) {
+                    for (int i = 0; i < lArr.length(); i++) {
+                        JSONObject l = lArr.optJSONObject(i);
+                        String ln = l == null ? "" : l.optString("name", "").trim();
+                        if (ln.isEmpty() || ls.containsKey(ln)) continue;
+                        List<String> st = new ArrayList<>();
+                        JSONArray sa = l.optJSONArray("stations");
+                        if (sa != null) for (int j = 0; j < sa.length(); j++) { String n = sa.optString(j, ""); if (!n.isEmpty()) st.add(n); }
+                        java.util.Set<String> gs = new java.util.HashSet<>();
+                        JSONArray ga = l.optJSONArray("groups");
+                        if (ga != null) for (int j = 0; j < ga.length(); j++) { String g = ga.optString(j, ""); if (!g.isEmpty()) gs.add(g); }
                         String so = l.optString("sort", "dial");
-                        alSort = ("az".equals(so) || "freq".equals(so)) ? so : "dial";
-                        break;
+                        ls.put(ln, new Showing(ln, st, ("az".equals(so) || "freq".equals(so)) ? so : "dial", gs));
                     }
                 }
+                pl = root.optString("activeList", "");
+                if (!ls.containsKey(pl)) pl = "";
+                cl = root.optString("carList", "");
+                if (!cl.isEmpty() && !"*".equals(cl) && !ls.containsKey(cl)) cl = "";
                 JSONArray arr = root.optJSONArray("added");
                 if (arr != null) {
                     for (int i = 0; i < arr.length(); i++) {
@@ -191,14 +205,12 @@ public final class UserStations {
             edt = new java.util.HashMap<>();
             nm = new java.util.HashMap<>();
             hg = new java.util.HashSet<>();
-            alName = null; alStations = null; alSort = "dial";
-            alGroups = new java.util.HashSet<>();
+            ls = new java.util.HashMap<>(); pl = ""; cl = "";
         }
-        activeListGroups = alGroups;
         hiddenGroups = hg;
-        activeListName = alName;
-        activeListStations = alStations;
-        activeListSort = alSort;
+        lists = ls;
+        phoneList = pl;
+        carList = cl;
         added = out;
         names = nm;
         hidden = hid;

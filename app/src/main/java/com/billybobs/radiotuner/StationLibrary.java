@@ -447,21 +447,26 @@ public final class StationLibrary {
      * be left, everything shows rather than nothing.
      */
     public static List<Station> getStations() {
-        List<Station> all = getAllStations();
-        java.util.Set<String> hiddenGroups = UserStations.hiddenGroups();
-        List<String> list = UserStations.activeListStations();
+        return showing(getAllStations(), UserStations.phoneShowing());
+    }
+
+    /** The stations Android Auto shows: as getStations(), but with the car's own list choice. */
+    public static List<Station> getCarStations() {
+        return showing(getAllStations(), UserStations.carShowing());
+    }
+
+    private static List<Station> showing(List<Station> all, UserStations.Showing list) {
         List<Station> keep = new java.util.ArrayList<>();
         if (list != null) {
             // The list's stations, plus the categories ticked to show with it.
-            java.util.Set<String> names = new java.util.HashSet<>(list);
-            java.util.Set<String> withGroups = UserStations.activeListGroups();
+            java.util.Set<String> names = new java.util.HashSet<>(list.stations);
             for (Station s : all) {
-                if (names.contains(s.name) || withGroups.contains(GROUPS[groupIndexFor(s.freq)][1])) keep.add(s);
+                if (names.contains(s.name) || list.groups.contains(GROUPS[groupIndexFor(s.freq)][1])) keep.add(s);
             }
-        } else if (!hiddenGroups.isEmpty()) {
-            for (Station s : all) if (!hiddenGroups.contains(GROUPS[groupIndexFor(s.freq)][1])) keep.add(s);
         } else {
-            return all;
+            java.util.Set<String> hiddenGroups = UserStations.hiddenGroups();
+            if (hiddenGroups.isEmpty()) return all;
+            for (Station s : all) if (!hiddenGroups.contains(GROUPS[groupIndexFor(s.freq)][1])) keep.add(s);
         }
         return keep.isEmpty() ? all : keep;
     }
