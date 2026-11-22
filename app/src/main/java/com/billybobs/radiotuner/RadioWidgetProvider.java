@@ -55,7 +55,10 @@ public class RadioWidgetProvider extends AppWidgetProvider {
         StationLibrary.Station saved = StationLibrary.savedPhoneStation(app);
         if (saved != null && saved.name.equals(title)) freq = saved.freq;
         // is_playing can be left over from a killed process, so trust it only while the service lives.
-        boolean playing = prefs.getBoolean("is_playing", false) && PlaybackService.running;
+        // The car's player can be the one playing (Android Auto) - asked here,
+        // on the main thread, as the player can't be asked from the logo thread.
+        final boolean carPlaying = RadioLibraryService.carIsPlaying();
+        boolean playing = prefs.getBoolean("is_playing", false) && (PlaybackService.running || carPlaying);
 
         Bitmap have = logoKey.equals(keyFor(freq)) ? logoBitmap : null;
         draw(app, manager, ids, title, sub, freq, playing, have);
@@ -76,7 +79,7 @@ public class RadioWidgetProvider extends AppWidgetProvider {
                     int[] nowTiny = manager.getAppWidgetIds(new ComponentName(app, RadioWidgetTinyProvider.class));
                     int[] nowSmall = manager.getAppWidgetIds(new ComponentName(app, RadioWidgetSmallProvider.class));
                     boolean stillPlaying = app.getSharedPreferences("RadioPrefs", Context.MODE_PRIVATE)
-                            .getBoolean("is_playing", false) && PlaybackService.running;
+                            .getBoolean("is_playing", false) && (PlaybackService.running || carPlaying);
                     draw(app, manager, now, t, s, f, stillPlaying, bmp);
                     drawSmall(app, manager, nowSmall, t, f, stillPlaying, bmp, R.layout.widget_radio_small, false);
                     drawSmall(app, manager, nowTiny, t, f, stillPlaying, bmp, R.layout.widget_radio_tiny, true);

@@ -229,6 +229,27 @@ public class RadioLibraryService extends MediaLibraryService {
         RadioWidgetProvider.refresh(car);
     }
 
+    /**
+     * While the car's player is the one playing, keep the phone's "last
+     * station" (which the home-screen widget and the app read) on the car's
+     * station, so the widget shows what you're actually hearing rather than
+     * whatever the phone last played before you got in the car.
+     */
+    private void mirrorToPhoneWidget() {
+        if (!carConnected() || player == null) return;
+        StationLibrary.Station s = currentStationAnywhere();
+        if (s == null) return;
+        boolean playing = player.getPlayWhenReady() && player.getPlaybackState() != Player.STATE_IDLE;
+        getSharedPreferences("RadioPrefs", MODE_PRIVATE).edit()
+                .putString("last_station_title", s.name)
+                .putString("last_station_sub", s.real + (s.region.isEmpty() ? "" : " \u00b7 " + s.region))
+                .putLong("last_station_freq_bits", Double.doubleToLongBits(s.freq))
+                .putLong("last_station_at", System.currentTimeMillis())
+                .putBoolean("is_playing", playing)
+                .apply();
+        RadioWidgetProvider.refresh(this);
+    }
+
     /** Plays a station picked on the phone on the car's player. False if no car. */
     static boolean playFromPhone(String name, double freq) {
         RadioLibraryService car = instance;
@@ -308,9 +329,15 @@ public class RadioLibraryService extends MediaLibraryService {
         return null;
     }
 
+    private static volatile boolean lastCarIsPlaying;
+
     static boolean carIsPlaying() {
-        return carConnected() && instance.player.getPlayWhenReady()
+        // The player can only be asked on the main thread; elsewhere (e.g. the
+        // widget redrawn when a logo arrives) use the last answer.
+        if (Looper.myLooper() != Looper.getMainLooper()) return lastCarIsPlaying;
+        lastCarIsPlaying = carConnected() && instance.player != null && instance.player.getPlayWhenReady()
                 && instance.player.getPlaybackState() != Player.STATE_IDLE;
+        return lastCarIsPlaying;
     }
     private List<StationLibrary.Station> stations;
 
@@ -1246,6 +1273,7 @@ public class RadioLibraryService extends MediaLibraryService {
                         refreshCustomLayout();
                     }
                 }
+                mirrorToPhoneWidget();
                 // Remember it for the next time the car connects - and, in
                 // the memory shared with the phone, as the last station in
                 // its band (AM, FM, DAB or Internet) for the band button.
@@ -1276,6 +1304,7 @@ public class RadioLibraryService extends MediaLibraryService {
 
             @Override
             public void onIsPlayingChanged(boolean isPlaying) {
+                mirrorToPhoneWidget();
                 if (isPlaying) {
                     cancelPhoneSleepTimer();
                     currentStationHasPlayed = true;
