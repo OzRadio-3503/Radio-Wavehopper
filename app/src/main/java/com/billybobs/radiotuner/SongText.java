@@ -91,7 +91,57 @@ final class SongText {
             if (artist.toLowerCase(java.util.Locale.ROOT).equals(name)) return null;
             if (artist.isEmpty() && title.toLowerCase(java.util.Locale.ROOT).startsWith(name)) return null;
         }
-        return new String[]{artist, title};
+        return new String[]{titleCase(artist), titleCase(title)};
+    }
+
+    /**
+     * Some stations send everything in capitals ("BOB SEGER - FEEL LIKE A
+     * NUMBER"), which looks bigger than normal text next to it. Text that's
+     * all capitals becomes Title Case; anything with lower-case letters is
+     * left exactly as sent. Short all-capital words that are usually
+     * initials or numerals (ABBA, AC/DC, INXS, UB40, II) stay as they are.
+     */
+    static String titleCase(String s) {
+        if (s == null || s.isEmpty()) return s;
+        boolean hasUpper = false;
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (Character.isLowerCase(c)) return s;   // mixed case: leave it
+            if (Character.isUpperCase(c)) hasUpper = true;
+        }
+        if (!hasUpper) return s;
+        StringBuilder out = new StringBuilder(s.length());
+        String[] words = s.split(" ", -1);
+        for (int w = 0; w < words.length; w++) {
+            if (w > 0) out.append(' ');
+            out.append(titleWord(words[w]));
+        }
+        return out.toString();
+    }
+
+    private static final java.util.Set<String> KEEP_CAPS = new java.util.HashSet<>(java.util.Arrays.asList(
+            "ABBA", "AC/DC", "INXS", "UB40", "UFO", "ELO", "REM", "R.E.M.", "KISS", "ZZ", "TLC", "NSYNC",
+            "DJ", "MC", "UK", "USA", "NYC", "TV", "FM", "AM", "OK", "II", "III", "IV", "VI", "B-52'S"));
+
+    private static String titleWord(String w) {
+        if (w.isEmpty() || KEEP_CAPS.contains(w)) return w;
+        // Initials like T.N.T. or U.S.A. stay in capitals.
+        if (w.matches("[(\\[\"']*([A-Z]\\.)+[)\\]\"',]*")) return w;
+        // Keep any brackets or quotes in front, capitalise the first letter.
+        StringBuilder b = new StringBuilder(w.length());
+        boolean first = true;
+        for (int i = 0; i < w.length(); i++) {
+            char c = w.charAt(i);
+            if (Character.isLetter(c)) {
+                b.append(first ? Character.toUpperCase(c) : Character.toLowerCase(c));
+                first = false;
+            } else {
+                b.append(c);
+                // After a hyphen or slash, start a new word ("Rock-N-Roll").
+                if (c == '-' || c == '/') first = true;
+            }
+        }
+        return b.toString();
     }
 
     private static String stripDashes(String s) {
