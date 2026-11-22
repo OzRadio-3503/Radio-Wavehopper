@@ -1600,7 +1600,11 @@
   const isAustralian = s => AU_REGIONS.has(s.cc);
   let auOnly = false;
   try { auOnly = localStorage.getItem('au_only') === '1'; } catch (e) {}
-  const allowed = s => !auOnly || isAustralian(s);
+  // If nothing Australian is showing (e.g. a list of overseas stations), AU
+  // only steps aside rather than leaving you stuck: it stays saved, and
+  // comes back into effect when Australian stations show again.
+  const hasAustralian = stations.some(isAustralian);
+  const allowed = s => !auOnly || !hasAustralian || isAustralian(s);
   // A band's stations under the AU filter, keeping `keep` (the station
   // you're on) so stepping always knows where it is.
   function realBandAllowed(band, keep){ return realBandStations(band).filter(s => allowed(s) || s === keep); }
@@ -1620,8 +1624,8 @@
 
   const auOnlyBtn = document.getElementById('auOnlyBtn');
   function applyAuFilterUI(){
-    auOnlyBtn.classList.toggle('on', auOnly);
-    auOnlyBtn.setAttribute('aria-pressed', auOnly ? 'true' : 'false');
+    auOnlyBtn.classList.toggle('on', auOnly && hasAustralian);
+    auOnlyBtn.setAttribute('aria-pressed', auOnly && hasAustralian ? 'true' : 'false');
     const byName = {};
     stations.forEach(s => { byName[s.name] = s; });
     document.querySelectorAll('.station-mark').forEach(d => {
@@ -1634,6 +1638,7 @@
     });
   }
   auOnlyBtn.addEventListener('click', () => {
+    if (!hasAustralian) { flashGroupName('NO AUSTRALIAN STATIONS HERE'); buzz(15); return; }
     auOnly = !auOnly;
     try { localStorage.setItem('au_only', auOnly ? '1' : '0'); } catch (e) {}
     applyAuFilterUI();
