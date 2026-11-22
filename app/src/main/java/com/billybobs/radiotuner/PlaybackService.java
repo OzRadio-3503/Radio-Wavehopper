@@ -331,25 +331,24 @@ public class PlaybackService extends Service {
             // screen, the notification and the lock screen.
             @Override
             public void onMetadata(@NonNull com.google.android.exoplayer2.metadata.Metadata metadata) {
-                String artist = "", title = "";
+                // Tidied by SongText: web codes like "&amp;", repeats, programme
+                // codes, automation messages and the station's own name.
+                String name = currentStationName;
+                String[] song = null;
+                String tagArtist = null, tagTitle = null;
                 for (int i = 0; i < metadata.length(); i++) {
                     com.google.android.exoplayer2.metadata.Metadata.Entry e = metadata.get(i);
                     if (e instanceof com.google.android.exoplayer2.metadata.icy.IcyInfo) {
                         String t = ((com.google.android.exoplayer2.metadata.icy.IcyInfo) e).title;
-                        if (t != null && !t.trim().isEmpty()) {
-                            t = t.trim();
-                            int dash = t.indexOf(" - ");
-                            if (dash > 0) { artist = t.substring(0, dash).trim(); title = t.substring(dash + 3).trim(); }
-                            else { artist = ""; title = t; }
-                        }
+                        if (t != null && !t.trim().isEmpty()) song = SongText.fromIcy(t, name);
                     } else if (e instanceof com.google.android.exoplayer2.metadata.id3.TextInformationFrame) {
-                        com.google.android.exoplayer2.metadata.id3.TextInformationFrame f =
-                                (com.google.android.exoplayer2.metadata.id3.TextInformationFrame) e;
-                        if ("TIT2".equals(f.id) && f.value != null) title = f.value.trim();
-                        else if ("TPE1".equals(f.id) && f.value != null) artist = f.value.trim();
+                        com.google.android.exoplayer2.metadata.id3.TextInformationFrame f = (com.google.android.exoplayer2.metadata.id3.TextInformationFrame) e;
+                        if ("TIT2".equals(f.id)) tagTitle = (f.value == null ? "" : f.value);
+                        else if ("TPE1".equals(f.id)) tagArtist = (f.value == null ? "" : f.value);
                     }
                 }
-                streamTitleChanged(artist, title);
+                if (song == null && tagTitle != null) song = SongText.fromTags(tagArtist, tagTitle, name);
+                if (song != null) streamTitleChanged(song[0], song[1]);
             }
 
             // Back to live after a pause - see LiveResume.

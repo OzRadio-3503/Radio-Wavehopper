@@ -1293,26 +1293,24 @@ public class RadioLibraryService extends MediaLibraryService {
 
             @Override
             public void onMetadata(@NonNull androidx.media3.common.Metadata metadata) {
-                String artist = "", title = "";
+                // Tidied by SongText: web codes like "&amp;", repeats, programme
+                // codes, automation messages and the station's own name.
+                String name = (currentStationAnywhere() != null ? currentStationAnywhere().name : "");
+                String[] song = null;
+                String tagArtist = null, tagTitle = null;
                 for (int i = 0; i < metadata.length(); i++) {
                     androidx.media3.common.Metadata.Entry e = metadata.get(i);
                     if (e instanceof androidx.media3.extractor.metadata.icy.IcyInfo) {
                         String t = ((androidx.media3.extractor.metadata.icy.IcyInfo) e).title;
-                        if (t != null && !t.trim().isEmpty()) {
-                            t = t.trim();
-                            int dash = t.indexOf(" - ");
-                            if (dash > 0) { artist = t.substring(0, dash).trim(); title = t.substring(dash + 3).trim(); }
-                            else { artist = ""; title = t; }
-                        }
+                        if (t != null && !t.trim().isEmpty()) song = SongText.fromIcy(t, name);
                     } else if (e instanceof androidx.media3.extractor.metadata.id3.TextInformationFrame) {
-                        androidx.media3.extractor.metadata.id3.TextInformationFrame f =
-                                (androidx.media3.extractor.metadata.id3.TextInformationFrame) e;
-                        String v = f.values.isEmpty() ? "" : f.values.get(0).trim();
-                        if ("TIT2".equals(f.id)) title = v;
-                        else if ("TPE1".equals(f.id)) artist = v;
+                        androidx.media3.extractor.metadata.id3.TextInformationFrame f = (androidx.media3.extractor.metadata.id3.TextInformationFrame) e;
+                        if ("TIT2".equals(f.id)) tagTitle = (f.values.isEmpty() ? "" : f.values.get(0));
+                        else if ("TPE1".equals(f.id)) tagArtist = (f.values.isEmpty() ? "" : f.values.get(0));
                     }
                 }
-                onStreamSong(artist, title);
+                if (song == null && tagTitle != null) song = SongText.fromTags(tagArtist, tagTitle, name);
+                if (song != null) onStreamSong(song[0], song[1]);
             }
 
             @Override
