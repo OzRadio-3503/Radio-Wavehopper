@@ -44,8 +44,9 @@ final class SongText {
     }
 
     private static String[] tidy(String artist, String title, String stationName) {
-        artist = squash(artist);
-        title = squash(title);
+        // Some stations write "&" as "[+]" ("FOUR SEASONS [+] FRANKIE VALLI").
+        artist = squash(artist.replace("[+]", "&"));
+        title = squash(title.replace("[+]", "&"));
         if (title.isEmpty()) { title = artist; artist = ""; }
         if (title.isEmpty()) return null;
         // The same text as both artist and title ("Jimi Hendrix - Manic
