@@ -3234,13 +3234,14 @@
   // ---- logo (app only: Android Auto and the widgets use it) ----------
   // pendingLogo: undefined = leave as is, a data: URL = set, null = back to default.
   let pendingLogo;
+  let autoLogoFor = null, logoFetching = false;   // see fetchLogoPreview
   const logoImg = $('edLogoImg');
   function showLogo(dataUrl, text){
     if (dataUrl) { logoImg.src = dataUrl; logoImg.hidden = false; } else { logoImg.removeAttribute('src'); logoImg.hidden = true; }
     $('edLogoState').textContent = text;
   }
   function resetLogoUi(name){
-    pendingLogo = undefined; setMsg($('edLogoMsg'), ''); $('edSite').value = '';
+    pendingLogo = undefined; logoFetching = false; setMsg($('edLogoMsg'), ''); $('edSite').value = '';
     $('edLogoBox').hidden = !native;
     if (!native) return;
     let cur = '';
@@ -3249,6 +3250,7 @@
   }
   window.__whLogoResult = function(ok, data){
     const m = $('edLogoMsg');
+    logoFetching = false;
     if (autoLogoFor) {
       const nm = autoLogoFor; autoLogoFor = null;
       if (!ok) { setMsg(m, 'No logo found for ' + nm + ' on that website; it keeps the default.', 'warn'); return; }
@@ -3256,19 +3258,26 @@
       return;
     }
     if (!ok) { setMsg(m, data || '', data ? 'warn' : ''); return; }
-    pendingLogo = data; showLogo(data, 'New logo (saved when you save the station)');
-    setMsg(m, 'Logo ready.', 'ok');
+    pendingLogo = data; showLogo(data, 'New logo: check it looks right (saved with the station)');
+    setMsg(m, 'Logo found. If it’s wrong, tap USE DEFAULT or UPLOAD LOGO.', 'ok');
   };
   $('edLogoPick').addEventListener('click', () => { try { window.AndroidBridge.pickLogo(); } catch (e) { setMsg($('edLogoMsg'), 'Could not open the picker.', 'warn'); } });
-  // With a website typed and no logo picked, the logo is fetched by itself
-  // once the station is saved, and stored for it when it arrives.
-  let autoLogoFor = null;
-  function autoFetchLogo(name){
+  // Typing the station's website fetches its logo straight away and shows it
+  // here to check (USE DEFAULT if it's wrong); it's saved with the station.
+  // If the station is saved before the logo arrives, it's stored for that
+  // station when it does.
+  function fetchLogoPreview(){
     const site = $('edSite').value.trim();
-    if (!native || !site || pendingLogo !== undefined || !window.AndroidBridge.fetchLogo) return false;
-    autoLogoFor = name;
-    setMsg($('edLogoMsg'), 'Looking for ' + name + '’s logo…');
-    try { window.AndroidBridge.fetchLogo(site); } catch (e) { autoLogoFor = null; setMsg($('edLogoMsg'), 'Could not fetch a logo.', 'warn'); }
+    if (!native || !site || !window.AndroidBridge.fetchLogo) return;
+    logoFetching = true;
+    setMsg($('edLogoMsg'), 'Looking for a logo…');
+    try { window.AndroidBridge.fetchLogo(site); } catch (e) { logoFetching = false; setMsg($('edLogoMsg'), 'Could not fetch a logo.', 'warn'); }
+  }
+  $('edSite').addEventListener('change', fetchLogoPreview);
+  $('edSite').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('edSite').blur(); } });
+  function autoFetchLogo(name){
+    if (!logoFetching || pendingLogo !== undefined) return false;
+    autoLogoFor = name;   // still on its way: store it for this station when it arrives
     return true;
   }
   $('edLogoClear').addEventListener('click', () => {
