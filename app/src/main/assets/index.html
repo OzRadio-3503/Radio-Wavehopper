@@ -2875,7 +2875,7 @@
   #editScreen button{ font-family:inherit; }
   #editScreen .ed-close{ background:none; border:1px solid var(--chrome-2); color:#e8e8ec; border-radius:6px; padding:7px 12px; font-size:12px; letter-spacing:1.5px; cursor:pointer; }
   #editScreen label{ display:flex; flex-direction:column; gap:4px; font-size:10px; letter-spacing:1.5px; color:var(--chrome-2); }
-  #editScreen input[type=text], #editScreen input[type=url], #editScreen input[type=number], #editScreen select{
+  #editScreen input[type=text], #editScreen input[type=search], #editScreen input[type=url], #editScreen input[type=number], #editScreen select{
     font-family:inherit; font-size:16px; padding:9px 10px; background:#0a0a0d; color:#f4f4f6; border:1px solid #3a3a44; border-radius:6px; min-width:0; width:100%; box-sizing:border-box; letter-spacing:0; }
   #editScreen input:focus, #editScreen select:focus{ outline:2px solid var(--cyan); outline-offset:0; }
   #editScreen .ed-row{ display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; }
@@ -2970,7 +2970,8 @@
     <details class="ed-sec" id="secStation">
       <summary><span class="t">ADD OR EDIT A STATION</span><span class="s" id="sumStation"></span></summary>
       <div class="ed-body">
-        <div class="ed-row"><label style="flex-basis:100%">FIND BY DIAL NUMBER<input type="number" id="edFind" inputmode="decimal" step="0.01" placeholder="90.08"></label><button type="button" class="ed-btn" id="edFindBtn">FIND</button><button type="button" class="ed-btn" id="edCurBtn">THIS ONE</button></div>
+        <div class="ed-row"><label style="flex:1 1 200px">EDIT A STATION<input type="search" id="edFind" autocomplete="off" placeholder="type a name or frequency"></label><button type="button" class="ed-btn" id="edCurBtn" style="flex:0 0 auto">THIS ONE</button></div>
+        <div class="ed-list" id="edFindList"></div>
         <div class="ed-msg" id="edFindMsg"></div>
         <div class="ed-sub" id="edTitle">ADD A STATION</div>
         <label>STATION NAME<input type="text" id="edName" maxlength="40" autocomplete="off" placeholder="e.g. My Local Radio"></label>
@@ -2991,11 +2992,10 @@
           <div class="ed-msg" id="edLogoMsg"></div>
         </div>
         <details class="ed-more">
-          <summary>MORE: REGION AND DIAL POSITION</summary>
+          <summary>MORE: REGION</summary>
           <div class="ed-body">
             <label>REGION<select id="edRegion"></select></label>
-            <div class="ed-slot"><span>DIAL</span><b id="edSlotShow">--</b><label><input type="checkbox" id="edManual"> choose it myself</label></div>
-            <label id="edSlotWrap" hidden>DIAL POSITION<input type="number" id="edSlot" inputmode="decimal" step="0.01" placeholder="90.04"></label>
+            <div hidden><b id="edSlotShow"></b><label><input type="checkbox" id="edManual"></label><label id="edSlotWrap"><input type="number" id="edSlot"></label></div>
           </div>
         </details>
         <div class="ed-radios" id="edToListWrap">
@@ -3177,7 +3177,7 @@
     if (!userData.added.length) { const p = document.createElement('div'); p.className = 'ed-note'; p.textContent = 'None yet.'; list.appendChild(p); return; }
     userData.added.slice().sort((a, b) => a.freq - b.freq).forEach(u => {
       const row = document.createElement('div'); row.className = 'ed-item';
-      const f = document.createElement('span'); f.className = 'f'; f.textContent = u.freq.toFixed(2);
+      const f = document.createElement('span'); f.className = 'f'; f.textContent = shortReal(u);
       const n = document.createElement('span'); n.className = 'n'; n.textContent = u.name;
       const x = document.createElement('button'); x.type = 'button'; x.className = 'x'; x.textContent = 'REMOVE';
       let armed = false;
@@ -3202,7 +3202,7 @@
     let freq;
     if (editing) freq = isBlockStart(editing) ? editing.freq : ($('edManual').checked ? parseFloat($('edSlot').value) : editTargetSlot());
     else if ($('edManual').checked) freq = parseFloat($('edSlot').value); else freq = autoSlot(g, c);
-    if (freq === null) return setMsg(msg, 'That category has no free spots left. Tick “choose it myself” or pick another category.', 'warn');
+    if (freq === null) return setMsg(msg, 'That category is full. Pick another category.', 'warn');
     const prob = editing && Math.abs(freq - editing.freq) < 1e-6 ? '' : slotProblem(freq, g, editing);
     if (prob) return setMsg(msg, prob, 'warn');
     if (stations.some(s => s !== editing && s.name.toLowerCase() === c.name.toLowerCase())) return setMsg(msg, 'A station called “' + c.name + '” already exists. Use a slightly different name.', 'warn');
@@ -3221,7 +3221,7 @@
     dirty = true;
     stopTest();
     const hiddenOnPhone = userData.activeList === PHONE_LIST && !into.includes(PHONE_LIST);
-    setMsg(msg, 'Added “' + rec.name + '” at ' + rec.freq.toFixed(2) + ' in ' + STATION_GROUPS[g].name
+    setMsg(msg, 'Added “' + rec.name + '” to ' + STATION_GROUPS[g].name
       + (into.length ? ' and to ' + into.join(' and ') : '') + '.'
       + (hiddenOnPhone ? ' It won’t show on the phone while My phone stations is on.' : ' Close this screen to tune to it.'), 'ok');
     renderShowing();
@@ -3319,7 +3319,7 @@
   }
   function enterEdit(st){
     editing = st;
-    $('edTitle').textContent = 'EDIT STATION ' + st.freq.toFixed(2) + (st.user ? ' (YOURS)' : ' (BUILT-IN)');
+    $('edTitle').textContent = 'EDITING ' + st.name.toUpperCase() + (st.user ? ' (YOURS)' : ' (BUILT-IN)');
     $('edName').value = st.name; $('edUrl').value = st.url;
     gSel.value = String(groupOf(st.freq)); gSel.disabled = isBlockStart(st);
     rSel.value = REGIONS.some(r => r[0] === st.cc) ? st.cc : 'XX';
@@ -3375,28 +3375,41 @@
     stations.sort((a, b) => a.freq - b.freq);
     applyLogo(rec.name, oldName);
     dirty = true; stopTest();
-    const f = st.freq.toFixed(2);
+    const f = st.name;
     exitEdit(); renderList(); refreshSlot();
     setMsg($('edFindMsg'), 'Saved ' + f + '. Close this screen to tune to it.', 'ok');
     scr.scrollTop = 0;
   }
+  // How a station is shown in Settings: its real band and frequency
+  // ("873 AM", "DAB", "Internet"), never the app's own dial position.
+  function shortReal(st){ return (st.real || '').replace(/ only$/i, '').replace(/^Internet$/i, 'Internet'); }
   function findStation(f){
     return stations.find(s => Math.abs(s.freq - f) < 0.005);
   }
-  function doFind(f){
-    const m = $('edFindMsg');
-    if (!isFinite(f)) return setMsg(m, 'Enter a dial number like 90.08.', 'warn');
-    const st = findStation(f);
-    if (!st) return setMsg(m, 'No station is on ' + f.toFixed(2) + '.', 'warn');
-    setMsg(m, 'Found ' + st.name + '.', 'ok');
-    enterEdit(st);
+  // Type part of a name or a frequency ("2gb", "yacht", "873"); tap a match to edit it.
+  function renderFind(){
+    const box = $('edFindList'); box.textContent = '';
+    const q = $('edFind').value.trim().toLowerCase();
+    if (!q) return;
+    const hits = stations.filter(st => st.name.toLowerCase().includes(q) || (st.real || '').toLowerCase().includes(q))
+      .sort((a, b) => a.freq - b.freq).slice(0, 8);
+    if (!hits.length) { const p = document.createElement('div'); p.className = 'ed-note'; p.textContent = 'No station matches “' + $('edFind').value.trim() + '”.'; box.appendChild(p); return; }
+    hits.forEach(st => {
+      const row = document.createElement('div'); row.className = 'ed-item';
+      const n = document.createElement('span'); n.className = 'n'; n.textContent = st.name;
+      const f = document.createElement('span'); f.className = 'f'; f.textContent = shortReal(st);
+      const ed = document.createElement('button'); ed.type = 'button'; ed.className = 'x'; ed.textContent = 'EDIT';
+      ed.addEventListener('click', () => { $('edFind').value = ''; box.textContent = ''; setMsg($('edFindMsg'), ''); enterEdit(st); });
+      row.append(n, f, ed); box.appendChild(row);
+    });
   }
-  $('edFindBtn').addEventListener('click', () => doFind(parseFloat($('edFind').value)));
-  $('edFind').addEventListener('keydown', e => { if (e.key === 'Enter') doFind(parseFloat($('edFind').value)); });
+  $('edFind').addEventListener('input', renderFind);
   $('edCurBtn').addEventListener('click', () => {
     const f = wh.getCurrentFreq ? wh.getCurrentFreq() : NaN;
-    $('edFind').value = isFinite(f) ? f.toFixed(2) : '';
-    doFind(f);
+    const st = isFinite(f) ? findStation(f) : null;
+    if (!st) return setMsg($('edFindMsg'), 'No station is playing on the dial right now.', 'warn');
+    $('edFind').value = ''; $('edFindList').textContent = ''; setMsg($('edFindMsg'), '');
+    enterEdit(st);
   });
   $('edCancel').addEventListener('click', () => { exitEdit(); setMsg($('edFindMsg'), ''); setMsg($('edMsg'), ''); });
   let delArmed = false, delTimer = null;
