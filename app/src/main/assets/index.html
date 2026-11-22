@@ -2872,6 +2872,7 @@
     </div>
     <div class="ed-slot"><span>DIAL</span><b id="edSlotShow">--</b><label><input type="checkbox" id="edManual"> choose it myself</label></div>
     <label id="edSlotWrap" hidden>DIAL POSITION<input type="number" id="edSlot" inputmode="decimal" step="0.01" placeholder="90.04"></label>
+    <label id="edToListWrap">ADD TO LIST<select id="edToList"></select></label>
     <div class="ed-msg" id="edMsg"></div>
     <button type="button" class="ed-btn primary" id="edAdd">ADD STATION</button>
     <div class="ed-row" id="edEditBtns" hidden><button type="button" class="ed-btn" id="edDelete" style="color:var(--warn);border-color:var(--warn)">DELETE STATION</button><button type="button" class="ed-btn" id="edCancel">CANCEL</button></div>
@@ -3071,12 +3072,22 @@
     if (/\.m3u8(\?|$)/i.test(url)) rec.hls = true;
     if (editing) return saveEdit(rec, msg);
     userData.added.push(rec);
-    if (!persist()) { userData.added.pop(); return setMsg(msg, 'Could not save. Try again.', 'warn'); }
+    const toList = userData.lists.find(l => l.name === $('edToList').value) || null;
+    const listBefore = toList ? toList.stations.slice() : null;
+    if (toList && !toList.stations.includes(rec.name)) {
+      const order = new Map(stations.concat([rec]).slice().sort((a, b) => a.freq - b.freq).map((st, i) => [st.name, i]));
+      toList.stations = toList.stations.concat([rec.name]).sort((a, b) => (order.get(a) ?? 1e9) - (order.get(b) ?? 1e9));
+    }
+    if (!persist()) { userData.added.pop(); if (toList) toList.stations = listBefore; return setMsg(msg, 'Could not save. Try again.', 'warn'); }
     stations.push(Object.assign({ user: true }, rec)); stations.sort((a, b) => a.freq - b.freq);
     applyLogo(rec.name, '');
     dirty = true;
     stopTest();
-    setMsg(msg, 'Added “' + rec.name + '” at ' + rec.freq.toFixed(2) + ' MHz in ' + STATION_GROUPS[g].name + '. Close this screen to tune to it.', 'ok');
+    setMsg(msg, 'Added “' + rec.name + '” at ' + rec.freq.toFixed(2) + ' MHz in ' + STATION_GROUPS[g].name
+      + (toList ? ' and to the list “' + toList.name + '”' : '') + '. Close this screen to tune to it.'
+      + (!toList && userData.activeList && !(userData.lists.find(l => l.name === userData.activeList) || { groups: [] }).groups.includes(STATION_GROUPS[g].name)
+          ? ' It won’t show while “' + userData.activeList + '” is on: add it to that list, or tick ' + STATION_GROUPS[g].name + ' for it.' : ''), 'ok');
+    renderShowing();
     $('edName').value = ''; $('edUrl').value = ''; $('edFreq').value = ''; setMsg($('edTestMsg'), '');
     renderList(); refreshSlot();
   });
@@ -3158,6 +3169,7 @@
     $('edManual').checked = false;
     $('edManual').parentElement.hidden = isBlockStart(st);
     $('edAdd').textContent = 'SAVE CHANGES';
+    $('edToListWrap').hidden = true;
     resetLogoUi(st.name);
     $('edEditBtns').hidden = false;
     setMsg($('edMsg'), ''); setMsg($('edTestMsg'), '');
@@ -3169,6 +3181,7 @@
     editing = null; gSel.disabled = false;
     $('edTitle').textContent = 'ADD A STATION';
     $('edAdd').textContent = 'ADD STATION';
+    $('edToListWrap').hidden = !userData.lists.length;
     $('edEditBtns').hidden = true;
     $('edManual').parentElement.hidden = false;
     $('edName').value = ''; $('edUrl').value = ''; $('edFreq').value = '';
@@ -3274,6 +3287,13 @@
       const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o);
     });
     sel.value = userData.activeList || '';
+    const to = $('edToList'), prevTo = to.value;
+    to.textContent = '';
+    [['', 'None']].concat(userData.lists.map(l => [l.name, l.name])).forEach(([v, t]) => {
+      const o = document.createElement('option'); o.value = v; o.textContent = t; to.appendChild(o);
+    });
+    to.value = userData.lists.some(l => l.name === prevTo) && prevTo ? prevTo : (userData.activeList || '');
+    $('edToListWrap').hidden = !userData.lists.length || !!editing;
     // With a list on, the ticks are the categories shown alongside that list
     // (none to start with: the list on its own). With All stations, they are
     // the categories showing.
