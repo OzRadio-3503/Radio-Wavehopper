@@ -1591,6 +1591,55 @@ public class RadioLibraryService extends MediaLibraryService {
                 return item != null ? item.mediaMetadata : super.getMediaMetadata();
             }
 
+            // Live radio: no length, no position, not seekable. Without this
+            // the car showed a running "0:15 / 0:00" counter and treated each
+            // tick as a change to redraw. (The stall watchdog reads the real
+            // player's position, not this.)
+            @Override
+            public long getDuration() { return C.TIME_UNSET; }
+
+            @Override
+            public long getContentDuration() { return C.TIME_UNSET; }
+
+            @Override
+            public long getCurrentPosition() { return 0L; }
+
+            @Override
+            public long getContentPosition() { return 0L; }
+
+            @Override
+            public long getBufferedPosition() { return 0L; }
+
+            @Override
+            public long getContentBufferedPosition() { return 0L; }
+
+            @Override
+            public long getTotalBufferedDuration() { return 0L; }
+
+            @Override
+            public boolean isCurrentMediaItemLive() { return getCurrentMediaItem() != null; }
+
+            @Override
+            public boolean isCurrentMediaItemSeekable() { return false; }
+
+            // Only pass the car the updates that change what it shows. The
+            // player's "loading more audio" on/off flips every few seconds
+            // while a stream buffers, and isn't worth a redraw.
+            private final java.util.Map<Player.Listener, CarQuietListener> quiet = new java.util.HashMap<>();
+
+            @Override
+            public void addListener(@NonNull Player.Listener listener) {
+                CarQuietListener q = new CarQuietListener(listener);
+                quiet.put(listener, q);
+                super.addListener(q);
+            }
+
+            @Override
+            public void removeListener(@NonNull Player.Listener listener) {
+                CarQuietListener q = quiet.remove(listener);
+                super.removeListener(q != null ? q : listener);
+            }
+
             @Override
             public boolean isCommandAvailable(int command) {
                 if (command == Player.COMMAND_SEEK_FORWARD || command == Player.COMMAND_SEEK_BACK) return true;
@@ -1710,5 +1759,59 @@ public class RadioLibraryService extends MediaLibraryService {
             mediaLibrarySession = null;
         }
         super.onDestroy();
+    }
+    /**
+     * Wraps the session's listener on the car's player: passes everything on
+     * except the "loading" on/off flips and repeat "now playing details"
+     * updates that haven't actually changed, and logs (the first few after
+     * each station change) what it does pass on, to find any leftover
+     * flicker in Android Auto.
+     */
+    private static final class CarQuietListener implements Player.Listener {
+        private final Player.Listener inner;
+        private MediaMetadata lastMetadata;
+        private int logged;
+
+        CarQuietListener(Player.Listener inner) { this.inner = inner; }
+
+        private void note(String what) {
+            if (logged < 25) { logged++; DiagLog.log("carUI update -> car: " + what); }
+        }
+
+        @Override public void onEvents(@NonNull Player player, @NonNull Player.Events events) { inner.onEvents(player, events); }
+        @Override public void onTimelineChanged(@NonNull androidx.media3.common.Timeline timeline, int reason) { note("timeline " + reason); inner.onTimelineChanged(timeline, reason); }
+        @Override public void onMediaItemTransition(@Nullable MediaItem mediaItem, int reason) { logged = 0; note("station"); inner.onMediaItemTransition(mediaItem, reason); }
+        @Override public void onTracksChanged(@NonNull androidx.media3.common.Tracks tracks) { note("tracks"); inner.onTracksChanged(tracks); }
+        @Override public void onMediaMetadataChanged(@NonNull MediaMetadata mediaMetadata) {
+            if (mediaMetadata.equals(lastMetadata)) return;
+            lastMetadata = mediaMetadata;
+            note("details");
+            inner.onMediaMetadataChanged(mediaMetadata);
+        }
+        @Override public void onPlaylistMetadataChanged(@NonNull MediaMetadata mediaMetadata) { inner.onPlaylistMetadataChanged(mediaMetadata); }
+        @Override public void onIsLoadingChanged(boolean isLoading) { /* not shown in the car */ }
+        @Override public void onAvailableCommandsChanged(@NonNull Player.Commands availableCommands) { note("commands"); inner.onAvailableCommandsChanged(availableCommands); }
+        @Override public void onTrackSelectionParametersChanged(@NonNull androidx.media3.common.TrackSelectionParameters parameters) { inner.onTrackSelectionParametersChanged(parameters); }
+        @Override public void onPlaybackStateChanged(int playbackState) { note("state " + playbackState); inner.onPlaybackStateChanged(playbackState); }
+        @Override public void onPlayWhenReadyChanged(boolean playWhenReady, int reason) { note("playWhenReady " + playWhenReady); inner.onPlayWhenReadyChanged(playWhenReady, reason); }
+        @Override public void onPlaybackSuppressionReasonChanged(int reason) { note("suppression " + reason); inner.onPlaybackSuppressionReasonChanged(reason); }
+        @Override public void onIsPlayingChanged(boolean isPlaying) { note("playing " + isPlaying); inner.onIsPlayingChanged(isPlaying); }
+        @Override public void onRepeatModeChanged(int repeatMode) { inner.onRepeatModeChanged(repeatMode); }
+        @Override public void onShuffleModeEnabledChanged(boolean shuffleModeEnabled) { inner.onShuffleModeEnabledChanged(shuffleModeEnabled); }
+        @Override public void onPlayerError(@NonNull PlaybackException error) { inner.onPlayerError(error); }
+        @Override public void onPlayerErrorChanged(@Nullable PlaybackException error) { note("error"); inner.onPlayerErrorChanged(error); }
+        @Override public void onPositionDiscontinuity(@NonNull Player.PositionInfo oldPosition, @NonNull Player.PositionInfo newPosition, int reason) { note("jump " + reason); inner.onPositionDiscontinuity(oldPosition, newPosition, reason); }
+        @Override public void onPlaybackParametersChanged(@NonNull androidx.media3.common.PlaybackParameters playbackParameters) { inner.onPlaybackParametersChanged(playbackParameters); }
+        @Override public void onSeekBackIncrementChanged(long seekBackIncrementMs) { inner.onSeekBackIncrementChanged(seekBackIncrementMs); }
+        @Override public void onSeekForwardIncrementChanged(long seekForwardIncrementMs) { inner.onSeekForwardIncrementChanged(seekForwardIncrementMs); }
+        @Override public void onMaxSeekToPreviousPositionChanged(long maxSeekToPreviousPositionMs) { inner.onMaxSeekToPreviousPositionChanged(maxSeekToPreviousPositionMs); }
+        @Override public void onAudioSessionIdChanged(int audioSessionId) { inner.onAudioSessionIdChanged(audioSessionId); }
+        @Override public void onAudioAttributesChanged(@NonNull AudioAttributes audioAttributes) { inner.onAudioAttributesChanged(audioAttributes); }
+        @Override public void onVolumeChanged(float volume) { inner.onVolumeChanged(volume); }
+        @Override public void onDeviceInfoChanged(@NonNull androidx.media3.common.DeviceInfo deviceInfo) { inner.onDeviceInfoChanged(deviceInfo); }
+        @Override public void onDeviceVolumeChanged(int volume, boolean muted) { inner.onDeviceVolumeChanged(volume, muted); }
+
+        @Override public boolean equals(Object o) { return o instanceof CarQuietListener && ((CarQuietListener) o).inner.equals(inner); }
+        @Override public int hashCode() { return inner.hashCode(); }
     }
 }
