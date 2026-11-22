@@ -33,7 +33,11 @@ public final class UserStations {
     private static volatile java.util.Map<String, String> names = new java.util.HashMap<>();
     /** Built-ins that moved in an update, so older saved entries still know who they belong to. */
     private static final java.util.Map<String, String> LEGACY_KEY_NAMES = new java.util.HashMap<>();
-    static { LEGACY_KEY_NAMES.put("90.08", "Station X"); }
+    static {
+        LEGACY_KEY_NAMES.put("90.08", "Station X");
+        LEGACY_KEY_NAMES.put("87.50", "talkSPORT");          // moved to 87.52 when SENQ came in
+        LEGACY_KEY_NAMES.put("99.10", "Triple J Hottest");   // moved to 99.12 for Triple M Classic Rock
+    }
 
     /** Categories the listener hid, by name ("France"). */
     private static volatile java.util.Set<String> hiddenGroups = new java.util.HashSet<>();

@@ -459,7 +459,8 @@
 (function(){
   const stations = [
     // ---- Sport ----
-    {freq:87.5, name:"talkSPORT", real:"1089 AM", cc:"UK", url:"http://23163.live.streamtheworld.com/NOVA_TALKSPORT_1.mp3?dist=talksport"},
+    {freq:87.5, name:"SENQ", real:"693 AM", cc:"AU", url:"https://d2dgwrtikgx7lx.cloudfront.net/playlist.m3u8", hls:true},
+    {freq:87.52, name:"talkSPORT", real:"1089 AM", cc:"UK", url:"http://23163.live.streamtheworld.com/NOVA_TALKSPORT_1.mp3?dist=talksport"},
     {freq:87.55, name:"SEN 1116", real:"1116 AM", cc:"VIC", url:"http://13.54.221.214:8000/sen.mp3"},
     {freq:87.6, name:"SEN 1170", real:"1170 AM", cc:"NSW", url:"https://d2kkpj3tysba3i.cloudfront.net/v1/master/fbb316a042e17a2e683126d94749c2d69866fc2c/SEN_Sydney/raw/sen-syd/EncoderUnit_3.m3u8?playerParams.sitepage=https%3A%2F%2Fsen.com.au%2F&playerParams.domain=sen.com.au&playerParams.cb=cachebusterPlaceholder&playerParams.playerId=SEN-Web", hls:true},
     {freq:87.7, name:"Sports Nation NZ", real:"1476 AM", cc:"NZ", url:"https://sen.streamguys1.com/SENZ-AAC/playlist.m3u8", hls:true},
@@ -592,13 +593,16 @@
     // ---- Northern Territory ----
     {freq:99.0, name:"Territory FM", real:"104.1 FM", cc:"NT", url:"https://streaming.territoryfm.com:8443/TerritoryFM"},
     // ---- Australia (national) ----
-    {freq:99.1, name:"Triple J Hottest", real:"DAB only", cc:"AU", dab:"9C", url:"https://mediaserviceslive.akamaized.net/hls/live/2109455/triplejhottest/v0-221.m3u8", hls:true},
+    {freq:99.1, name:"Triple M Classic Rock", real:"DAB only", cc:"VIC", dab:"9A", url:"https://sa47.scastream.com.au/live/2classicrock_128.stream/playlist.m3u8", hls:true},
+    {freq:99.12, name:"Triple J Hottest", real:"DAB only", cc:"AU", dab:"9C", url:"https://mediaserviceslive.akamaized.net/hls/live/2109455/triplejhottest/v0-221.m3u8", hls:true},
+    {freq:99.15, name:"Yacht Rock", real:"Internet only", cc:"AU", url:"http://sa47.scastream.com.au/live/7yachtrock_128.stream/playlist.m3u8", hls:true},
     // ---- New Zealand ----
     {freq:99.2, name:"Radio Dunedin", real:"1305 AM", cc:"NZ", url:"https://stream.radioaotearoa.com/hls/RadioDunedin.m3u8", hls:true},
     {freq:99.3, name:"Brian FM Oamaru", real:"88.8 FM", cc:"NZ", url:"https://das-edge53-sa48-futuri-dal03.cdnstream.com/7654_128k.aac"},
     {freq:99.4, name:"Radio Hauraki Westport", real:"89.3 FM", cc:"NZ", url:"https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_04AAC_SC.aac"},
     {freq:99.5, name:"The Rock Auckland", real:"90.2 FM", cc:"NZ", url:"https://mediaworks.streamguys1.com/rock_net_icy"},
     {freq:99.6, name:"Channel X Queenstown", real:"91.2 FM", cc:"NZ", url:"https://mediaworks.streamguys1.com/chx_net_icy"},
+    {freq:99.65, name:"The Sound Auckland", real:"93.8 FM", cc:"NZ", url:"https://digitalstreams.mediaworks.nz/sound_net/playlist.m3u8", hls:true},
     // ---- Pacific ----
     {freq:99.7, name:"NC 1’ere", real:"89.0 FM", cc:"NC", url:"https://nouvelle-caledonie.ice.infomaniak.ch/nouvelle-caledonie-128.mp3"},
     {freq:99.8, name:"Gold FM Fiji", real:"100.2 FM", cc:"FJ", url:"https://icecast1.sere.plus/Gold"},
@@ -625,7 +629,7 @@
     // ---- Internet only ----
     {freq:101.3, name:"Aircheck Radio", real:"Internet only", cc:"US", url:"http://sonic.radiostream.ca/8034/stream"},
     {freq:101.4, name:"Alt Boss Gold", real:"Internet only", cc:"US", url:"http://ais-sa3.cdnstream1.com/2713_128.mp3"},
-    {freq:101.5, name:"Casey Kasem Classic AT40", real:"Internet only", cc:"US", url:"https://n14b-e2.revma.ihrhls.com/zc6545/20_tzs6wquc8rgp02/playlist.m3u8", hls:true},
+    {freq:101.5, name:"Casey Kasem Classic AT40", real:"Internet only", cc:"US", url:"https://stream.revma.ihrhls.com/zc6545"},
     {freq:101.6, name:"Powerzone", real:"Internet only", cc:"AU", url:"https://listen2.streamaudio.co:8090/stream1.mp3"},
     {freq:101.7, name:"Radio Free Phoenix", real:"Internet only", cc:"US", url:"https://s6.reliastream.com/proxy/radiofre?mp=/stream"},
     {freq:101.8, name:"Retro Hit Radio", real:"Internet only", cc:"NZ", url:"https://riphel02.radioca.st/stream"},
@@ -683,7 +687,7 @@
   // to that station's new key - or dropped if the station is gone - before it
   // is applied. Entries saved before names existed are matched here by the key
   // they were saved under; LEGACY_KEY_NAMES lists built-ins that have moved.
-  const LEGACY_KEY_NAMES = { '90.08': 'Station X' };
+  const LEGACY_KEY_NAMES = { '90.08': 'Station X', '87.50': 'talkSPORT', '99.10': 'Triple J Hottest' };
   let userDataChanged = false;
   if (!userData.names || typeof userData.names !== 'object' || Array.isArray(userData.names)) { userData.names = {}; }
   (function rekeySavedEdits(){

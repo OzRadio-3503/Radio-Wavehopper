@@ -84,6 +84,10 @@ public final class StationLibrary {
         private static final java.util.Map<String, String> BY_NAME = new java.util.HashMap<>();
         static {
             BY_NAME.put("talkSPORT", "UK");
+            BY_NAME.put("SENQ", "AU");
+            BY_NAME.put("Triple M Classic Rock", "VIC");
+            BY_NAME.put("Yacht Rock", "AU");
+            BY_NAME.put("The Sound Auckland", "NZ");
             BY_NAME.put("SEN 1116", "VIC");
             BY_NAME.put("WNYC", "US");
             BY_NAME.put("2UE 954", "NSW");
@@ -520,7 +524,8 @@ public final class StationLibrary {
     public static List<Station> getBuiltInStations() {
         List<Station> stations = new ArrayList<>();
         // ---- Sport ----
-        stations.add(new Station(87.5, "talkSPORT", "1089 AM", "http://23163.live.streamtheworld.com/NOVA_TALKSPORT_1.mp3?dist=talksport"));
+        stations.add(new Station(87.5, "SENQ", "693 AM", "https://d2dgwrtikgx7lx.cloudfront.net/playlist.m3u8"));
+        stations.add(new Station(87.52, "talkSPORT", "1089 AM", "http://23163.live.streamtheworld.com/NOVA_TALKSPORT_1.mp3?dist=talksport"));
         stations.add(new Station(87.55, "SEN 1116", "1116 AM", "http://13.54.221.214:8000/sen.mp3"));
         stations.add(new Station(87.6, "SEN 1170", "1170 AM", "https://d2kkpj3tysba3i.cloudfront.net/v1/master/fbb316a042e17a2e683126d94749c2d69866fc2c/SEN_Sydney/raw/sen-syd/EncoderUnit_3.m3u8?playerParams.sitepage=https%3A%2F%2Fsen.com.au%2F&playerParams.domain=sen.com.au&playerParams.cb=cachebusterPlaceholder&playerParams.playerId=SEN-Web", "application/x-mpegURL"));
         stations.add(new Station(87.7, "Sports Nation NZ", "1476 AM", "https://sen.streamguys1.com/SENZ-AAC/playlist.m3u8"));
@@ -653,13 +658,16 @@ public final class StationLibrary {
         // ---- Northern Territory ----
         stations.add(new Station(99.0, "Territory FM", "104.1 FM", "https://streaming.territoryfm.com:8443/TerritoryFM"));
         // ---- Australia (national) ----
-        stations.add(new Station(99.1, "Triple J Hottest", "DAB only", "https://mediaserviceslive.akamaized.net/hls/live/2109455/triplejhottest/v0-221.m3u8"));
+        stations.add(new Station(99.1, "Triple M Classic Rock", "DAB only", "https://sa47.scastream.com.au/live/2classicrock_128.stream/playlist.m3u8"));
+        stations.add(new Station(99.12, "Triple J Hottest", "DAB only", "https://mediaserviceslive.akamaized.net/hls/live/2109455/triplejhottest/v0-221.m3u8"));
+        stations.add(new Station(99.15, "Yacht Rock", "Internet only", "http://sa47.scastream.com.au/live/7yachtrock_128.stream/playlist.m3u8"));
         // ---- New Zealand ----
         stations.add(new Station(99.2, "Radio Dunedin", "1305 AM", "https://stream.radioaotearoa.com/hls/RadioDunedin.m3u8"));
         stations.add(new Station(99.3, "Brian FM Oamaru", "88.8 FM", "https://das-edge53-sa48-futuri-dal03.cdnstream.com/7654_128k.aac"));
         stations.add(new Station(99.4, "Radio Hauraki Westport", "89.3 FM", "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_04AAC_SC.aac"));
         stations.add(new Station(99.5, "The Rock Auckland", "90.2 FM", "https://mediaworks.streamguys1.com/rock_net_icy"));
         stations.add(new Station(99.6, "Channel X Queenstown", "91.2 FM", "https://mediaworks.streamguys1.com/chx_net_icy"));
+        stations.add(new Station(99.65, "The Sound Auckland", "93.8 FM", "https://digitalstreams.mediaworks.nz/sound_net/playlist.m3u8"));
         // ---- Pacific ----
         stations.add(new Station(99.7, "NC 1’ere", "89.0 FM", "https://nouvelle-caledonie.ice.infomaniak.ch/nouvelle-caledonie-128.mp3"));
         stations.add(new Station(99.8, "Gold FM Fiji", "100.2 FM", "https://icecast1.sere.plus/Gold"));
@@ -686,7 +694,7 @@ public final class StationLibrary {
         // ---- Internet only ----
         stations.add(new Station(101.3, "Aircheck Radio", "Internet only", "http://sonic.radiostream.ca/8034/stream"));
         stations.add(new Station(101.4, "Alt Boss Gold", "Internet only", "http://ais-sa3.cdnstream1.com/2713_128.mp3"));
-        stations.add(new Station(101.5, "Casey Kasem Classic AT40", "Internet only", "https://n14b-e2.revma.ihrhls.com/zc6545/20_tzs6wquc8rgp02/playlist.m3u8"));
+        stations.add(new Station(101.5, "Casey Kasem Classic AT40", "Internet only", "https://stream.revma.ihrhls.com/zc6545"));
         stations.add(new Station(101.6, "Powerzone", "Internet only", "https://listen2.streamaudio.co:8090/stream1.mp3"));
         stations.add(new Station(101.7, "Radio Free Phoenix", "Internet only", "https://s6.reliastream.com/proxy/radiofre?mp=/stream"));
         stations.add(new Station(101.8, "Retro Hit Radio", "Internet only", "https://riphel02.radioca.st/stream"));
