@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <queries>
+        <!-- Android Auto's "is the phone projecting to a car?" answer. -->
+        <provider android:authorities="androidx.car.app.connection" />
         <package android:name="com.shazam.android" />
         <package android:name="com.shazam.encore.android" />
         <intent>

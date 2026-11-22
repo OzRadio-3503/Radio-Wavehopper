@@ -147,12 +147,53 @@ public class RadioLibraryService extends MediaLibraryService {
         if (aa && carMode && !prefs.getBoolean(KEY_AA_CAR_MODE_SEEN, false)) {
             prefs.edit().putBoolean(KEY_AA_CAR_MODE_SEEN, true).apply();
         }
-        boolean connected = aa && (carMode || !prefs.getBoolean(KEY_AA_CAR_MODE_SEEN, false));
+        int projection = projectionState(car);
+        boolean connected;
+        if (projection >= 0) {
+            // Android Auto's own answer: is the phone actually projecting to
+            // a car right now? Android Auto can stay connected to the app's
+            // player in the background long after you've left the car, so
+            // that on its own isn't enough.
+            connected = aa && projection > 0;
+        } else {
+            connected = aa && (carMode || !prefs.getBoolean(KEY_AA_CAR_MODE_SEEN, false));
+        }
         if (connected != lastCarConnected) {
             lastCarConnected = connected;
-            DiagLog.log("carUI carConnected=" + connected + " (androidAuto=" + aa + " carMode=" + carMode + ")");
+            DiagLog.log("carUI carConnected=" + connected + " (androidAuto=" + aa + " carMode=" + carMode
+                    + " projection=" + projection + ")");
         }
         return connected;
+    }
+
+    private static long projectionCheckedAt;
+    private static int projectionCached = -1;
+
+    /**
+     * Asks Android Auto whether it's projecting to a car right now, the same
+     * way Google's car library does (its "car connection" provider): 0 = not
+     * connected, 1 = built-in car system, 2 = phone projecting to the car.
+     * -1 if Android Auto doesn't answer (not installed, older version) - the
+     * caller then falls back to the old check. Cached for 2 seconds, as it's
+     * asked often.
+     */
+    private static int projectionState(android.content.Context context) {
+        long now = android.os.SystemClock.elapsedRealtime();
+        if (now - projectionCheckedAt < 2000) return projectionCached;
+        int state = -1;
+        try (android.database.Cursor c = context.getContentResolver().query(
+                Uri.parse("content://androidx.car.app.connection"),
+                new String[]{"CarConnectionState"}, null, null, null)) {
+            if (c != null && c.moveToNext()) {
+                int col = c.getColumnIndex("CarConnectionState");
+                if (col >= 0) state = c.getInt(col);
+            }
+        } catch (Exception e) {
+            state = -1;
+        }
+        projectionCheckedAt = now;
+        projectionCached = state;
+        return state;
     }
 
     /**
@@ -1779,8 +1820,24 @@ public class RadioLibraryService extends MediaLibraryService {
         }
 
         @Override public void onEvents(@NonNull Player player, @NonNull Player.Events events) { inner.onEvents(player, events); }
-        @Override public void onTimelineChanged(@NonNull androidx.media3.common.Timeline timeline, int reason) { note("timeline " + reason); inner.onTimelineChanged(timeline, reason); }
-        @Override public void onMediaItemTransition(@Nullable MediaItem mediaItem, int reason) { logged = 0; note("station"); inner.onMediaItemTransition(mediaItem, reason); }
+        // Live HLS streams refresh their playlist every few seconds, and each
+        // refresh is a "timeline changed (source update)" - which made the
+        // car redraw its background art (the flicker). Pass on the first one
+        // after each station change, then ignore the repeats: the stations
+        // in the playlist haven't changed.
+        private boolean sourceUpdateSent;
+
+        @Override public void onTimelineChanged(@NonNull androidx.media3.common.Timeline timeline, int reason) {
+            if (reason == Player.TIMELINE_CHANGE_REASON_SOURCE_UPDATE) {
+                if (sourceUpdateSent) return;
+                sourceUpdateSent = true;
+            } else {
+                sourceUpdateSent = false;
+            }
+            note("timeline " + reason);
+            inner.onTimelineChanged(timeline, reason);
+        }
+        @Override public void onMediaItemTransition(@Nullable MediaItem mediaItem, int reason) { logged = 0; sourceUpdateSent = false; note("station"); inner.onMediaItemTransition(mediaItem, reason); }
         @Override public void onTracksChanged(@NonNull androidx.media3.common.Tracks tracks) { note("tracks"); inner.onTracksChanged(tracks); }
         @Override public void onMediaMetadataChanged(@NonNull MediaMetadata mediaMetadata) {
             if (mediaMetadata.equals(lastMetadata)) return;
