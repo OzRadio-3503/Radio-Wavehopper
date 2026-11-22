@@ -325,6 +325,33 @@ public class PlaybackService extends Service {
         player.setHandleAudioBecomingNoisy(true);
 
         player.addListener(new Player.Listener() {
+            // Song titles carried inside the stream itself, read on the same
+            // connection that plays it: Icecast/Shoutcast "StreamTitle" (ICY)
+            // and HLS ID3 tags (TIT2 title, TPE1 artist). Passed to the app's
+            // screen, the notification and the lock screen.
+            @Override
+            public void onMetadata(@NonNull com.google.android.exoplayer2.metadata.Metadata metadata) {
+                String artist = "", title = "";
+                for (int i = 0; i < metadata.length(); i++) {
+                    com.google.android.exoplayer2.metadata.Metadata.Entry e = metadata.get(i);
+                    if (e instanceof com.google.android.exoplayer2.metadata.icy.IcyInfo) {
+                        String t = ((com.google.android.exoplayer2.metadata.icy.IcyInfo) e).title;
+                        if (t != null && !t.trim().isEmpty()) {
+                            t = t.trim();
+                            int dash = t.indexOf(" - ");
+                            if (dash > 0) { artist = t.substring(0, dash).trim(); title = t.substring(dash + 3).trim(); }
+                            else { artist = ""; title = t; }
+                        }
+                    } else if (e instanceof com.google.android.exoplayer2.metadata.id3.TextInformationFrame) {
+                        com.google.android.exoplayer2.metadata.id3.TextInformationFrame f =
+                                (com.google.android.exoplayer2.metadata.id3.TextInformationFrame) e;
+                        if ("TIT2".equals(f.id) && f.value != null) title = f.value.trim();
+                        else if ("TPE1".equals(f.id) && f.value != null) artist = f.value.trim();
+                    }
+                }
+                streamTitleChanged(artist, title);
+            }
+
             // Back to live after a pause - see LiveResume.
             @Override
             public void onPlayWhenReadyChanged(boolean playWhenReady, int reason) {
@@ -690,6 +717,26 @@ public class PlaybackService extends Service {
     private void pausedForDefaultSleep() {
         sleepHandler.removeCallbacks(endDefaultSleepAfterPause);
         if (sleepFromDefault) sleepHandler.postDelayed(endDefaultSleepAfterPause, DEFAULT_SLEEP_PAUSE_GRACE_MS);
+    }
+
+    /**
+     * A song title arrived inside the stream. Shown on the notification and
+     * lock screen, and passed to the app's screen - only when it changes, and
+     * never for a test stream or the station's own name.
+     */
+    private void streamTitleChanged(String artist, String title) {
+        if (playingTestStream || title.isEmpty()) return;
+        if (title.equalsIgnoreCase(currentStationName) && artist.isEmpty()) return;
+        if (title.equals(currentTrack) && artist.equals(currentArtist)) return;
+        currentArtist = artist;
+        currentTrack = title;
+        DiagLog.log("song: " + (artist.isEmpty() ? "" : artist + " - ") + title);
+        updateState(isReallyPlaying());
+        if (MainActivity.instance != null) {
+            MainActivity.instance.runJs("window.NativeControls && window.NativeControls.onNativeTrack && "
+                    + "window.NativeControls.onNativeTrack(" + org.json.JSONObject.quote(artist) + ","
+                    + org.json.JSONObject.quote(title) + ");");
+        }
     }
 
     /** When the timer ends (epoch ms, 0 = off), so a reopened page can show it. */

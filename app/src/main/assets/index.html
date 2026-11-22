@@ -976,6 +976,7 @@
   let isLoading = false;
   let icyAbortController = null;
   let metadataPollTimer = null;
+  let nativeTitleStation = null;   // the station whose stream is sending titles to the app's player
   // Inside the Android app, this <audio> element is never actually used to
   // play sound - PlaybackService's own native ExoPlayer does that, since
   // it's the only thing that reliably participates in Android's audio
@@ -1937,9 +1938,12 @@
       icyAbortController = new AbortController();
       // Read titles from the stream itself (ICY), reconnecting if the server drops that
       // connection, and also poll the station's now-playing API / status page as a backup.
-      keepIcyAlive(station, icyAbortController.signal);
+      // In the app, the player reads titles from the stream it's already
+      // playing (see onNativeTrack), so no second connection is opened.
+      if (!isNativeApp) keepIcyAlive(station, icyAbortController.signal);
       metadataPollTimer = setInterval(async () => {
         if (isPlaying && icyAbortController && !icyAbortController.signal.aborted) {
+          if (nativeTitleStation === station) return;   // the stream itself is sending titles
           await pollStationMetadata(station, icyAbortController.signal);
         } else {
           clearInterval(metadataPollTimer);
@@ -1947,7 +1951,7 @@
         }
       }, 15000);
       setTimeout(() => {
-        if (isPlaying && icyAbortController && !icyAbortController.signal.aborted) {
+        if (isPlaying && icyAbortController && !icyAbortController.signal.aborted && nativeTitleStation !== station) {
           pollStationMetadata(station, icyAbortController.signal);
         }
       }, 3000);
@@ -2651,6 +2655,13 @@
     // these three are it reporting the real outcome back, so the UI
     // reflects what's actually happening rather than what was merely asked
     // for.
+    // The app's player read a song title from the stream it's playing.
+    onNativeTrack: function(artist, title){
+      if (!title || !currentPlayingStation) return;
+      nativeTitleStation = currentPlayingStation;
+      setNowPlaying(artist ? artist + ' — ' + title : title);
+      fetchAlbumArt(artist, title);
+    },
     onNativePlaying: function(){
       isLoading = false;
       isPlaying = true;
