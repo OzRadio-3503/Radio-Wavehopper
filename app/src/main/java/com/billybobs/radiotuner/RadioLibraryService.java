@@ -20,8 +20,6 @@ import androidx.media3.datasource.ResolvingDataSource;
 import androidx.media3.datasource.okhttp.OkHttpDataSource;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
-import androidx.media3.exoplayer.Renderer;
-import androidx.media3.exoplayer.metadata.MetadataOutput;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 import androidx.media3.session.CommandButton;
 import androidx.media3.session.LibraryResult;
@@ -1119,23 +1117,13 @@ public class RadioLibraryService extends MediaLibraryService {
                         "User-Agent", StreamHeaders.userAgentFor(dataSpec.uri))));
         DataSource.Factory dataSourceFactory = new DefaultDataSource.Factory(this, userAgentFactory);
 
-        // No metadata renderers: many streams send "now playing" tags every
-        // few seconds (HLS ID3 tags on SEN/ABC/BBC, Icecast StreamTitle).
-        // Each one changed the session's metadata, and Android Auto redrew
-        // Now Playing - the background "flashed" every few seconds. The car
-        // shows only the station, its real frequency, group and logo, which
-        // never change while a station plays.
-        DefaultRenderersFactory renderersFactory = new DefaultRenderersFactory(this) {
-            @Override
-            protected void buildMetadataRenderers(
-                    @NonNull android.content.Context context,
-                    @NonNull MetadataOutput output,
-                    @NonNull Looper outputLooper,
-                    int extensionRendererMode,
-                    @NonNull ArrayList<Renderer> out) {
-                // Deliberately none - see above.
-            }
-        };
+        // Stream "now playing" tags (Icecast StreamTitle, HLS ID3) are read,
+        // but never passed to the car as they come: many streams resend them
+        // every few seconds, and each change made Android Auto redraw Now
+        // Playing (the background "flashed"). Instead onMetadata picks out the
+        // song, and the car is told only when the song really changes - at
+        // most every SONG_MIN_GAP_MS - as the second line under the station.
+        DefaultRenderersFactory renderersFactory = new DefaultRenderersFactory(this);
         player = new ExoPlayer.Builder(this, renderersFactory)
                 .setMediaSourceFactory(new DefaultMediaSourceFactory(dataSourceFactory))
                 .build();
@@ -1255,6 +1243,7 @@ public class RadioLibraryService extends MediaLibraryService {
                     endedReconnectWindowStartMs = android.os.SystemClock.elapsedRealtime();
                 }
                 liveResume.reset();
+                clearCarSong();
                 lastStationIndex = player.getCurrentMediaItemIndex();
                 // New station: the watchdog starts fresh and gives it time to
                 // tune in before treating buffering as a stall.
@@ -1300,6 +1289,30 @@ public class RadioLibraryService extends MediaLibraryService {
                         }
                     }
                 }
+            }
+
+            @Override
+            public void onMetadata(@NonNull androidx.media3.common.Metadata metadata) {
+                String artist = "", title = "";
+                for (int i = 0; i < metadata.length(); i++) {
+                    androidx.media3.common.Metadata.Entry e = metadata.get(i);
+                    if (e instanceof androidx.media3.extractor.metadata.icy.IcyInfo) {
+                        String t = ((androidx.media3.extractor.metadata.icy.IcyInfo) e).title;
+                        if (t != null && !t.trim().isEmpty()) {
+                            t = t.trim();
+                            int dash = t.indexOf(" - ");
+                            if (dash > 0) { artist = t.substring(0, dash).trim(); title = t.substring(dash + 3).trim(); }
+                            else { artist = ""; title = t; }
+                        }
+                    } else if (e instanceof androidx.media3.extractor.metadata.id3.TextInformationFrame) {
+                        androidx.media3.extractor.metadata.id3.TextInformationFrame f =
+                                (androidx.media3.extractor.metadata.id3.TextInformationFrame) e;
+                        String v = f.values.isEmpty() ? "" : f.values.get(0).trim();
+                        if ("TIT2".equals(f.id)) title = v;
+                        else if ("TPE1".equals(f.id)) artist = v;
+                    }
+                }
+                onStreamSong(artist, title);
             }
 
             @Override
@@ -1658,7 +1671,16 @@ public class RadioLibraryService extends MediaLibraryService {
             @Override
             public MediaMetadata getMediaMetadata() {
                 MediaItem item = getCurrentMediaItem();
-                return item != null ? item.mediaMetadata : super.getMediaMetadata();
+                if (item == null) return super.getMediaMetadata();
+                // The song playing, if the stream sends it, replaces the group
+                // as the second line; the title (frequency, name) and logo stay.
+                if (!carSong.isEmpty() && item.mediaId.equals(carSongMediaId)) {
+                    return item.mediaMetadata.buildUpon()
+                            .setArtist(carSong)
+                            .setSubtitle(carSong)
+                            .build();
+                }
+                return item.mediaMetadata;
             }
 
             // Live radio: no length, no position, not seekable. Without this
@@ -1695,11 +1717,10 @@ public class RadioLibraryService extends MediaLibraryService {
             // Only pass the car the updates that change what it shows. The
             // player's "loading more audio" on/off flips every few seconds
             // while a stream buffers, and isn't worth a redraw.
-            private final java.util.Map<Player.Listener, CarQuietListener> quiet = new java.util.HashMap<>();
 
             @Override
             public void addListener(@NonNull Player.Listener listener) {
-                CarQuietListener q = new CarQuietListener(listener);
+                CarQuietListener q = new CarQuietListener(listener, this);
                 quiet.put(listener, q);
                 super.addListener(q);
             }
@@ -1830,6 +1851,63 @@ public class RadioLibraryService extends MediaLibraryService {
         }
         super.onDestroy();
     }
+    // ---- Song titles in the car ----
+    /** Listeners on the car's player (the session's), wrapped - see CarQuietListener. */
+    private final java.util.Map<Player.Listener, CarQuietListener> quiet = new java.util.HashMap<>();
+    /** "Artist – Title" of the song playing, for the station with this media ID; "" if none. */
+    private String carSong = "";
+    private String carSongMediaId = "";
+    /** The newest song not yet shown, waiting for SONG_MIN_GAP_MS to pass. */
+    private String pendingSong = "";
+    private long carSongShownAt = 0;
+    private static final long SONG_MIN_GAP_MS = 20_000L;
+    private final Handler songHandler = new Handler(Looper.getMainLooper());
+    private final Runnable showPendingSong = this::showPendingSong;
+
+    /** A song title arrived in the stream (ICY StreamTitle, or HLS ID3 TIT2/TPE1). */
+    private void onStreamSong(String artist, String title) {
+        MediaItem item = player != null ? player.getCurrentMediaItem() : null;
+        if (item == null || title.isEmpty()) return;
+        StationLibrary.Station st = currentStationAnywhere();
+        if (st != null && artist.isEmpty() && title.equalsIgnoreCase(st.name)) return;  // just the station's name
+        String song = artist.isEmpty() ? title : artist + " \u2013 " + title;
+        if (!item.mediaId.equals(carSongMediaId)) {
+            carSongMediaId = item.mediaId;   // new station: nothing shown for it yet
+            carSong = "";
+            carSongShownAt = 0;
+        }
+        if (song.equals(carSong)) { pendingSong = ""; return; }
+        pendingSong = song;
+        songHandler.removeCallbacks(showPendingSong);
+        long wait = carSongShownAt + SONG_MIN_GAP_MS - android.os.SystemClock.elapsedRealtime();
+        if (wait <= 0) showPendingSong(); else songHandler.postDelayed(showPendingSong, wait);
+    }
+
+    private void showPendingSong() {
+        MediaItem item = player != null ? player.getCurrentMediaItem() : null;
+        if (pendingSong.isEmpty() || item == null || !item.mediaId.equals(carSongMediaId)) return;
+        carSong = pendingSong;
+        pendingSong = "";
+        carSongShownAt = android.os.SystemClock.elapsedRealtime();
+        DiagLog.log("carUI song: " + carSong);
+        tellCarDetailsChanged();
+    }
+
+    /** Station changed: forget the last station's song. */
+    private void clearCarSong() {
+        songHandler.removeCallbacks(showPendingSong);
+        carSong = "";
+        pendingSong = "";
+        carSongMediaId = "";
+        carSongShownAt = 0;
+    }
+
+    private void tellCarDetailsChanged() {
+        for (CarQuietListener q : new ArrayList<>(quiet.values())) {
+            q.onMediaMetadataChanged(MediaMetadata.EMPTY);
+        }
+    }
+
     /**
      * Wraps the session's listener on the car's player: passes everything on
      * except the "loading" on/off flips and repeat "now playing details"
@@ -1842,7 +1920,9 @@ public class RadioLibraryService extends MediaLibraryService {
         private MediaMetadata lastMetadata;
         private int logged;
 
-        CarQuietListener(Player.Listener inner) { this.inner = inner; }
+        private final Player source;
+
+        CarQuietListener(Player.Listener inner, Player source) { this.inner = inner; this.source = source; }
 
         private void note(String what) {
             if (logged < 25) { logged++; DiagLog.log("carUI update -> car: " + what); }
@@ -1868,7 +1948,10 @@ public class RadioLibraryService extends MediaLibraryService {
         }
         @Override public void onMediaItemTransition(@Nullable MediaItem mediaItem, int reason) { logged = 0; sourceUpdateSent = false; note("station"); inner.onMediaItemTransition(mediaItem, reason); }
         @Override public void onTracksChanged(@NonNull androidx.media3.common.Tracks tracks) { note("tracks"); inner.onTracksChanged(tracks); }
-        @Override public void onMediaMetadataChanged(@NonNull MediaMetadata mediaMetadata) {
+        @Override public void onMediaMetadataChanged(@NonNull MediaMetadata ignored) {
+            // Always what the car should show (station details, plus the
+            // song when there is one) - never the stream's raw tags.
+            MediaMetadata mediaMetadata = source.getMediaMetadata();
             if (mediaMetadata.equals(lastMetadata)) return;
             lastMetadata = mediaMetadata;
             note("details");
