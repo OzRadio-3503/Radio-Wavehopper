@@ -683,7 +683,7 @@ public class RadioLibraryService extends MediaLibraryService {
      * The order of the station list in Android Auto's browse screen: dial
      * order, unless one of your lists is on and set to A to Z or by frequency
      * (AM, then FM, then DAB, then Internet, each low to high / A to Z).
-     * Next/previous still follow the dial.
+     * On Normal, next/previous follow this same order (see stepWithinList).
      */
     private List<StationLibrary.Station> browseOrder() {
         UserStations.Showing carList = UserStations.carShowing();
@@ -744,6 +744,7 @@ public class RadioLibraryService extends MediaLibraryService {
             if (!sec.isEmpty()) { labels.add(StationLibrary.GROUPS[g][1]); secs.add(sec); }
         }
         if (secs.isEmpty()) return;
+        if (secs.size() == 1) { jumpListThird(secs.get(0), direction); return; }
         int current = currentStationIndex();
         int here = 0;
         for (int k = 0; k < secs.size(); k++) if (secs.get(k).contains(current)) { here = k; break; }
@@ -755,6 +756,74 @@ public class RadioLibraryService extends MediaLibraryService {
         int idx = sec.contains(r) ? r : sec.get(0);
         DiagLog.log("carUI jumpListSection: " + labels.get(here) + " -> " + labels.get(target)
                 + " (" + stations.get(idx).name + (idx == r ? ", last played" : ", first") + ")");
+        if (idx != current) tuneTo(idx);
+    }
+
+    /**
+     * browseOrder() as indices into {@code stations}, so stepping can follow
+     * the list's own order (A to Z or real frequency) instead of the dial.
+     */
+    private List<Integer> listOrder() {
+        List<Integer> out = new ArrayList<>();
+        java.util.Map<String, Integer> at = new java.util.HashMap<>();
+        for (int i = 0; i < stations.size(); i++) at.put(stations.get(i).name, i);
+        for (StationLibrary.Station st : browseOrder()) {
+            Integer i = at.get(st.name);
+            if (i != null) out.add(i);
+        }
+        return out;
+    }
+
+    /**
+     * On Normal with one of your lists showing in the car, next/previous
+     * step through the list in the order it's sorted (so a list set to "by
+     * frequency" goes AM low to high, then FM, then DAB, then Internet),
+     * wrapping round, instead of dial order. Returns false - "step normally" -
+     * when no list is showing or a band filter is on.
+     */
+    private boolean stepWithinList(int direction) {
+        if (carBandFilter != null || stations == null || stations.isEmpty()) return false;
+        if (UserStations.carShowing() == null) return false;
+        List<Integer> order = listOrder();
+        int n = order.size();
+        if (n == 0) return false;
+        int current = currentStationIndex();
+        int p = order.indexOf(current);
+        int idx = p < 0 ? order.get(direction > 0 ? 0 : n - 1) : order.get(((p + direction) % n + n) % n);
+        DiagLog.log("carUI step list: " + (current >= 0 ? stations.get(current).name : "?")
+                + " -> " + stations.get(idx).name + " [" + stations.get(idx).real + "]");
+        if (idx != current) tuneTo(idx);
+        return true;
+    }
+
+    /**
+     * When your list is the only section (no categories ticked with it), the
+     * double arrows jump through it in thirds, in the list's own order:
+     * start -> 1/3 -> 2/3 -> back to the start, like AM/FM mode. -1 from
+     * partway through a third goes to that third's start first.
+     */
+    private void jumpListThird(List<Integer> sec, int direction) {
+        List<Integer> order = new ArrayList<>();
+        for (int i : listOrder()) if (sec.contains(i)) order.add(i);
+        int n = order.size();
+        if (n == 0) return;
+        int current = currentStationIndex();
+        int p = order.indexOf(current);
+        int sections = Math.min(3, n);
+        int[] starts = new int[sections];
+        for (int k = 0; k < sections; k++) starts[k] = k * n / sections;
+        int target;
+        int s = 0;
+        if (p < 0) {
+            target = 0;
+        } else {
+            for (int k = 0; k < sections; k++) if (starts[k] <= p) s = k;
+            target = (direction < 0 && p != starts[s]) ? s
+                    : ((s + direction) % sections + sections) % sections;
+        }
+        int idx = order.get(starts[target]);
+        DiagLog.log("carUI jumpListThird: section " + (s + 1) + "/" + sections + " -> " + (target + 1)
+                + "/" + sections + " (" + stations.get(idx).name + ")");
         if (idx != current) tuneTo(idx);
     }
 
@@ -1491,25 +1560,25 @@ public class RadioLibraryService extends MediaLibraryService {
             @Override
             public void seekToNext() {
                 DiagLog.log("carUI seekToNext: carBandFilter=" + carBandFilter);
-                if (!stepWithinBand(1)) super.seekToNext();
+                if (!stepWithinBand(1) && !stepWithinList(1)) super.seekToNext();
             }
 
             @Override
             public void seekToNextMediaItem() {
                 DiagLog.log("carUI seekToNextMediaItem: carBandFilter=" + carBandFilter);
-                if (!stepWithinBand(1)) super.seekToNextMediaItem();
+                if (!stepWithinBand(1) && !stepWithinList(1)) super.seekToNextMediaItem();
             }
 
             @Override
             public void seekToPrevious() {
                 DiagLog.log("carUI seekToPrevious: carBandFilter=" + carBandFilter);
-                if (!stepWithinBand(-1)) super.seekToPrevious();
+                if (!stepWithinBand(-1) && !stepWithinList(-1)) super.seekToPrevious();
             }
 
             @Override
             public void seekToPreviousMediaItem() {
                 DiagLog.log("carUI seekToPreviousMediaItem: carBandFilter=" + carBandFilter);
-                if (!stepWithinBand(-1)) super.seekToPreviousMediaItem();
+                if (!stepWithinBand(-1) && !stepWithinList(-1)) super.seekToPreviousMediaItem();
             }
 
             // Always the station's own fixed details (name, real frequency,
