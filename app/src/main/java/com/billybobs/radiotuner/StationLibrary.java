@@ -452,8 +452,12 @@ public final class StationLibrary {
         List<String> list = UserStations.activeListStations();
         List<Station> keep = new java.util.ArrayList<>();
         if (list != null) {
+            // The list's stations, plus the categories ticked to show with it.
             java.util.Set<String> names = new java.util.HashSet<>(list);
-            for (Station s : all) if (names.contains(s.name)) keep.add(s);
+            java.util.Set<String> withGroups = UserStations.activeListGroups();
+            for (Station s : all) {
+                if (names.contains(s.name) || withGroups.contains(GROUPS[groupIndexFor(s.freq)][1])) keep.add(s);
+            }
         } else if (!hiddenGroups.isEmpty()) {
             for (Station s : all) if (!hiddenGroups.contains(GROUPS[groupIndexFor(s.freq)][1])) keep.add(s);
         } else {

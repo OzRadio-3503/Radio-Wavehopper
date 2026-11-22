@@ -667,7 +667,8 @@
     d.hiddenGroups = d.hiddenGroups.filter(g => typeof g === 'string');
     if (!Array.isArray(d.lists)) d.lists = [];
     d.lists = d.lists.filter(l => l && typeof l.name === 'string' && l.name.trim() && Array.isArray(l.stations))
-      .map(l => ({ name: l.name.trim(), stations: l.stations.filter(n => typeof n === 'string'), sort: ['dial', 'az', 'freq'].includes(l.sort) ? l.sort : 'dial' }));
+      .map(l => ({ name: l.name.trim(), stations: l.stations.filter(n => typeof n === 'string'), sort: ['dial', 'az', 'freq'].includes(l.sort) ? l.sort : 'dial',
+        groups: Array.isArray(l.groups) ? l.groups.filter(g => typeof g === 'string') : [] }));
     if (typeof d.activeList !== 'string' || !d.lists.some(l => l.name === d.activeList)) d.activeList = '';
     d.added = d.added.filter(u => u && typeof u.name === 'string' && /^https?:\/\//i.test(u.url || '') && isFinite(u.freq));
     return d;
@@ -920,12 +921,21 @@
   // so stations stay where they always are. If nothing would be left, show
   // everything rather than an empty dial.
   const allStations = stations.slice();
+  // The list that's on (null for All stations). With a list on, the categories
+  // ticked for that list show alongside it, and the list itself acts as one
+  // more category for the group buttons (see goToGroupStep).
+  const showingList = userData.lists.find(l => l.name === userData.activeList) || null;
+  const inShowingList = new Set(showingList ? showingList.stations : []);
   (function applyShowing(){
     const groupName = f => { let g = 0; STATION_GROUPS.forEach((st, i) => { if (st.start <= f + 1e-9) g = i; }); return STATION_GROUPS[g].name; };
-    const hidden = new Set(userData.hiddenGroups);
-    let keep = stations.filter(st => !hidden.has(groupName(st.freq)));
-    const list = userData.lists.find(l => l.name === userData.activeList);
-    if (list) { const names = new Set(list.stations); keep = stations.filter(st => names.has(st.name)); }
+    let keep;
+    if (showingList) {
+      const withGroups = new Set(showingList.groups);
+      keep = stations.filter(st => inShowingList.has(st.name) || withGroups.has(groupName(st.freq)));
+    } else {
+      const hidden = new Set(userData.hiddenGroups);
+      keep = stations.filter(st => !hidden.has(groupName(st.freq)));
+    }
     if (!keep.length || keep.length === stations.length) return;
     stations.length = 0;
     keep.forEach(st => stations.push(st));
@@ -2359,6 +2369,7 @@
   // station it goes to the previous group.
   function goToGroupStep(direction){
     setBandLock(false);   // the speakers go back to browsing by section
+    if (showingList) return goToListSection(direction);
     const n = STATION_GROUPS.length;
     const here = groupIndexFor(currentFreq);
     // A section's first station (the first Australian one when AU only is
@@ -2382,6 +2393,29 @@
     freqReadout.classList.remove('flicker'); void freqReadout.offsetWidth; freqReadout.classList.add('flicker');
     render(landing.freq);
     flashGroupName(group.name);
+    if (navigator.vibrate) { try { navigator.vibrate(15); } catch (e) {} }
+  }
+
+  // With a list on, the sections are: the list itself, then each category
+  // ticked alongside it (its stations that aren't in the list), in dial
+  // order. Same "previous track" rule as above; empty sections are skipped.
+  function goToListSection(direction){
+    const secs = [{ name: showingList.name, list: byFreq.filter(s => inShowingList.has(s.name) && allowed(s)) }];
+    STATION_GROUPS.forEach((g, i) => {
+      const lo = g.start - 1e-9, hi = i + 1 < STATION_GROUPS.length ? STATION_GROUPS[i + 1].start - 1e-9 : Infinity;
+      secs.push({ name: g.name, list: byFreq.filter(s => !inShowingList.has(s.name) && s.freq >= lo && s.freq < hi && allowed(s)) });
+    });
+    const live = secs.filter(x => x.list.length);
+    if (!live.length) return;
+    const cur = nearestStation(currentFreq);
+    let here = live.findIndex(x => x.list.includes(cur));
+    if (here < 0) here = 0;
+    const atStart = live[here].list[0] === cur;
+    const target = (direction < 0 && !atStart) ? here : (((here + direction) % live.length) + live.length) % live.length;
+    const landing = live[target].list[0];
+    freqReadout.classList.remove('flicker'); void freqReadout.offsetWidth; freqReadout.classList.add('flicker');
+    render(landing.freq);
+    flashGroupName(live[target].name);
     if (navigator.vibrate) { try { navigator.vibrate(15); } catch (e) {} }
   }
 
@@ -2840,8 +2874,8 @@
     <div class="ed-list" id="edList"></div>
     <h3>CATEGORIES AND LISTS</h3>
     <label>SHOW<select id="edShow"></select></label>
-    <div class="ed-note">A list shows only its stations: on the dial, the widget and Android Auto. The rest stay saved, just hidden.</div>
-    <div class="ed-note">CATEGORIES SHOWING (untick to hide):</div>
+    <div class="ed-note">A list shows its stations (plus any categories you tick for it) on the dial, the widget and Android Auto, and the group buttons treat it as a category. The rest stay saved, just hidden.</div>
+    <div class="ed-note" id="edCatsNote">CATEGORIES SHOWING (untick to hide):</div>
     <div class="ed-checks" id="edCats"></div>
     <div class="ed-row"><button type="button" class="ed-btn" id="edCatsAll">SHOW ALL CATEGORIES</button></div>
     <div class="ed-note">YOUR LISTS:</div>
@@ -3235,16 +3269,30 @@
       const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o);
     });
     sel.value = userData.activeList || '';
+    // With a list on, the ticks are the categories shown alongside that list
+    // (none to start with: the list on its own). With All stations, they are
+    // the categories showing.
+    const list = userData.lists.find(l => l.name === userData.activeList) || null;
+    $('edCatsNote').textContent = list ? 'ALSO SHOW WITH “' + list.name + '” (tick to add):' : 'CATEGORIES SHOWING (untick to hide):';
+    $('edCatsAll').textContent = list ? 'JUST THE LIST' : 'SHOW ALL CATEGORIES';
     const cats = $('edCats'); cats.textContent = '';
-    const hidden = new Set(userData.hiddenGroups);
+    const hidden = new Set(userData.hiddenGroups), withList = new Set(list ? list.groups : []);
     STATION_GROUPS.forEach(g => {
       const lab = document.createElement('label');
-      const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = !hidden.has(g.name);
+      const cb = document.createElement('input'); cb.type = 'checkbox';
+      cb.checked = list ? withList.has(g.name) : !hidden.has(g.name);
       cb.addEventListener('change', () => {
-        const h = new Set(userData.hiddenGroups);
-        if (cb.checked) h.delete(g.name); else h.add(g.name);
-        userData.hiddenGroups = STATION_GROUPS.map(x => x.name).filter(n => h.has(n));
-        saveShowing((cb.checked ? 'Showing ' : 'Hiding ') + g.name + '.');
+        if (list) {
+          const w = new Set(list.groups);
+          if (cb.checked) w.add(g.name); else w.delete(g.name);
+          list.groups = STATION_GROUPS.map(x => x.name).filter(n => w.has(n));
+          saveShowing((cb.checked ? 'Showing ' + g.name + ' with ' : 'Not showing ' + g.name + ' with ') + list.name + '.');
+        } else {
+          const h = new Set(userData.hiddenGroups);
+          if (cb.checked) h.delete(g.name); else h.add(g.name);
+          userData.hiddenGroups = STATION_GROUPS.map(x => x.name).filter(n => h.has(n));
+          saveShowing((cb.checked ? 'Showing ' : 'Hiding ') + g.name + '.');
+        }
       });
       lab.append(cb, document.createTextNode(g.name)); cats.appendChild(lab);
     });
@@ -3292,9 +3340,15 @@
   function closeListEditor(){ listEditing = null; $('edListBox').hidden = true; }
   $('edShow').addEventListener('change', () => {
     userData.activeList = $('edShow').value;
-    saveShowing(userData.activeList ? 'Showing only “' + userData.activeList + '”.' : 'Showing all stations.');
+    renderShowing();
+    saveShowing(userData.activeList ? 'Showing “' + userData.activeList + '”.' : 'Showing all stations.');
   });
   $('edCatsAll').addEventListener('click', () => {
+    const list = userData.lists.find(l => l.name === userData.activeList);
+    if (list) {
+      if (!list.groups.length) return showMsg('Already showing just “' + list.name + '”.', 'ok');
+      list.groups = []; renderShowing(); return saveShowing('Showing just “' + list.name + '”.');
+    }
     if (!userData.hiddenGroups.length) return showMsg('All categories are already showing.', 'ok');
     userData.hiddenGroups = []; renderShowing(); saveShowing('All categories showing.');
   });
@@ -3308,7 +3362,8 @@
     if (userData.lists.some(x => x !== listEditing && x.name.toLowerCase() === name.toLowerCase())) return showMsg('There is already a list called “' + name + '”.', 'warn');
     if (!picked.length) return showMsg('Tick at least one station.', 'warn');
     const order = new Map(stations.map((st, i) => [st.name, i]));   // keep them in dial order
-    const rec = { name, stations: picked.slice().sort((a, b) => (order.get(a) ?? 1e9) - (order.get(b) ?? 1e9)), sort: $('edListSort').value };
+    const rec = { name, stations: picked.slice().sort((a, b) => (order.get(a) ?? 1e9) - (order.get(b) ?? 1e9)), sort: $('edListSort').value,
+      groups: listEditing && listEditing.groups ? listEditing.groups : [] };
     const wasActive = listEditing && listEditing.name && userData.activeList === listEditing.name;
     if (listEditing && listEditing.name) userData.lists = userData.lists.map(x => x === listEditing ? rec : x);
     else userData.lists = userData.lists.concat([rec]);
@@ -3468,7 +3523,8 @@
       if (!l || !str(l.name, 30) || !l.name.trim() || !Array.isArray(l.stations)) return;
       if (lists.some(x => x.name.toLowerCase() === l.name.trim().toLowerCase())) return;
       lists.push({ name: l.name.trim(), stations: l.stations.filter(n => str(n, 60)).slice(0, 500),
-        sort: ['dial', 'az', 'freq'].includes(l.sort) ? l.sort : 'dial' });
+        sort: ['dial', 'az', 'freq'].includes(l.sort) ? l.sort : 'dial',
+        groups: Array.isArray(l.groups) ? l.groups.filter(g => groupNames.has(g)) : [] });
     });
     const activeList = typeof d.activeList === 'string' && lists.some(l => l.name === d.activeList) ? d.activeList : '';
     return { added, hidden, edited, names: keptNames, hiddenGroups, lists, activeList, logos, dropped };

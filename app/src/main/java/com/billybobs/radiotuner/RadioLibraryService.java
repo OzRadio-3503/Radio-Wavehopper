@@ -572,6 +572,7 @@ public class RadioLibraryService extends MediaLibraryService {
      */
     private void jumpGroup(int direction) {
         if (stations == null || stations.isEmpty()) return;
+        if (UserStations.activeListName() != null) { jumpListSection(direction); return; }
         int current = currentStationIndex();
         if (current < 0) current = savedStationIndex();
         if (current < 0) current = 0;
@@ -647,8 +648,21 @@ public class RadioLibraryService extends MediaLibraryService {
      * Next/previous still follow the dial.
      */
     private List<StationLibrary.Station> browseOrder() {
-        List<StationLibrary.Station> out = new ArrayList<>(stations);
-        String sort = UserStations.activeListName() == null ? "dial" : UserStations.activeListSort();
+        if (UserStations.activeListName() != null) {
+            // The list's stations first (in its order), then any categories
+            // shown with it, in dial order.
+            java.util.Set<String> inList = new java.util.HashSet<>(UserStations.activeListStations());
+            List<StationLibrary.Station> mine = new ArrayList<>(), rest = new ArrayList<>();
+            for (StationLibrary.Station st : stations) (inList.contains(st.name) ? mine : rest).add(st);
+            mine = sortedForList(mine, UserStations.activeListSort());
+            mine.addAll(rest);
+            return mine;
+        }
+        return new ArrayList<>(stations);
+    }
+
+    private static List<StationLibrary.Station> sortedForList(List<StationLibrary.Station> in, String sort) {
+        List<StationLibrary.Station> out = new ArrayList<>(in);
         if ("az".equals(sort)) {
             java.util.Collections.sort(out, (a, b) -> a.name.compareToIgnoreCase(b.name));
         } else if ("freq".equals(sort)) {
@@ -663,6 +677,44 @@ public class RadioLibraryService extends MediaLibraryService {
             });
         }
         return out;
+    }
+
+    /**
+     * With one of your lists on, the double arrows move between sections: the
+     * list itself first, then each category shown with it (its stations that
+     * aren't in the list), in dial order, wrapping round. Each section opens
+     * on the last station played in it, or its first. Sections with nothing
+     * showing are skipped.
+     */
+    private void jumpListSection(int direction) {
+        String listName = UserStations.activeListName();
+        java.util.Set<String> inList = new java.util.HashSet<>(UserStations.activeListStations());
+        List<String> labels = new ArrayList<>();
+        List<List<Integer>> secs = new ArrayList<>();
+        List<Integer> first = new ArrayList<>();
+        for (int i = 0; i < stations.size(); i++) if (inList.contains(stations.get(i).name)) first.add(i);
+        if (!first.isEmpty()) { labels.add(listName); secs.add(first); }
+        for (int g = 0; g < StationLibrary.GROUPS.length; g++) {
+            List<Integer> sec = new ArrayList<>();
+            for (int i = 0; i < stations.size(); i++) {
+                StationLibrary.Station st = stations.get(i);
+                if (!inList.contains(st.name) && StationLibrary.groupIndexFor(st.freq) == g) sec.add(i);
+            }
+            if (!sec.isEmpty()) { labels.add(StationLibrary.GROUPS[g][1]); secs.add(sec); }
+        }
+        if (secs.isEmpty()) return;
+        int current = currentStationIndex();
+        int here = 0;
+        for (int k = 0; k < secs.size(); k++) if (secs.get(k).contains(current)) { here = k; break; }
+        int n = secs.size();
+        int target = ((here + direction) % n + n) % n;
+        List<Integer> sec = secs.get(target);
+        String key = KEY_LAST_IN_GROUP_PREFIX + (target == 0 && !first.isEmpty() ? "list:" + listName : labels.get(target));
+        int r = indexOfStationNamed(getSharedPreferences(PREFS, MODE_PRIVATE).getString(key, null));
+        int idx = sec.contains(r) ? r : sec.get(0);
+        DiagLog.log("carUI jumpListSection: " + labels.get(here) + " -> " + labels.get(target)
+                + " (" + stations.get(idx).name + (idx == r ? ", last played" : ", first") + ")");
+        if (idx != current) tuneTo(idx);
     }
 
     /** Whether any showing station is in this car band ("am", "fm" or "dabnet"). */
@@ -1056,6 +1108,11 @@ public class RadioLibraryService extends MediaLibraryService {
                         BandMemory.remember(RadioLibraryService.this, StationLibrary.realBand(s), s.name);
                         // And the last station in its group, for the double
                         // arrows on All stations.
+                        String ln = UserStations.activeListName();
+                        if (ln != null && UserStations.activeListStations().contains(s.name)) {
+                            getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                                    .putString(KEY_LAST_IN_GROUP_PREFIX + "list:" + ln, s.name).apply();
+                        }
                         int g = StationLibrary.groupIndexFor(s.freq);
                         if (g >= 0 && g < StationLibrary.GROUPS.length) {
                             getSharedPreferences(PREFS, MODE_PRIVATE).edit()

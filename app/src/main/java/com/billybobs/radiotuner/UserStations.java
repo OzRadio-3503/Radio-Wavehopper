@@ -41,6 +41,7 @@ public final class UserStations {
     private static volatile String activeListName = null;
     private static volatile List<String> activeListStations = null;
     private static volatile String activeListSort = "dial";
+    private static volatile java.util.Set<String> activeListGroups = new java.util.HashSet<>();
 
     private UserStations() {}
 
@@ -51,6 +52,8 @@ public final class UserStations {
     static List<String> activeListStations() { return activeListStations; }
     /** "dial", "az" or "freq". */
     static String activeListSort() { return activeListSort; }
+    /** Categories shown alongside the list that's on (empty: the list on its own). */
+    static java.util.Set<String> activeListGroups() { return activeListGroups; }
 
     /** Load once per process (safe to call from anywhere, repeatedly). */
     public static void ensure(Context context) {
@@ -127,6 +130,7 @@ public final class UserStations {
         java.util.Set<String> hg = new java.util.HashSet<>();
         String alName = null, alSort = "dial";
         List<String> alStations = null;
+        java.util.Set<String> alGroups = new java.util.HashSet<>();
         try {
             if (json != null && !json.isEmpty()) {
                 JSONObject root = new JSONObject(json);
@@ -159,6 +163,8 @@ public final class UserStations {
                         List<String> names = new ArrayList<>();
                         if (st != null) for (int j = 0; j < st.length(); j++) { String n = st.optString(j, ""); if (!n.isEmpty()) names.add(n); }
                         alName = active; alStations = names;
+                        JSONArray gs = l.optJSONArray("groups");
+                        if (gs != null) for (int j = 0; j < gs.length(); j++) { String g = gs.optString(j, ""); if (!g.isEmpty()) alGroups.add(g); }
                         String so = l.optString("sort", "dial");
                         alSort = ("az".equals(so) || "freq".equals(so)) ? so : "dial";
                         break;
@@ -186,7 +192,9 @@ public final class UserStations {
             nm = new java.util.HashMap<>();
             hg = new java.util.HashSet<>();
             alName = null; alStations = null; alSort = "dial";
+            alGroups = new java.util.HashSet<>();
         }
+        activeListGroups = alGroups;
         hiddenGroups = hg;
         activeListName = alName;
         activeListStations = alStations;
