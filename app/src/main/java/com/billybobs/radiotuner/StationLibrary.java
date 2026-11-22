@@ -346,13 +346,13 @@ public final class StationLibrary {
     public static final String[][] GROUPS = {
         {"87.5", "Sport"},
         {"88.4", "Talk"},
-        {"90.0", "NSW (and ACT)"},
-        {"93.4", "Victoria"},
-        {"95.0", "Queensland"},
-        {"96.4", "South Australia"},
-        {"97.4", "Western Australia"},
-        {"98.2", "Tasmania"},
-        {"99.0", "Northern Territory"},
+        {"90.0", "NSW (and ACT) \u2013 music & community"},
+        {"93.4", "Victoria \u2013 music & community"},
+        {"95.0", "Queensland \u2013 music & community"},
+        {"96.4", "South Australia \u2013 music & community"},
+        {"97.4", "Western Australia \u2013 music & community"},
+        {"98.2", "Tasmania \u2013 music & community"},
+        {"99.0", "Northern Territory \u2013 music & community"},
         {"99.1", "Australia (national)"},
         {"99.2", "New Zealand"},
         {"99.7", "Pacific"},
@@ -446,8 +446,7 @@ public final class StationLibrary {
 
     /**
      * The stations that show, in dial order: built-ins plus the listener's
-     * own, minus hidden categories - or, when one of the listener's lists is
-     * on, only that list's stations. Same rules as the page; if nothing would
+     * own - or, when the phone's list is on, only that list's stations. Same rules as the page; if nothing would
      * be left, everything shows rather than nothing.
      */
     public static List<Station> getStations() {
@@ -460,18 +459,13 @@ public final class StationLibrary {
     }
 
     private static List<Station> showing(List<Station> all, UserStations.Showing list) {
+        // All stations, or only your list's (My phone stations / My car
+        // stations). Categories are no longer ticked or hidden: settings saved
+        // by an older version that still carry them are simply ignored.
+        if (list == null) return all;
         List<Station> keep = new java.util.ArrayList<>();
-        if (list != null) {
-            // The list's stations, plus the categories ticked to show with it.
-            java.util.Set<String> names = new java.util.HashSet<>(list.stations);
-            for (Station s : all) {
-                if (names.contains(s.name) || list.groups.contains(GROUPS[groupIndexFor(s.freq)][1])) keep.add(s);
-            }
-        } else {
-            java.util.Set<String> hiddenGroups = UserStations.hiddenGroups();
-            if (hiddenGroups.isEmpty()) return all;
-            for (Station s : all) if (!hiddenGroups.contains(GROUPS[groupIndexFor(s.freq)][1])) keep.add(s);
-        }
+        java.util.Set<String> names = new java.util.HashSet<>(list.stations);
+        for (Station s : all) if (names.contains(s.name)) keep.add(s);
         return keep.isEmpty() ? all : keep;
     }
 

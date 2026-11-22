@@ -655,6 +655,44 @@
     '13A':230.784,'13B':232.496,'13C':234.208,'13D':235.776,'13E':237.488,'13F':239.200
   };
 
+  // ---- Your two lists ----------------------------------------------
+  // The phone and Android Auto can each show all stations or their own list.
+  // Settings from older versions (several named lists, categories ticked with
+  // them) become the two lists: the list Android Auto showed becomes My car
+  // stations; every other list is merged into My phone stations (each station
+  // once). Whatever each one showed - all stations, a list, same as phone -
+  // stays that way. Used on start-up and when a backup is imported.
+  const PHONE_LIST = 'My phone stations', CAR_LIST = 'My car stations';
+  function twoLists(lists, activeList, carList){
+    const clean = (Array.isArray(lists) ? lists : []).filter(l => l && typeof l.name === 'string' && l.name.trim() && Array.isArray(l.stations))
+      .map(l => ({ name: l.name.trim(), stations: l.stations.filter(n => typeof n === 'string'), sort: l.sort }));
+    const uniq = a => a.filter((n, i) => a.indexOf(n) === i);
+    const sortOf = v => v === 'az' ? 'az' : 'freq';   // "dial order" is now "by frequency"
+    const out = [];
+    // Already the two lists: keep them as they are.
+    if (clean.every(l => l.name === PHONE_LIST || l.name === CAR_LIST)) {
+      [PHONE_LIST, CAR_LIST].forEach(n => {
+        const l = clean.find(x => x.name === n);
+        if (l && l.stations.length) out.push({ name: n, stations: uniq(l.stations), sort: sortOf(l.sort), groups: [] });
+      });
+      const has = n => out.some(l => l.name === n);
+      return { lists: out, activeList: activeList === PHONE_LIST && has(PHONE_LIST) ? PHONE_LIST : '',
+        carList: carList === CAR_LIST && has(CAR_LIST) ? CAR_LIST : (carList === '*' ? '*' : '') };
+    }
+    const car = typeof carList === 'string' && carList !== '*' ? clean.find(l => l.name === carList) || null : null;
+    const act = typeof activeList === 'string' ? clean.find(l => l.name === activeList) || null : null;
+    const phoneFrom = clean.filter(l => l !== car || l === act);
+    const phoneStations = uniq([].concat(...phoneFrom.map(l => l.stations)));
+    if (phoneStations.length) out.push({ name: PHONE_LIST, stations: phoneStations, sort: sortOf((act && act !== car ? act : phoneFrom[0] || {}).sort), groups: [] });
+    if (car && car.stations.length) out.push({ name: CAR_LIST, stations: uniq(car.stations), sort: sortOf(car.sort), groups: [] });
+    return {
+      lists: out,
+      activeList: act && phoneStations.length ? PHONE_LIST : '',
+      // Android Auto: '' = same as the phone, '*' = all stations, or its own list.
+      carList: car && car.stations.length ? CAR_LIST : (carList === '*' ? '*' : '')
+    };
+  }
+
   // Stations the listener added on the Edit screen (pencil icon). Stored on
   // the phone only: in the app by AndroidBridge, on the website in
   // localStorage. The phone player merges the same list (UserStations.java).
@@ -669,16 +707,14 @@
     if (!Array.isArray(d.added)) d.added = [];
     if (!Array.isArray(d.hidden)) d.hidden = [];
     if (!d.edited || typeof d.edited !== 'object' || Array.isArray(d.edited)) d.edited = {};
-    // What shows: categories hidden by name, your lists, and which list is on.
-    if (!Array.isArray(d.hiddenGroups)) d.hiddenGroups = [];
-    d.hiddenGroups = d.hiddenGroups.filter(g => typeof g === 'string');
-    if (!Array.isArray(d.lists)) d.lists = [];
-    d.lists = d.lists.filter(l => l && typeof l.name === 'string' && l.name.trim() && Array.isArray(l.stations))
-      .map(l => ({ name: l.name.trim(), stations: l.stations.filter(n => typeof n === 'string'), sort: ['dial', 'az', 'freq'].includes(l.sort) ? l.sort : 'dial',
-        groups: Array.isArray(l.groups) ? l.groups.filter(g => typeof g === 'string') : [] }));
-    if (typeof d.activeList !== 'string' || !d.lists.some(l => l.name === d.activeList)) d.activeList = '';
-    // What Android Auto shows: '' = same as the phone, '*' = all stations, or a list.
-    if (typeof d.carList !== 'string' || (d.carList !== '*' && !d.lists.some(l => l.name === d.carList))) d.carList = '';
+    // What shows: all stations, or your own list - one for the phone ("My
+    // phone stations") and one for Android Auto ("My car stations"). Older
+    // versions had any number of named lists and category ticks; they're
+    // folded into the two lists here (see twoLists).
+    const before = JSON.stringify([d.lists, d.activeList, d.carList, d.hiddenGroups]);
+    Object.assign(d, twoLists(d.lists, d.activeList, d.carList));
+    d.hiddenGroups = [];
+    d._migrated = before !== JSON.stringify([d.lists, d.activeList, d.carList, d.hiddenGroups]);
     // Default sleep timer in minutes (0 = off), started by any play on the phone.
     if (![10, 30, 60, 120].includes(d.sleepDefault)) d.sleepDefault = 0;
     d.added = d.added.filter(u => u && typeof u.name === 'string' && /^https?:\/\//i.test(u.url || '') && isFinite(u.freq));
@@ -693,7 +729,8 @@
   // is applied. Entries saved before names existed are matched here by the key
   // they were saved under; LEGACY_KEY_NAMES lists built-ins that have moved.
   const LEGACY_KEY_NAMES = { '90.08': 'Station X', '87.50': 'talkSPORT', '99.10': 'Triple J Hottest' };
-  let userDataChanged = false;
+  let userDataChanged = !!userData._migrated;
+  delete userData._migrated;
   if (!userData.names || typeof userData.names !== 'object' || Array.isArray(userData.names)) { userData.names = {}; }
   (function rekeySavedEdits(){
     const byKey = {}, byName = {};
@@ -742,13 +779,13 @@
   const STATION_GROUPS = [
     {name:"Sport", start:87.5},
     {name:"Talk", start:88.4},
-    {name:"NSW (and ACT)", start:90.0},
-    {name:"Victoria", start:93.4},
-    {name:"Queensland", start:95.0},
-    {name:"South Australia", start:96.4},
-    {name:"Western Australia", start:97.4},
-    {name:"Tasmania", start:98.2},
-    {name:"Northern Territory", start:99.0},
+    {name:"NSW (and ACT) – music & community", start:90.0},
+    {name:"Victoria – music & community", start:93.4},
+    {name:"Queensland – music & community", start:95.0},
+    {name:"South Australia – music & community", start:96.4},
+    {name:"Western Australia – music & community", start:97.4},
+    {name:"Tasmania – music & community", start:98.2},
+    {name:"Northern Territory – music & community", start:99.0},
     {name:"Australia (national)", start:99.1},
     {name:"New Zealand", start:99.2},
     {name:"Pacific", start:99.7},
@@ -926,27 +963,18 @@
   })();
 
   // ---- What shows on the dial ----------------------------------------
-  // Hidden categories drop out, and when one of your lists is on, only its
-  // stations show (whatever their category). Nothing is deleted: the full
-  // list is kept for the station editor, and the dial keeps its full width
-  // so stations stay where they always are. If nothing would be left, show
-  // everything rather than an empty dial.
+  // All stations, or with My phone stations on, only those. Nothing is
+  // deleted: the full list is kept for the station editor, and the dial keeps
+  // its full width so stations stay where they always are. If nothing would
+  // be left, show everything rather than an empty dial.
   const allStations = stations.slice();
-  // The list that's on (null for All stations). With a list on, the categories
-  // ticked for that list show alongside it, and the list itself acts as one
-  // more category for the group buttons (see goToGroupStep).
+  // The list that's on (null for All stations). With it on, the group
+  // buttons jump through it in thirds (see goToListSection).
   const showingList = userData.lists.find(l => l.name === userData.activeList) || null;
   const inShowingList = new Set(showingList ? showingList.stations : []);
   (function applyShowing(){
-    const groupName = f => { let g = 0; STATION_GROUPS.forEach((st, i) => { if (st.start <= f + 1e-9) g = i; }); return STATION_GROUPS[g].name; };
-    let keep;
-    if (showingList) {
-      const withGroups = new Set(showingList.groups);
-      keep = stations.filter(st => inShowingList.has(st.name) || withGroups.has(groupName(st.freq)));
-    } else {
-      const hidden = new Set(userData.hiddenGroups);
-      keep = stations.filter(st => !hidden.has(groupName(st.freq)));
-    }
+    if (!showingList) return;
+    const keep = stations.filter(st => inShowingList.has(st.name));
     if (!keep.length || keep.length === stations.length) return;
     stations.length = 0;
     keep.forEach(st => stations.push(st));
@@ -2379,7 +2407,9 @@
   }
 
   function flashGroupName(name){
-    groupBadge.textContent = name;
+    // The big display has room for a short name: "South Australia", not
+    // "South Australia – music & community".
+    groupBadge.textContent = String(name).split(' – ')[0];
     groupBadge.parentElement.classList.add('showing-group');
     clearTimeout(groupBadgeTimer);
     groupBadgeTimer = setTimeout(hideGroupName, 2500);
@@ -2417,26 +2447,25 @@
     if (navigator.vibrate) { try { navigator.vibrate(15); } catch (e) {} }
   }
 
-  // With a list on, the sections are: the list itself, then each category
-  // ticked alongside it (its stations that aren't in the list), in dial
-  // order. Same "previous track" rule as above; empty sections are skipped.
+  // With My phone stations on there are no categories: the group buttons jump
+  // through the list in thirds (start, 1/3, 2/3, back to the start), in dial
+  // order - the same as Android Auto. Same "previous track" rule as above:
+  // from partway through a third, back goes to that third's start first.
   function goToListSection(direction){
-    const secs = [{ name: showingList.name, list: byFreq.filter(s => inShowingList.has(s.name) && allowed(s)) }];
-    STATION_GROUPS.forEach((g, i) => {
-      const lo = g.start - 1e-9, hi = i + 1 < STATION_GROUPS.length ? STATION_GROUPS[i + 1].start - 1e-9 : Infinity;
-      secs.push({ name: g.name, list: byFreq.filter(s => !inShowingList.has(s.name) && s.freq >= lo && s.freq < hi && allowed(s)) });
-    });
-    const live = secs.filter(x => x.list.length);
-    if (!live.length) return;
+    const list = byFreq.filter(s => inShowingList.has(s.name) && allowed(s));
+    const n = list.length;
+    if (!n) return;
+    const parts = Math.min(3, n);
+    const starts = []; for (let k = 0; k < parts; k++) starts.push(Math.floor(k * n / parts));
     const cur = nearestStation(currentFreq);
-    let here = live.findIndex(x => x.list.includes(cur));
-    if (here < 0) here = 0;
-    const atStart = live[here].list[0] === cur;
-    const target = (direction < 0 && !atStart) ? here : (((here + direction) % live.length) + live.length) % live.length;
-    const landing = live[target].list[0];
+    const p = list.indexOf(cur);
+    let s = 0;
+    if (p >= 0) starts.forEach((st, k) => { if (st <= p) s = k; });
+    const target = p < 0 ? 0 : (direction < 0 && p !== starts[s]) ? s : (((s + direction) % parts) + parts) % parts;
+    const landing = list[starts[target]];
     freqReadout.classList.remove('flicker'); void freqReadout.offsetWidth; freqReadout.classList.add('flicker');
     render(landing.freq);
-    flashGroupName(live[target].name);
+    flashGroupName(parts > 1 ? ['Start', '1/3', '2/3'][target] : 'Start');
     if (navigator.vibrate) { try { navigator.vibrate(15); } catch (e) {} }
   }
 
@@ -2721,7 +2750,7 @@
   } else {
     render(openingFreq, {initial:true});
   }
-  window.__wh = { stations: allStations, STATION_GROUPS, DAB_BLOCKS, LEGACY_KEY_NAMES, userData, getBandLock: () => bandLock, getCurrentFreq: () => currentFreq };
+  window.__wh = { stations: allStations, STATION_GROUPS, DAB_BLOCKS, LEGACY_KEY_NAMES, userData, twoLists, PHONE_LIST, CAR_LIST, getBandLock: () => bandLock, getCurrentFreq: () => currentFreq };
   // Closing the Edit screen reloads the page; keep Band Lock on across that one reload.
   try {
     if (sessionStorage.getItem('wh_keep_lock') === '1') { sessionStorage.removeItem('wh_keep_lock'); setBandLock(true); }
@@ -2757,15 +2786,15 @@
 (function(){
   const wh = window.__wh;
   if (!wh) return;
-  const { stations, STATION_GROUPS, DAB_BLOCKS, LEGACY_KEY_NAMES, userData } = wh;
+  const { stations, STATION_GROUPS, DAB_BLOCKS, LEGACY_KEY_NAMES, userData, twoLists, PHONE_LIST, CAR_LIST } = wh;
   const KEY = 'user_stations_v1';
   const native = !!(window.AndroidBridge && window.AndroidBridge.saveUserStations);
   let dirty = false, testing = false, testAudio = null;
   let editing = null;   // the station being edited, or null when adding
 
   const REGION_FOR_GROUP = {
-    'NSW (and ACT)':'NSW', 'Victoria':'VIC', 'Queensland':'QLD', 'South Australia':'SA',
-    'Western Australia':'WA', 'Tasmania':'TAS', 'Northern Territory':'NT',
+    'NSW (and ACT) – music & community':'NSW', 'Victoria – music & community':'VIC', 'Queensland – music & community':'QLD', 'South Australia – music & community':'SA',
+    'Western Australia – music & community':'WA', 'Tasmania – music & community':'TAS', 'Northern Territory – music & community':'NT',
     'Australia (national)':'AU', 'New Zealand':'NZ', 'Singapore':'SG', 'South Africa':'ZA',
     'UK':'UK', 'France':'FR', 'Germany':'DE', 'USA':'US'
   };
@@ -2878,6 +2907,24 @@
   #editScreen .ed-item .f{ color:var(--lcd-text); min-width:52px; }
   #editScreen .ed-item .n{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   #editScreen .ed-item .x{ background:none; border:1px solid #4a4a55; color:#e8e8ec; border-radius:5px; padding:5px 9px; font-size:11px; cursor:pointer; }
+  /* Collapsed sections: tap a heading to open it. */
+  #editScreen .ed-sec{ border:1px solid #2c2c35; border-radius:8px; background:#17171c; }
+  #editScreen .ed-sec > summary{ list-style:none; cursor:pointer; padding:13px 14px; display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 10px; -webkit-tap-highlight-color:transparent; }
+  #editScreen .ed-sec > summary::-webkit-details-marker{ display:none; }
+  #editScreen .ed-sec > summary::before{ content:'\\25B8'; color:var(--chrome-2); font-size:11px; }
+  #editScreen .ed-sec[open] > summary::before{ content:'\\25BE'; }
+  #editScreen .ed-sec > summary .t{ font-size:12px; letter-spacing:2px; color:var(--lcd-text); }
+  #editScreen .ed-sec > summary .s{ font-size:11px; color:#9a9aa6; letter-spacing:.3px; flex-basis:100%; padding-left:18px; }
+  #editScreen .ed-sec > summary .s:empty{ display:none; }
+  #editScreen .ed-body{ display:flex; flex-direction:column; gap:12px; padding:2px 14px 14px; }
+  #editScreen .ed-sub{ font-size:10px; letter-spacing:2px; color:var(--chrome-2); margin-top:4px; }
+  #editScreen .ed-radios{ display:flex; flex-direction:column; gap:8px; }
+  #editScreen .ed-radios label{ flex-direction:row; align-items:center; gap:10px; font-size:14px; letter-spacing:.3px; color:#e8e8ec; }
+  #editScreen .ed-radios input{ width:18px; height:18px; margin:0; flex:none; }
+  #editScreen .ed-radios .cnt{ color:#9a9aa6; font-size:12px; }
+  #editScreen .ed-more{ border-top:1px dashed #2c2c35; }
+  #editScreen .ed-more > summary{ cursor:pointer; padding:10px 0 4px; font-size:10px; letter-spacing:1.5px; color:var(--chrome-2); }
+  #editScreen .ed-more .ed-body{ padding:8px 0 0; }
   `;
   document.head.appendChild(css);
 
@@ -2891,70 +2938,102 @@
   scr.innerHTML = `
   <div class="ed-wrap">
     <div class="ed-head"><h2>SETTINGS</h2><button type="button" class="ed-close" id="edClose">CLOSE</button></div>
-    <h3>EDIT OR DELETE A STATION</h3>
-    <div class="ed-row"><label style="flex-basis:100%">DIAL NUMBER<input type="number" id="edFind" inputmode="decimal" step="0.01" placeholder="90.08"></label><button type="button" class="ed-btn" id="edFindBtn">FIND</button><button type="button" class="ed-btn" id="edCurBtn">THIS ONE</button></div>
-    <div class="ed-msg" id="edFindMsg"></div>
-    <h3 id="edTitle">ADD A STATION</h3>
-    <label>STATION NAME<input type="text" id="edName" maxlength="40" autocomplete="off" placeholder="e.g. My Local Radio"></label>
-    <div class="ed-row">
-      <label>CATEGORY<select id="edGroup"></select></label>
-      <label>REGION<select id="edRegion"></select></label>
-    </div>
-    <div class="ed-row">
-      <label>BAND<select id="edBand"><option value="net">Internet</option><option value="fm">FM</option><option value="am">AM</option><option value="dab">DAB+</option></select></label>
-      <label id="edFreqWrap" hidden><span id="edFreqLbl">FREQUENCY (MHz)</span><input type="number" id="edFreq" inputmode="decimal" step="0.1" placeholder="101.7"></label>
-      <label id="edDabWrap" hidden>DAB+ BLOCK<select id="edDab"></select></label>
-    </div>
-    <label>STREAMING URL<input type="url" id="edUrl" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://..."></label>
-    <div class="ed-row"><button type="button" class="ed-btn" id="edTest">&#9654; TEST STREAM</button><div class="ed-msg" id="edTestMsg" style="flex:1"></div></div>
-    <div id="edLogoBox" hidden>
-      <h3>LOGO (ANDROID AUTO AND WIDGETS)</h3>
-      <div class="ed-logo"><img id="edLogoImg" alt="" width="72" height="72"><div class="ed-note" id="edLogoState">Default logo</div></div>
-      <div class="ed-row"><button type="button" class="ed-btn" id="edLogoPick">UPLOAD FROM PHONE</button><button type="button" class="ed-btn" id="edLogoClear">USE DEFAULT</button></div>
-      <div class="ed-row"><label style="flex-basis:100%">STATION WEBSITE<input type="text" id="edSite" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="example.com.au"></label><button type="button" class="ed-btn" id="edLogoFetch" style="flex-basis:100%">FETCH LOGO FROM WEBSITE</button></div>
-      <div class="ed-msg" id="edLogoMsg"></div>
-      <p class="ed-note">Logos stay on this phone and are saved when you save the station. Please only use logos you have the right to use; station logos belong to their owners.</p>
-    </div>
-    <div class="ed-slot"><span>DIAL</span><b id="edSlotShow">--</b><label><input type="checkbox" id="edManual"> choose it myself</label></div>
-    <label id="edSlotWrap" hidden>DIAL POSITION<input type="number" id="edSlot" inputmode="decimal" step="0.01" placeholder="90.04"></label>
-    <label id="edToListWrap">ADD TO LIST<select id="edToList"></select></label>
-    <div class="ed-msg" id="edMsg"></div>
-    <button type="button" class="ed-btn primary" id="edAdd">ADD STATION</button>
-    <div class="ed-row" id="edEditBtns" hidden><button type="button" class="ed-btn" id="edDelete" style="color:var(--warn);border-color:var(--warn)">DELETE STATION</button><button type="button" class="ed-btn" id="edCancel">CANCEL</button></div>
-    <h3>YOUR STATIONS</h3>
-    <div class="ed-list" id="edList"></div>
-    <h3>CATEGORIES AND LISTS</h3>
-    <label>PHONE SHOWS<select id="edShow"></select></label>
-    <label>ANDROID AUTO SHOWS<select id="edCarShow"></select></label>
-    <div class="ed-note">A list shows its stations (plus any categories you tick for it), and the group buttons treat it as a category. The phone and Android Auto can each show a different list. The rest stay saved, just hidden.</div>
-    <div class="ed-note" id="edCatsNote">CATEGORIES SHOWING (untick to hide):</div>
-    <div class="ed-checks" id="edCats"></div>
-    <div class="ed-row"><button type="button" class="ed-btn" id="edCatsAll">SHOW ALL CATEGORIES</button></div>
-    <div class="ed-note">YOUR LISTS:</div>
-    <div class="ed-list" id="edLists"></div>
-    <div class="ed-row"><button type="button" class="ed-btn" id="edListNew">NEW LIST</button></div>
-    <div id="edListBox" hidden>
-      <label>LIST NAME<input type="text" id="edListName" maxlength="30" autocomplete="off" placeholder="e.g. Dad"></label>
-      <label>ORDER (IN ANDROID AUTO'S LIST)<select id="edListSort"><option value="dial">Dial order</option><option value="az">A to Z</option><option value="freq">By frequency</option></select></label>
-      <label>FIND<input type="text" id="edListFind" autocomplete="off" placeholder="type to filter stations"></label>
-      <div class="ed-pick" id="edListPick"></div>
-      <div class="ed-row"><button type="button" class="ed-btn primary" id="edListSave">SAVE LIST</button><button type="button" class="ed-btn" id="edListCancel">CANCEL</button><button type="button" class="ed-btn" id="edListDel" style="color:var(--warn);border-color:var(--warn)">DELETE LIST</button></div>
-    </div>
-    <div class="ed-msg" id="edShowMsg"></div>
-    <h3>SLEEP TIMER</h3>
-    <label>DEFAULT SLEEP<select id="edSleep"><option value="0">Off</option><option value="10">10 minutes</option><option value="30">30 minutes</option><option value="60">60 minutes</option><option value="120">120 minutes</option></select></label>
-    <div class="ed-note">Counts down whenever the radio starts playing on this phone (in the app, the widget or the notification), unless a timer is already running. Changing station doesn't restart it; pausing ends it, and the next play starts it again. Never in Android Auto. Hold the RADIO WAVEHOPPER badge to change it for now.</div>
-    <div class="ed-msg" id="edSleepMsg"></div>
-    <h3>BACKUP</h3>
-    <div class="ed-row"><button type="button" class="ed-btn" id="edExport">SAVE TO PHONE</button><button type="button" class="ed-btn" id="edShare">SHARE BACKUP</button></div>
-    <div class="ed-row"><button type="button" class="ed-btn" id="edImport">IMPORT BACKUP</button></div>
-    <input type="file" id="edImportFile" accept=".json,application/json" hidden>
-    <div class="ed-row" id="edImportGoRow" hidden><button type="button" class="ed-btn primary" id="edImportGo">REPLACE WITH THIS BACKUP</button><button type="button" class="ed-btn" id="edImportNo">CANCEL</button></div>
-    <div class="ed-msg" id="edBackupMsg"></div>
-    <h3>RESET</h3>
-    <button type="button" class="ed-btn" id="edReset">RESET TO DEFAULTS</button>
-    <div class="ed-msg" id="edResetMsg"></div>
-    <p class="ed-note">Your changes stay on this phone only. Reset puts back every built-in station and removes the ones you added, with your custom logos. New stations are placed on the dial automatically inside their category. Android Auto shows them the next time the car connects. Please only add streams you are happy to listen to. Station logos belong to their owners.</p>
+
+    <details class="ed-sec" id="secShow">
+      <summary><span class="t">STATIONS TO SHOW</span><span class="s" id="sumShow"></span></summary>
+      <div class="ed-body">
+        <div class="ed-sub">PHONE</div>
+        <div class="ed-radios">
+          <label><input type="radio" name="edShowR" value=""> All stations</label>
+          <label><input type="radio" name="edShowR" value="list"> My phone stations <span class="cnt" id="cntP"></span></label>
+        </div>
+        <button type="button" class="ed-btn" id="edPickP">CHOOSE PHONE STATIONS…</button>
+        <div class="ed-sub">ANDROID AUTO</div>
+        <div class="ed-radios">
+          <label><input type="radio" name="edCarR" value=""> Same as phone</label>
+          <label><input type="radio" name="edCarR" value="*"> All stations</label>
+          <label><input type="radio" name="edCarR" value="list"> My car stations <span class="cnt" id="cntC"></span></label>
+        </div>
+        <button type="button" class="ed-btn" id="edPickC">CHOOSE CAR STATIONS…</button>
+        <div id="edListBox" hidden>
+          <div class="ed-sub" id="edListTitle"></div>
+          <label>ORDER<select id="edListSort"><option value="freq">By frequency</option><option value="az">A to Z</option></select></label>
+          <label>FIND<input type="text" id="edListFind" autocomplete="off" placeholder="type to filter stations"></label>
+          <div class="ed-pick" id="edListPick"></div>
+          <div class="ed-row"><button type="button" class="ed-btn primary" id="edListSave">SAVE</button><button type="button" class="ed-btn" id="edListCancel">CANCEL</button></div>
+        </div>
+        <div class="ed-msg" id="edShowMsg"></div>
+        <div class="ed-note">Your own stations show alone, with no categories. The speaker buttons then jump through them in thirds.</div>
+      </div>
+    </details>
+
+    <details class="ed-sec" id="secStation">
+      <summary><span class="t">ADD OR EDIT A STATION</span><span class="s" id="sumStation"></span></summary>
+      <div class="ed-body">
+        <div class="ed-row"><label style="flex-basis:100%">FIND BY DIAL NUMBER<input type="number" id="edFind" inputmode="decimal" step="0.01" placeholder="90.08"></label><button type="button" class="ed-btn" id="edFindBtn">FIND</button><button type="button" class="ed-btn" id="edCurBtn">THIS ONE</button></div>
+        <div class="ed-msg" id="edFindMsg"></div>
+        <div class="ed-sub" id="edTitle">ADD A STATION</div>
+        <label>STATION NAME<input type="text" id="edName" maxlength="40" autocomplete="off" placeholder="e.g. My Local Radio"></label>
+        <div class="ed-row">
+          <label>CATEGORY<select id="edGroup"></select></label>
+          <label>BAND<select id="edBand"><option value="net">Internet</option><option value="fm">FM</option><option value="am">AM</option><option value="dab">DAB+</option></select></label>
+        </div>
+        <div class="ed-row">
+          <label id="edFreqWrap" hidden><span id="edFreqLbl">FREQUENCY (MHz)</span><input type="number" id="edFreq" inputmode="decimal" step="0.1" placeholder="101.7"></label>
+          <label id="edDabWrap" hidden>DAB+ BLOCK<select id="edDab"></select></label>
+        </div>
+        <label>STREAMING URL<input type="url" id="edUrl" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://..."></label>
+        <div class="ed-row"><button type="button" class="ed-btn" id="edTest">&#9654; TEST STREAM</button><div class="ed-msg" id="edTestMsg" style="flex:1"></div></div>
+        <div id="edLogoBox" hidden>
+          <div class="ed-logo"><img id="edLogoImg" alt="" width="72" height="72"><div class="ed-note" id="edLogoState">Default logo</div></div>
+          <label>STATION WEBSITE (FOR ITS LOGO)<input type="text" id="edSite" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="example.com.au"></label>
+          <div class="ed-row"><button type="button" class="ed-btn" id="edLogoPick">UPLOAD LOGO</button><button type="button" class="ed-btn" id="edLogoClear">USE DEFAULT</button></div>
+          <div class="ed-msg" id="edLogoMsg"></div>
+        </div>
+        <details class="ed-more">
+          <summary>MORE: REGION AND DIAL POSITION</summary>
+          <div class="ed-body">
+            <label>REGION<select id="edRegion"></select></label>
+            <div class="ed-slot"><span>DIAL</span><b id="edSlotShow">--</b><label><input type="checkbox" id="edManual"> choose it myself</label></div>
+            <label id="edSlotWrap" hidden>DIAL POSITION<input type="number" id="edSlot" inputmode="decimal" step="0.01" placeholder="90.04"></label>
+          </div>
+        </details>
+        <div class="ed-radios" id="edToListWrap">
+          <label><input type="checkbox" id="edToP"> Also add to My phone stations</label>
+          <label><input type="checkbox" id="edToC"> Also add to My car stations</label>
+        </div>
+        <div class="ed-msg" id="edMsg"></div>
+        <button type="button" class="ed-btn primary" id="edAdd">ADD STATION</button>
+        <div class="ed-row" id="edEditBtns" hidden><button type="button" class="ed-btn" id="edDelete" style="color:var(--warn);border-color:var(--warn)">DELETE STATION</button><button type="button" class="ed-btn" id="edCancel">CANCEL</button></div>
+      </div>
+    </details>
+
+    <details class="ed-sec" id="secMine">
+      <summary><span class="t">YOUR STATIONS</span><span class="s" id="sumMine"></span></summary>
+      <div class="ed-body"><div class="ed-list" id="edList"></div></div>
+    </details>
+
+    <details class="ed-sec" id="secSleep">
+      <summary><span class="t">SLEEP TIMER</span><span class="s" id="sumSleep"></span></summary>
+      <div class="ed-body">
+        <label>DEFAULT SLEEP<select id="edSleep"><option value="0">Off</option><option value="10">10 minutes</option><option value="30">30 minutes</option><option value="60">60 minutes</option><option value="120">120 minutes</option></select></label>
+        <div class="ed-note">Starts when the radio plays on this phone. Not in Android Auto.</div>
+        <div class="ed-msg" id="edSleepMsg"></div>
+      </div>
+    </details>
+
+    <details class="ed-sec" id="secBackup">
+      <summary><span class="t">BACKUP &amp; RESET</span><span class="s"></span></summary>
+      <div class="ed-body">
+        <div class="ed-row"><button type="button" class="ed-btn" id="edExport">SAVE OR SHARE BACKUP</button><button type="button" class="ed-btn" id="edImport">IMPORT BACKUP</button></div>
+        <input type="file" id="edImportFile" accept=".json,application/json" hidden>
+        <div class="ed-row" id="edImportGoRow" hidden><button type="button" class="ed-btn primary" id="edImportGo">REPLACE WITH THIS BACKUP</button><button type="button" class="ed-btn" id="edImportNo">CANCEL</button></div>
+        <div class="ed-msg" id="edBackupMsg"></div>
+        <button type="button" class="ed-btn" id="edReset">RESET TO DEFAULTS</button>
+        <div class="ed-msg" id="edResetMsg"></div>
+        <p class="ed-note">Everything here stays on this phone. A backup holds your stations, edits, logos, lists and sleep setting. Station logos belong to their owners.</p>
+      </div>
+    </details>
   </div>`;
   document.body.appendChild(scr);
 
@@ -3017,7 +3096,7 @@
   // (Sport, Talk, Pacific, music blocks, Internet). Otherwise it's filled in.
   // A category that holds more than one region (NSW and ACT share a block) always
   // asks, but only offers those regions.
-  const REGION_CHOICES = { 'NSW (and ACT)': ['NSW', 'ACT'] };
+  const REGION_CHOICES = { 'NSW (and ACT) – music & community': ['NSW', 'ACT'] };
   function updateRegionVisibility(){
     const gname = STATION_GROUPS[+gSel.value].name;
     const auto = REGION_FOR_GROUP[gname];
@@ -3083,8 +3162,18 @@
     if (native) return window.AndroidBridge.saveUserStations(json);
     try { localStorage.setItem(KEY, json); return true; } catch (e) { return false; }
   }
+  // Adds a station to My phone stations or My car stations (making the list
+  // if it doesn't exist yet), kept in dial order.
+  function addToList(name, rec){
+    let l = userData.lists.find(x => x.name === name);
+    if (!l) { l = { name, stations: [], sort: 'freq', groups: [] }; userData.lists.push(l); }
+    if (l.stations.includes(rec.name)) return;
+    const order = new Map(stations.concat([rec]).slice().sort((a, b) => a.freq - b.freq).map((st, i) => [st.name, i]));
+    l.stations = l.stations.concat([rec.name]).sort((a, b) => (order.get(a) ?? 1e9) - (order.get(b) ?? 1e9));
+  }
   function renderList(){
     const list = $('edList'); list.textContent = '';
+    $('sumMine').textContent = userData.added.length ? userData.added.length + ' added by you' : 'None added yet';
     if (!userData.added.length) { const p = document.createElement('div'); p.className = 'ed-note'; p.textContent = 'None yet.'; list.appendChild(p); return; }
     userData.added.slice().sort((a, b) => a.freq - b.freq).forEach(u => {
       const row = document.createElement('div'); row.className = 'ed-item';
@@ -3121,24 +3210,22 @@
     if (c.dab) rec.dab = c.dab;
     if (/\.m3u8(\?|$)/i.test(url)) rec.hls = true;
     if (editing) return saveEdit(rec, msg);
+    const listsBefore = JSON.stringify(userData.lists);
     userData.added.push(rec);
-    const toList = userData.lists.find(l => l.name === $('edToList').value) || null;
-    const listBefore = toList ? toList.stations.slice() : null;
-    if (toList && !toList.stations.includes(rec.name)) {
-      const order = new Map(stations.concat([rec]).slice().sort((a, b) => a.freq - b.freq).map((st, i) => [st.name, i]));
-      toList.stations = toList.stations.concat([rec.name]).sort((a, b) => (order.get(a) ?? 1e9) - (order.get(b) ?? 1e9));
-    }
-    if (!persist()) { userData.added.pop(); if (toList) toList.stations = listBefore; return setMsg(msg, 'Could not save. Try again.', 'warn'); }
+    const into = [];
+    if ($('edToP').checked) { addToList(PHONE_LIST, rec); into.push(PHONE_LIST); }
+    if ($('edToC').checked) { addToList(CAR_LIST, rec); into.push(CAR_LIST); }
+    if (!persist()) { userData.added.pop(); userData.lists = JSON.parse(listsBefore); return setMsg(msg, 'Could not save. Try again.', 'warn'); }
     stations.push(Object.assign({ user: true }, rec)); stations.sort((a, b) => a.freq - b.freq);
     applyLogo(rec.name, '');
     dirty = true;
     stopTest();
-    setMsg(msg, 'Added “' + rec.name + '” at ' + rec.freq.toFixed(2) + ' MHz in ' + STATION_GROUPS[g].name
-      + (toList ? ' and to the list “' + toList.name + '”' : '') + '. Close this screen to tune to it.'
-      + (!toList && userData.activeList && !(userData.lists.find(l => l.name === userData.activeList) || { groups: [] }).groups.includes(STATION_GROUPS[g].name)
-          ? ' It won’t show while “' + userData.activeList + '” is on: add it to that list, or tick ' + STATION_GROUPS[g].name + ' for it.' : ''), 'ok');
+    const hiddenOnPhone = userData.activeList === PHONE_LIST && !into.includes(PHONE_LIST);
+    setMsg(msg, 'Added “' + rec.name + '” at ' + rec.freq.toFixed(2) + ' in ' + STATION_GROUPS[g].name
+      + (into.length ? ' and to ' + into.join(' and ') : '') + '.'
+      + (hiddenOnPhone ? ' It won’t show on the phone while My phone stations is on.' : ' Close this screen to tune to it.'), 'ok');
     renderShowing();
-    $('edName').value = ''; $('edUrl').value = ''; $('edFreq').value = ''; setMsg($('edTestMsg'), '');
+    $('edName').value = ''; $('edUrl').value = ''; $('edFreq').value = ''; $('edSite').value = ''; setMsg($('edTestMsg'), '');
     renderList(); refreshSlot();
   });
 
@@ -3162,17 +3249,28 @@
   }
   window.__whLogoResult = function(ok, data){
     const m = $('edLogoMsg');
+    if (autoLogoFor) {
+      const nm = autoLogoFor; autoLogoFor = null;
+      if (!ok) { setMsg(m, 'No logo found for ' + nm + ' on that website; it keeps the default.', 'warn'); return; }
+      try { window.AndroidBridge.saveUserLogo(nm, data); dirty = true; setMsg(m, 'Found and saved ' + nm + '’s logo.', 'ok'); } catch (e) { setMsg(m, 'Could not save the logo.', 'warn'); }
+      return;
+    }
     if (!ok) { setMsg(m, data || '', data ? 'warn' : ''); return; }
     pendingLogo = data; showLogo(data, 'New logo (saved when you save the station)');
     setMsg(m, 'Logo ready.', 'ok');
   };
   $('edLogoPick').addEventListener('click', () => { try { window.AndroidBridge.pickLogo(); } catch (e) { setMsg($('edLogoMsg'), 'Could not open the picker.', 'warn'); } });
-  $('edLogoFetch').addEventListener('click', () => {
+  // With a website typed and no logo picked, the logo is fetched by itself
+  // once the station is saved, and stored for it when it arrives.
+  let autoLogoFor = null;
+  function autoFetchLogo(name){
     const site = $('edSite').value.trim();
-    if (!site) return setMsg($('edLogoMsg'), 'Type the station’s website, like example.com.au', 'warn');
-    setMsg($('edLogoMsg'), 'Looking for a logo…');
-    try { window.AndroidBridge.fetchLogo(site); } catch (e) { setMsg($('edLogoMsg'), 'Could not fetch a logo.', 'warn'); }
-  });
+    if (!native || !site || pendingLogo !== undefined || !window.AndroidBridge.fetchLogo) return false;
+    autoLogoFor = name;
+    setMsg($('edLogoMsg'), 'Looking for ' + name + '’s logo…');
+    try { window.AndroidBridge.fetchLogo(site); } catch (e) { autoLogoFor = null; setMsg($('edLogoMsg'), 'Could not fetch a logo.', 'warn'); }
+    return true;
+  }
   $('edLogoClear').addEventListener('click', () => {
     pendingLogo = null; showLogo('', 'Default logo (saved when you save the station)'); setMsg($('edLogoMsg'), '');
   });
@@ -3188,6 +3286,7 @@
     renameInLists(oldName, name);
     if (!native) return;
     const b = window.AndroidBridge;
+    if (autoFetchLogo(name)) pendingLogo = undefined;
     try {
       if (typeof pendingLogo === 'string') b.saveUserLogo(name, pendingLogo);
       else if (pendingLogo === null) b.clearUserLogo(name);
@@ -3221,6 +3320,7 @@
     $('edAdd').textContent = 'SAVE CHANGES';
     $('edToListWrap').hidden = true;
     resetLogoUi(st.name);
+    $('secStation').open = true;
     $('edEditBtns').hidden = false;
     setMsg($('edMsg'), ''); setMsg($('edTestMsg'), '');
     refreshBand();
@@ -3231,7 +3331,8 @@
     editing = null; gSel.disabled = false;
     $('edTitle').textContent = 'ADD A STATION';
     $('edAdd').textContent = 'ADD STATION';
-    $('edToListWrap').hidden = !userData.lists.length;
+    $('edToListWrap').hidden = false;
+    setAddToDefaults();
     $('edEditBtns').hidden = true;
     $('edManual').parentElement.hidden = false;
     $('edName').value = ''; $('edUrl').value = ''; $('edFreq').value = '';
@@ -3314,78 +3415,41 @@
     setMsg($('edFindMsg'), 'Deleted ' + nm + '. Close this screen to update the dial.', 'ok');
     scr.scrollTop = 0;
   });
-  // ---- categories and lists ------------------------------------------
-  // All of this only changes what shows; positions and stations are untouched.
-  // Saved with the rest of your edits (so backups and reset include it);
-  // the dial updates when this screen closes.
-  let listEditing = null;   // the list being edited, or {} for a new one
+  // ---- stations to show: all, or your own list -----------------------
+  // The phone shows all stations or My phone stations; Android Auto shows the
+  // same as the phone, all stations, or My car stations. The lists hold station
+  // names (so a renamed station keeps its place). Saved with the rest of your
+  // edits, so backups and reset include them; the dial updates when this
+  // screen closes, Android Auto the next time the car connects.
+  let listEditing = null;      // PHONE_LIST or CAR_LIST while the picker is open
+  let switchOnSave = false;    // picked "My … stations" before the list had any
   const showMsg = (t, c) => setMsg($('edShowMsg'), t, c);
-  function saveShowing(okText){
-    const before = JSON.stringify({ h: userData.hiddenGroups, l: userData.lists, a: userData.activeList, c: userData.carList });
-    if (!persist()) {
-      const b = JSON.parse(before); userData.hiddenGroups = b.h; userData.lists = b.l; userData.activeList = b.a; userData.carList = b.c;
-      showMsg('Could not save. Try again.', 'warn'); renderShowing(); return false;
-    }
+  const listOf = name => userData.lists.find(l => l.name === name) || null;
+  const countOf = name => (listOf(name) || { stations: [] }).stations.length;
+  function saveShowing(okText, forCar){
+    if (!persist()) { showMsg('Could not save. Try again.', 'warn'); return false; }
     dirty = true;
-    if (okText) showMsg(okText + ' Close this screen to update the dial.', 'ok');
+    if (okText) showMsg(okText + (forCar ? ' It takes effect the next time Android Auto connects.' : ' Close this screen to update the dial.'), 'ok');
+    renderShowing();
     return true;
   }
+  function radios(name){ return Array.from(scr.querySelectorAll('input[name="' + name + '"]')); }
   function renderShowing(){
-    const sel = $('edShow');
-    sel.textContent = '';
-    [['', 'All stations']].concat(userData.lists.map(l => [l.name, 'List: ' + l.name])).forEach(([v, t]) => {
-      const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o);
-    });
-    sel.value = userData.activeList || '';
-    const car = $('edCarShow');
-    car.textContent = '';
-    [['', 'Same as phone'], ['*', 'All stations']].concat(userData.lists.map(l => [l.name, 'List: ' + l.name])).forEach(([v, t]) => {
-      const o = document.createElement('option'); o.value = v; o.textContent = t; car.appendChild(o);
-    });
-    car.value = userData.carList || '';
-    const to = $('edToList'), prevTo = to.value;
-    to.textContent = '';
-    [['', 'None']].concat(userData.lists.map(l => [l.name, l.name])).forEach(([v, t]) => {
-      const o = document.createElement('option'); o.value = v; o.textContent = t; to.appendChild(o);
-    });
-    to.value = userData.lists.some(l => l.name === prevTo) && prevTo ? prevTo : (userData.activeList || '');
-    $('edToListWrap').hidden = !userData.lists.length || !!editing;
-    // With a list on, the ticks are the categories shown alongside that list
-    // (none to start with: the list on its own). With All stations, they are
-    // the categories showing.
-    const list = userData.lists.find(l => l.name === userData.activeList) || null;
-    $('edCatsNote').textContent = list ? 'ALSO SHOW WITH “' + list.name + '” (tick to add):' : 'CATEGORIES SHOWING (untick to hide):';
-    $('edCatsAll').textContent = list ? 'JUST THE LIST' : 'SHOW ALL CATEGORIES';
-    const cats = $('edCats'); cats.textContent = '';
-    const hidden = new Set(userData.hiddenGroups), withList = new Set(list ? list.groups : []);
-    STATION_GROUPS.forEach(g => {
-      const lab = document.createElement('label');
-      const cb = document.createElement('input'); cb.type = 'checkbox';
-      cb.checked = list ? withList.has(g.name) : !hidden.has(g.name);
-      cb.addEventListener('change', () => {
-        if (list) {
-          const w = new Set(list.groups);
-          if (cb.checked) w.add(g.name); else w.delete(g.name);
-          list.groups = STATION_GROUPS.map(x => x.name).filter(n => w.has(n));
-          saveShowing((cb.checked ? 'Showing ' + g.name + ' with ' : 'Not showing ' + g.name + ' with ') + list.name + '.');
-        } else {
-          const h = new Set(userData.hiddenGroups);
-          if (cb.checked) h.delete(g.name); else h.add(g.name);
-          userData.hiddenGroups = STATION_GROUPS.map(x => x.name).filter(n => h.has(n));
-          saveShowing((cb.checked ? 'Showing ' : 'Hiding ') + g.name + '.');
-        }
-      });
-      lab.append(cb, document.createTextNode(g.name)); cats.appendChild(lab);
-    });
-    const box = $('edLists'); box.textContent = '';
-    if (!userData.lists.length) { const p = document.createElement('div'); p.className = 'ed-note'; p.textContent = 'None yet.'; box.appendChild(p); }
-    userData.lists.forEach(l => {
-      const row = document.createElement('div'); row.className = 'ed-item';
-      const n = document.createElement('span'); n.className = 'n'; n.textContent = l.name + ' (' + l.stations.length + ')';
-      const ed = document.createElement('button'); ed.type = 'button'; ed.className = 'x'; ed.textContent = 'EDIT';
-      ed.addEventListener('click', () => openListEditor(l));
-      row.append(n, ed); box.appendChild(row);
-    });
+    const p = userData.activeList === PHONE_LIST ? 'list' : '';
+    const c = userData.carList === CAR_LIST ? 'list' : userData.carList === '*' ? '*' : '';
+    radios('edShowR').forEach(r => { r.checked = r.value === p; });
+    radios('edCarR').forEach(r => { r.checked = r.value === c; });
+    const nP = countOf(PHONE_LIST), nC = countOf(CAR_LIST);
+    $('cntP').textContent = nP ? '(' + nP + ')' : '(none chosen yet)';
+    $('cntC').textContent = nC ? '(' + nC + ')' : '(none chosen yet)';
+    $('sumShow').textContent = 'Phone: ' + (p ? 'My phone stations' : 'All stations')
+      + ' · Car: ' + (c === 'list' ? 'My car stations' : c === '*' ? 'All stations' : 'Same as phone');
+    if (!editing) setAddToDefaults();
+  }
+  // New stations are offered for the lists that are showing.
+  function setAddToDefaults(){
+    $('edToP').checked = userData.activeList === PHONE_LIST;
+    $('edToC').checked = userData.carList === CAR_LIST;
   }
   function renderPick(){
     const pick = $('edListPick'), q = $('edListFind').value.trim().toLowerCase();
@@ -3402,89 +3466,88 @@
         const keep = new Set(JSON.parse(pick.dataset.keep || '[]'));
         if (cb.checked) keep.add(st.name); else keep.delete(st.name);
         pick.dataset.keep = JSON.stringify(Array.from(keep));
+        $('edListTitle').textContent = titleFor(listEditing, keep.size);
       });
       lab.append(cb, document.createTextNode(st.name + '  ·  ' + (st.real || '')));
       pick.appendChild(lab);
     });
   }
-  function openListEditor(l){
-    listEditing = l || {};
+  const titleFor = (name, n) => (name === PHONE_LIST ? 'CHOOSE PHONE STATIONS' : 'CHOOSE CAR STATIONS') + ' (' + n + ' ticked)';
+  function openPicker(name, andSwitch){
+    const l = listOf(name);
+    listEditing = name; switchOnSave = !!andSwitch;
     $('edListBox').hidden = false;
-    $('edListName').value = l ? l.name : '';
-    $('edListSort').value = l ? l.sort : 'dial';
+    $('edListSort').value = l && l.sort === 'az' ? 'az' : 'freq';
     $('edListFind').value = '';
     $('edListPick').dataset.keep = JSON.stringify(l ? l.stations : []);
-    $('edListDel').hidden = !l;
-    renderPick(); showMsg('');
-    $('edListName').focus();
+    $('edListTitle').textContent = titleFor(name, l ? l.stations.length : 0);
+    renderPick();
+    showMsg(andSwitch ? 'Tick the stations you want, then SAVE.' : '');
+    $('edListBox').scrollIntoView({ block: 'start' });
   }
-  function closeListEditor(){ listEditing = null; $('edListBox').hidden = true; }
-  $('edShow').addEventListener('change', () => {
-    userData.activeList = $('edShow').value;
-    renderShowing();
-    saveShowing(userData.activeList ? 'Showing “' + userData.activeList + '”.' : 'Showing all stations.');
-  });
-  $('edCarShow').addEventListener('change', () => {
-    userData.carList = $('edCarShow').value;
-    const v = userData.carList;
-    if (saveShowing(v === '' ? 'Android Auto shows the same as the phone.' : v === '*' ? 'Android Auto shows all stations.' : 'Android Auto shows “' + v + '”.')) {
-      showMsg($('edShowMsg').textContent.replace('Close this screen to update the dial.', 'It takes effect the next time Android Auto connects.'), 'ok');
+  function closePicker(){ listEditing = null; switchOnSave = false; $('edListBox').hidden = true; }
+  radios('edShowR').forEach(r => r.addEventListener('change', () => {
+    if (r.value === 'list') {
+      if (!countOf(PHONE_LIST)) { renderShowing(); return openPicker(PHONE_LIST, true); }
+      userData.activeList = PHONE_LIST;
+      saveShowing('The phone shows My phone stations.');
+    } else {
+      userData.activeList = '';
+      saveShowing('The phone shows all stations.');
     }
+  }));
+  radios('edCarR').forEach(r => r.addEventListener('change', () => {
+    if (r.value === 'list') {
+      if (!countOf(CAR_LIST)) { renderShowing(); return openPicker(CAR_LIST, true); }
+      userData.carList = CAR_LIST;
+      saveShowing('Android Auto shows My car stations.', true);
+    } else {
+      userData.carList = r.value;
+      saveShowing(r.value === '*' ? 'Android Auto shows all stations.' : 'Android Auto shows the same as the phone.', true);
+    }
+  }));
+  $('edPickP').addEventListener('click', () => openPicker(PHONE_LIST, false));
+  $('edPickC').addEventListener('click', () => openPicker(CAR_LIST, false));
+  $('edListCancel').addEventListener('click', () => { closePicker(); showMsg(''); renderShowing(); });
+  $('edListFind').addEventListener('input', renderPick);
+  $('edListSave').addEventListener('click', () => {
+    const name = listEditing; if (!name) return;
+    const forCar = name === CAR_LIST;
+    const picked = JSON.parse($('edListPick').dataset.keep || '[]');
+    const before = JSON.stringify([userData.lists, userData.activeList, userData.carList]);
+    const others = userData.lists.filter(l => l.name !== name);
+    if (!picked.length) {
+      // Nothing ticked: the list goes, and that side shows all stations again.
+      userData.lists = others;
+      if (forCar && userData.carList === CAR_LIST) userData.carList = '';
+      if (!forCar && userData.activeList === PHONE_LIST) userData.activeList = '';
+    } else {
+      const order = new Map(stations.slice().sort((a, b) => a.freq - b.freq).map((st, i) => [st.name, i]));   // kept in dial order
+      const rec = { name, stations: picked.slice().sort((a, b) => (order.get(a) ?? 1e9) - (order.get(b) ?? 1e9)), sort: $('edListSort').value === 'az' ? 'az' : 'freq', groups: [] };
+      userData.lists = (forCar ? others.concat([rec]) : [rec].concat(others));
+      if (switchOnSave) { if (forCar) userData.carList = CAR_LIST; else userData.activeList = PHONE_LIST; }
+    }
+    closePicker();
+    if (!persist()) { const b = JSON.parse(before); userData.lists = b[0]; userData.activeList = b[1]; userData.carList = b[2]; renderShowing(); return showMsg('Could not save. Try again.', 'warn'); }
+    saveShowing(!picked.length ? 'Cleared ' + name + '.' : 'Saved ' + name + ' (' + picked.length + ' station' + (picked.length === 1 ? '' : 's') + ').', forCar);
   });
+
   // ---- default sleep timer ---------------------------------------------
-  $('edSleep').value = String(userData.sleepDefault || 0);
+  function renderSleep(){
+    const m = userData.sleepDefault || 0;
+    $('edSleep').value = String(m);
+    $('sumSleep').textContent = m ? 'Default: ' + m + ' minutes' : 'Default: off';
+  }
   $('edSleep').addEventListener('change', () => {
     const before = userData.sleepDefault || 0;
     const m = Number($('edSleep').value) || 0;
     userData.sleepDefault = [10, 30, 60, 120].includes(m) ? m : 0;
     if (!persist()) {
-      userData.sleepDefault = before; $('edSleep').value = String(before);
+      userData.sleepDefault = before; renderSleep();
       return setMsg($('edSleepMsg'), 'Could not save. Try again.', 'warn');
     }
-    setMsg($('edSleepMsg'), userData.sleepDefault
-      ? 'Default sleep: ' + userData.sleepDefault + ' minutes. It starts the next time the radio starts playing.'
-      : 'Default sleep is off.', 'ok');
-  });
-  $('edCatsAll').addEventListener('click', () => {
-    const list = userData.lists.find(l => l.name === userData.activeList);
-    if (list) {
-      if (!list.groups.length) return showMsg('Already showing just “' + list.name + '”.', 'ok');
-      list.groups = []; renderShowing(); return saveShowing('Showing just “' + list.name + '”.');
-    }
-    if (!userData.hiddenGroups.length) return showMsg('All categories are already showing.', 'ok');
-    userData.hiddenGroups = []; renderShowing(); saveShowing('All categories showing.');
-  });
-  $('edListNew').addEventListener('click', () => openListEditor(null));
-  $('edListCancel').addEventListener('click', () => { closeListEditor(); showMsg(''); });
-  $('edListFind').addEventListener('input', renderPick);
-  $('edListSave').addEventListener('click', () => {
-    const name = $('edListName').value.trim();
-    const picked = JSON.parse($('edListPick').dataset.keep || '[]');
-    if (!name) return showMsg('Give the list a name.', 'warn');
-    if (userData.lists.some(x => x !== listEditing && x.name.toLowerCase() === name.toLowerCase())) return showMsg('There is already a list called “' + name + '”.', 'warn');
-    if (!picked.length) return showMsg('Tick at least one station.', 'warn');
-    const order = new Map(stations.map((st, i) => [st.name, i]));   // keep them in dial order
-    const rec = { name, stations: picked.slice().sort((a, b) => (order.get(a) ?? 1e9) - (order.get(b) ?? 1e9)), sort: $('edListSort').value,
-      groups: listEditing && listEditing.groups ? listEditing.groups : [] };
-    const wasActive = listEditing && listEditing.name && userData.activeList === listEditing.name;
-    if (listEditing && listEditing.name) userData.lists = userData.lists.map(x => x === listEditing ? rec : x);
-    else userData.lists = userData.lists.concat([rec]);
-    if (wasActive) userData.activeList = name;
-    if (listEditing && listEditing.name && userData.carList === listEditing.name) userData.carList = name;
-    closeListEditor(); renderShowing();
-    saveShowing('Saved “' + name + '” (' + rec.stations.length + ' station' + (rec.stations.length === 1 ? '' : 's') + '). Choose it under SHOW to use it.');
-  });
-  let listDelArmed = false;
-  $('edListDel').addEventListener('click', () => {
-    if (!listEditing || !listEditing.name) return;
-    if (!listDelArmed) { listDelArmed = true; $('edListDel').textContent = 'TAP AGAIN TO DELETE'; setTimeout(() => { listDelArmed = false; $('edListDel').textContent = 'DELETE LIST'; }, 3500); return; }
-    listDelArmed = false; $('edListDel').textContent = 'DELETE LIST';
-    const nm = listEditing.name;
-    userData.lists = userData.lists.filter(x => x !== listEditing);
-    if (userData.activeList === nm) userData.activeList = '';
-    if (userData.carList === nm) userData.carList = '';
-    closeListEditor(); renderShowing();
-    saveShowing('Deleted the list “' + nm + '”.');
+    renderSleep();
+    setMsg($('edSleepMsg'), userData.sleepDefault ? 'Saved. It starts the next time the radio plays.' : 'Default sleep is off.', 'ok');
   });
 
   let resetArmed = false, resetTimer = null;
@@ -3492,7 +3555,7 @@
     const m = $('edResetMsg');
     if (!resetArmed) {
       resetArmed = true; $('edReset').textContent = 'TAP AGAIN TO RESET';
-      setMsg(m, 'This puts back every built-in station and removes the ones you added or edited, your custom logos, your lists, hidden categories and default sleep.', 'warn');
+      setMsg(m, 'This puts back every built-in station and removes the ones you added or edited, your custom logos, My phone and car stations, and default sleep.', 'warn');
       resetTimer = setTimeout(() => { resetArmed = false; $('edReset').textContent = 'RESET TO DEFAULTS'; setMsg(m, ''); }, 5000);
       return;
     }
@@ -3521,14 +3584,14 @@
     }
     return JSON.stringify({ app: 'Radio Wavehopper', format: 1, exported: new Date().toISOString(),
       added: userData.added, hidden: userData.hidden, edited: userData.edited, names: userData.names,
-      hiddenGroups: userData.hiddenGroups, lists: userData.lists, activeList: userData.activeList, carList: userData.carList, sleepDefault: userData.sleepDefault || 0, logos });
+      lists: userData.lists, activeList: userData.activeList, carList: userData.carList, sleepDefault: userData.sleepDefault || 0, logos });
   }
   window.__whBackupError = m => setMsg($('edBackupMsg'), m, 'warn');
   window.__whBackupDone = (ok, msg) => setMsg($('edBackupMsg'), msg || '', ok ? 'ok' : (msg ? 'warn' : ''));
   function doExport(mode){
     const m = $('edBackupMsg');
     if (!userData.added.length && !userData.hidden.length && !Object.keys(userData.edited).length
-        && !userData.hiddenGroups.length && !userData.lists.length) {
+        && !userData.lists.length && !userData.sleepDefault) {
       let any = false;
       if (native && window.AndroidBridge.getUserLogo) stations.forEach(s => { try { if (window.AndroidBridge.getUserLogo(s.name)) any = true; } catch (e) {} });
       if (!any) return setMsg(m, 'Nothing to back up yet: you have not added, edited or removed anything.', 'warn');
@@ -3544,8 +3607,8 @@
       setMsg(m, 'Backup downloaded.', 'ok');
     } catch (e) { setMsg(m, 'Could not create the backup.', 'warn'); }
   }
-  $('edExport').addEventListener('click', () => doExport('save'));
-  $('edShare').addEventListener('click', () => doExport('share'));
+  // One button: Android's share menu also offers saving to Files or Drive.
+  $('edExport').addEventListener('click', () => doExport(native && window.AndroidBridge.shareBackup ? 'share' : 'save'));
 
   let pendingImport = null;
   // Checks a backup and keeps only what is safe and fits the dial.
@@ -3621,20 +3684,16 @@
       Object.keys(d.logos).forEach(n => { const v = d.logos[n]; if (str(n, 60) && typeof v === 'string' && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+\/=]+$/.test(v) && v.length < 3000000) logos[n] = v; });
     }
     const keptNames = {}; hidden.concat(Object.keys(edited)).forEach(k => { if (names[k]) keptNames[k] = names[k]; });
-    const groupNames = new Set(STATION_GROUPS.map(g => g.name));
-    const hiddenGroups = Array.isArray(d.hiddenGroups) ? d.hiddenGroups.filter(g => groupNames.has(g)) : [];
-    const lists = [];
+    const lists0 = [];
     (Array.isArray(d.lists) ? d.lists : []).forEach(l => {
       if (!l || !str(l.name, 30) || !l.name.trim() || !Array.isArray(l.stations)) return;
-      if (lists.some(x => x.name.toLowerCase() === l.name.trim().toLowerCase())) return;
-      lists.push({ name: l.name.trim(), stations: l.stations.filter(n => str(n, 60)).slice(0, 500),
-        sort: ['dial', 'az', 'freq'].includes(l.sort) ? l.sort : 'dial',
-        groups: Array.isArray(l.groups) ? l.groups.filter(g => groupNames.has(g)) : [] });
+      if (lists0.some(x => x.name.toLowerCase() === l.name.trim().toLowerCase())) return;
+      lists0.push({ name: l.name.trim(), stations: l.stations.filter(n => str(n, 60)).slice(0, 500), sort: l.sort });
     });
-    const activeList = typeof d.activeList === 'string' && lists.some(l => l.name === d.activeList) ? d.activeList : '';
-    const carList = d.carList === '*' || (typeof d.carList === 'string' && lists.some(l => l.name === d.carList)) ? d.carList : '';
+    // Backups from older versions (several lists) become the two lists, the same way as on start-up.
+    const two = twoLists(lists0, d.activeList, d.carList);
     const sleepDefault = [10, 30, 60, 120].includes(d.sleepDefault) ? d.sleepDefault : 0;
-    return { added, hidden, edited, names: keptNames, hiddenGroups, lists, activeList, carList, sleepDefault, logos, dropped };
+    return { added, hidden, edited, names: keptNames, lists: two.lists, activeList: two.activeList, carList: two.carList, sleepDefault, logos, dropped };
   }
   function handleImportText(text){
     const m = $('edBackupMsg');
@@ -3644,8 +3703,7 @@
     pendingImport = c;
     $('edImportGoRow').hidden = false;
     setMsg(m, 'Backup: ' + c.added.length + ' added, ' + Object.keys(c.edited).length + ' edited, ' + c.hidden.length + ' removed, ' + Object.keys(c.logos).length + ' logos'
-      + (c.lists.length ? ', ' + c.lists.length + ' list' + (c.lists.length === 1 ? '' : 's') + (c.activeList ? ' (showing “' + c.activeList + '”)' : '') : '')
-      + (c.hiddenGroups.length ? ', ' + c.hiddenGroups.length + ' hidden categor' + (c.hiddenGroups.length === 1 ? 'y' : 'ies') : '')
+      + c.lists.map(l => ', ' + l.name + ' (' + l.stations.length + ')').join('')
       + (c.sleepDefault ? ', default sleep ' + c.sleepDefault + ' min' : '')
       + (c.dropped ? ' (' + c.dropped + ' skipped: they did not fit the dial)' : '') + '. Replace what is on this phone now?', 'warn');
   }
@@ -3672,7 +3730,7 @@
     // Clear the current custom logos first, then restore the backup's.
     const oldNames = stations.map(s => s.name);
     userData.added = c.added; userData.hidden = c.hidden; userData.edited = c.edited; userData.names = c.names;
-    userData.hiddenGroups = c.hiddenGroups; userData.lists = c.lists; userData.activeList = c.activeList; userData.carList = c.carList;
+    userData.hiddenGroups = []; userData.lists = c.lists; userData.activeList = c.activeList; userData.carList = c.carList;
     userData.sleepDefault = c.sleepDefault;
     if (!persist()) { Object.assign(userData, JSON.parse(before)); return setMsg(m, 'Could not import. Nothing was changed.', 'warn'); }
     if (native) {
@@ -3694,7 +3752,9 @@
     exitEdit(); setMsg($('edMsg'), ''); setMsg($('edTestMsg'), ''); setMsg($('edBackupMsg'), ''); $('edImportGoRow').hidden = true; pendingImport = null;
     resetLogoUi('');
     refreshBand(); renderList();
-    closeListEditor(); renderShowing(); showMsg('');
+    closePicker(); renderShowing(); renderSleep(); showMsg(''); setMsg($('edSleepMsg'), '');
+    // Every section starts closed; the summaries say what each one is set to.
+    scr.querySelectorAll('details').forEach(d => { d.open = false; });
   }
   function closeEdit(){
     stopTest(); exitEdit(); scr.hidden = true;
