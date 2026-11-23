@@ -3003,14 +3003,14 @@
         <div class="ed-sub">PHONE</div>
         <div class="ed-radios">
           <label><input type="radio" name="edShowR" value=""> All stations</label>
-          <label><input type="radio" name="edShowR" value="list"> Only my chosen stations <span class="cnt" id="cntP"></span></label>
+          <label><input type="radio" name="edShowR" value="list"> <span>Only my chosen stations <span class="cnt" id="cntP"></span></span></label>
         </div>
         <button type="button" class="ed-btn" id="edPickP">CHOOSE STATIONS FOR THE PHONE…</button>
         <div class="ed-sub">ANDROID AUTO</div>
         <div class="ed-radios">
           <label><input type="radio" name="edCarR" value=""> Same as phone</label>
           <label><input type="radio" name="edCarR" value="*"> All stations</label>
-          <label><input type="radio" name="edCarR" value="list"> Only my chosen stations <span class="cnt" id="cntC"></span></label>
+          <label><input type="radio" name="edCarR" value="list"> <span>Only my chosen stations <span class="cnt" id="cntC"></span></span></label>
         </div>
         <button type="button" class="ed-btn" id="edPickC">CHOOSE STATIONS FOR THE CAR…</button>
         <div id="edListBox" hidden>
@@ -3522,8 +3522,8 @@
     radios('edShowR').forEach(r => { r.checked = r.value === p; });
     radios('edCarR').forEach(r => { r.checked = r.value === c; });
     const nP = countOf(PHONE_LIST), nC = countOf(CAR_LIST);
-    $('cntP').textContent = nP ? '(' + nP + ')' : '(none chosen yet)';
-    $('cntC').textContent = nC ? '(' + nC + ')' : '(none chosen yet)';
+    $('cntP').textContent = nP ? '(' + nP + ')' : '(none yet)';
+    $('cntC').textContent = nC ? '(' + nC + ')' : '(none yet)';
     $('edRealOnly').checked = userData.realOnly !== false;
     $('sumShow').textContent = (userData.realOnly !== false ? 'Real frequency · ' : 'Categories dial · ')
       + 'Phone: ' + (p ? 'Chosen stations' : 'All stations')
