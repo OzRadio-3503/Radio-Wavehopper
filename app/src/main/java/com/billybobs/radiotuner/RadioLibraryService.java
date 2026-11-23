@@ -608,7 +608,8 @@ public class RadioLibraryService extends MediaLibraryService {
      * car, or the one last played on the phone - so getting in the car
      * after listening on the phone resumes that same station, instead of
      * whatever the car happened to have on last. Falls back to the car's
-     * own last station when the phone has never saved one (or is older).
+     * own last station when the phone's isn't in the car's stations (not on
+     * the car list), has never saved one, or is older.
      */
     private int combinedLastStationIndex() {
         android.content.SharedPreferences carPrefs = getSharedPreferences(PREFS, MODE_PRIVATE);
@@ -620,10 +621,13 @@ public class RadioLibraryService extends MediaLibraryService {
         double phoneFreq = Double.longBitsToDouble(
                 phonePrefs.getLong("last_station_freq_bits", Double.doubleToLongBits(-1)));
 
+        // The phone's station only if the car has it (e.g. it's on your car
+        // list); otherwise carry on with what you last heard in the car.
         if (phoneAt > carAt && phoneFreq >= 0) {
             int idx = indexOfStationNamed(phonePrefs.getString("last_station_title", ""));
-            if (idx < 0) idx = nearestStationIndex(phoneFreq);
             if (idx >= 0) return idx;
+            // Not in the car's stations and nothing played in the car yet: start at the top.
+            if (carIdx < 0 && stations != null && !stations.isEmpty()) return 0;
         }
         return carIdx;
     }
