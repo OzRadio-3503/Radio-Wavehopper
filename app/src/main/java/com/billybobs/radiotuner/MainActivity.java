@@ -125,6 +125,18 @@ public class MainActivity extends Activity {
         super.onResume();
         getContentResolver().registerContentObserver(Settings.System.CONTENT_URI, true, volumeObserver);
         pushVolumeToPage(); // it may have changed while the app was in the background
+        // The station may have changed while the app was in the background -
+        // most often in Android Auto, or from the widget. Move the dial to it
+        // (without playing) so the app doesn't show a station from earlier.
+        String name = RadioLibraryService.carStationName();
+        if (name.isEmpty()) {
+            RadioLibraryService.handBackToPhone();
+            name = getSharedPreferences("RadioPrefs", MODE_PRIVATE).getString("last_station_title", "");
+        }
+        if (!name.isEmpty()) {
+            runJs("window.NativeControls && window.NativeControls.onAppResume && "
+                    + "window.NativeControls.onAppResume(" + org.json.JSONObject.quote(name) + ");");
+        }
     }
 
     @Override

@@ -2742,6 +2742,16 @@
     // reflects what's actually happening rather than what was merely asked
     // for.
     // The app's player read a song title from the stream it's playing.
+    // The app came back to the front: if another station was played in the
+    // meantime (Android Auto, the widget), show it - unless this page is
+    // playing or tuning something itself.
+    onAppResume: function(name){
+      if (!name || isPlaying || isLoading) return;
+      const cur = nearestStation(currentFreq);
+      if (cur && cur.name === name) return;
+      const found = stations.find(s => s.name === name);
+      if (found) render(found.freq, {initial: true});
+    },
     onNativeTrack: function(artist, title){
       if (!title || !currentPlayingStation) return;
       nativeTitleStation = currentPlayingStation;
