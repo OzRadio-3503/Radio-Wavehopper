@@ -3530,10 +3530,14 @@
       + ' · Car: ' + (c === 'list' ? 'Chosen stations' : c === '*' ? 'All stations' : 'Same as phone');
     if (!editing) setAddToDefaults();
   }
-  // New stations are offered for the lists that are showing.
+  // A new station gets a ready-ticked "also choose it" only for a side that
+  // shows just its chosen stations; on All stations it appears anyway, so
+  // no tick is shown. Neither side on chosen stations: no ticks at all.
   function setAddToDefaults(){
-    $('edToP').checked = userData.activeList === PHONE_LIST;
-    $('edToC').checked = userData.carList === CAR_LIST;
+    const p = userData.activeList === PHONE_LIST, c = userData.carList === CAR_LIST;
+    $('edToP').checked = p; $('edToP').parentElement.hidden = !p;
+    $('edToC').checked = c; $('edToC').parentElement.hidden = !c;
+    if (!editing) $('edToListWrap').hidden = !p && !c;
   }
   function renderPick(){
     const pick = $('edListPick'), q = $('edListFind').value.trim().toLowerCase();
