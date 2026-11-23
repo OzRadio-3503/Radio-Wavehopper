@@ -715,6 +715,9 @@
     Object.assign(d, twoLists(d.lists, d.activeList, d.carList));
     d.hiddenGroups = [];
     d._migrated = before !== JSON.stringify([d.lists, d.activeList, d.carList, d.hiddenGroups]);
+    // Real frequency only (Settings): the phone tunes by real AM/FM/DAB+/
+    // Internet band, always. On unless switched off.
+    d.realOnly = d.realOnly !== false;
     // Default sleep timer in minutes (0 = off), started by any play on the phone.
     if (![10, 30, 60, 120].includes(d.sleepDefault)) d.sleepDefault = 0;
     d.added = d.added.filter(u => u && typeof u.name === 'string' && /^https?:\/\//i.test(u.url || '') && isFinite(u.freq));
@@ -1459,8 +1462,13 @@
   // station's real-world one (its main AM/FM frequency, or "DAB only" /
   // "Internet only" when it has none). Stays in that mode while tuning, so
   // you can scroll the dial seeing real frequencies; tap again to go back.
-  let showRealFreq = false;
-  try { showRealFreq = localStorage.getItem('show_real_freq') === '1'; } catch (e) {}
+  // Real frequency only (the default, see Settings): the readout always shows
+  // the real frequency and Band Lock is always on - the AM/FM/DAB+/NET dial.
+  // Switched off, the categories dial and its dial numbers come back, with
+  // tap-to-switch and the optional Band Lock.
+  const realOnly = userData.realOnly !== false;
+  let showRealFreq = realOnly;
+  if (!realOnly) { try { showRealFreq = localStorage.getItem('show_real_freq') === '1'; } catch (e) {} }
   let readoutStation = null;
   let pendingRollDir = 0;
 
@@ -1611,7 +1619,8 @@
   let bandLock = false;
   const bandLockBtn = document.getElementById('bandLockBtn');
   function setBandLock(on){
-    bandLock = !!on && showRealFreq;
+    bandLock = realOnly || (!!on && showRealFreq);
+    bandLockBtn.style.display = realOnly ? 'none' : '';   // always locked: no button
     bandLockBtn.classList.toggle('on', bandLock);
     bandLockBtn.setAttribute('aria-pressed', bandLock ? 'true' : 'false');
     bandLockBtn.disabled = !showRealFreq;
@@ -1868,6 +1877,7 @@
   }
 
   function toggleRealFrequency(){
+    if (realOnly) return;   // always real (Settings → Real frequency only)
     showRealFreq = !showRealFreq;
     try { localStorage.setItem('show_real_freq', showRealFreq ? '1' : '0'); } catch (e) {}
     setBandLock(false);   // greys out (or re-enables) the button; lock starts off
@@ -2325,10 +2335,17 @@
     return Math.round(freq * 10) / 10; // avoid float drift (87.60000000000001 etc.)
   }
 
-  function goToStationStep(step){
+  // wrap: from the widget or notification, where a "bump" at the band's end
+  // can't be seen - go round to the other end instead.
+  function goToStationStep(step, wrap){
     if (showRealFreq) pendingRollDir = step;   // digits roll the way you're tuning
     if (bandLock) {
-      const target = realStepTarget(step);
+      let target = realStepTarget(step);
+      if (!target && wrap) {
+        const cur = nearestStation(currentFreq);
+        const list = realBandAllowed(realBandFor(cur).band, cur);
+        target = list.length > 1 ? list[step > 0 ? 0 : list.length - 1] : null;
+      }
       if (!target) { bumpBandEnd(); return; }
       pendingRollDir = step;
       render(target.freq);
@@ -2418,7 +2435,29 @@
   // Left works like "previous track" on a CD player: from partway through a
   // group it goes back to that group's first station; from the first
   // station it goes to the previous group.
+  // Real frequency only: the speakers jump through the band in thirds (start,
+  // 1/3, 2/3), like Android Auto's double arrows. Same "previous track" rule:
+  // from partway through a third, back goes to that third's start first.
+  function goToBandThird(direction){
+    const cur = nearestStation(currentFreq);
+    const band = realBandFor(cur).band;
+    const list = realBandStations(band).filter(allowed);
+    const n = list.length;
+    if (!n) return;
+    const parts = Math.min(3, n);
+    const starts = []; for (let k = 0; k < parts; k++) starts.push(Math.floor(k * n / parts));
+    const p = list.indexOf(cur);
+    let s = 0;
+    if (p >= 0) starts.forEach((st, k) => { if (st <= p) s = k; });
+    const target = p < 0 ? 0 : (direction < 0 && p !== starts[s]) ? s : (((s + direction) % parts) + parts) % parts;
+    const landing = list[starts[target]];
+    pendingRollDir = direction;
+    if (landing !== cur) render(landing.freq);
+    flashGroupName(BAND_LABEL[band] + ' · ' + (parts > 1 ? ['START', '1/3', '2/3'][target] : 'START'));
+  }
+
   function goToGroupStep(direction){
+    if (realOnly) return goToBandThird(direction);
     setBandLock(false);   // the speakers go back to browsing by section
     if (showingList) return goToListSection(direction);
     const n = STATION_GROUPS.length;
@@ -2672,7 +2711,7 @@
     // Next/Previous still ask this page which station comes next (it owns
     // the dial-stepping logic) - goToStationStep() -> render() -> playStation()
     // then tells native which one to actually play.
-    next: function(){ goToStationStep(1); },
+    next: function(){ goToStationStep(1, true); },
     // The phone's media volume changed (buttons, system panel, or this
     // slider). Ignored while the slider is being dragged, so the native
     // echo of the drag doesn't snap the thumb out from under the finger.
@@ -2680,7 +2719,7 @@
       if (Date.now() - lastVolumeInputAt < 500) return;
       volumeSlider.value = level;
     },
-    prev: function(){ goToStationStep(-1); },
+    prev: function(){ goToStationStep(-1, true); },
 
     // PlaybackService's own ExoPlayer is what's actually playing now (lock
     // screen Play/Pause taps go straight to it, not through this page) -
@@ -2750,7 +2789,7 @@
   } else {
     render(openingFreq, {initial:true});
   }
-  window.__wh = { stations: allStations, STATION_GROUPS, DAB_BLOCKS, LEGACY_KEY_NAMES, userData, twoLists, PHONE_LIST, CAR_LIST, getBandLock: () => bandLock, getCurrentFreq: () => currentFreq };
+  window.__wh = { stations: allStations, STATION_GROUPS, DAB_BLOCKS, LEGACY_KEY_NAMES, userData, twoLists, PHONE_LIST, CAR_LIST, realOnly, getBandLock: () => bandLock, getCurrentFreq: () => currentFreq };
   // Closing the Edit screen reloads the page; keep Band Lock on across that one reload.
   try {
     if (sessionStorage.getItem('wh_keep_lock') === '1') { sessionStorage.removeItem('wh_keep_lock'); setBandLock(true); }
@@ -2942,6 +2981,10 @@
     <details class="ed-sec" id="secShow">
       <summary><span class="t">STATIONS TO SHOW</span><span class="s" id="sumShow"></span></summary>
       <div class="ed-body">
+        <div class="ed-radios">
+          <label><input type="checkbox" id="edRealOnly"> Real frequency only</label>
+        </div>
+        <div class="ed-note" style="margin-top:-6px">Tune by real AM, FM, DAB+ and Internet bands. Untick for the categories dial.</div>
         <div class="ed-sub">PHONE</div>
         <div class="ed-radios">
           <label><input type="radio" name="edShowR" value=""> All stations</label>
@@ -3464,7 +3507,9 @@
     const nP = countOf(PHONE_LIST), nC = countOf(CAR_LIST);
     $('cntP').textContent = nP ? '(' + nP + ')' : '(none chosen yet)';
     $('cntC').textContent = nC ? '(' + nC + ')' : '(none chosen yet)';
-    $('sumShow').textContent = 'Phone: ' + (p ? 'My phone stations' : 'All stations')
+    $('edRealOnly').checked = userData.realOnly !== false;
+    $('sumShow').textContent = (userData.realOnly !== false ? 'Real frequency · ' : 'Categories dial · ')
+      + 'Phone: ' + (p ? 'My phone stations' : 'All stations')
       + ' · Car: ' + (c === 'list' ? 'My car stations' : c === '*' ? 'All stations' : 'Same as phone');
     if (!editing) setAddToDefaults();
   }
@@ -3528,6 +3573,15 @@
       saveShowing(r.value === '*' ? 'Android Auto shows all stations.' : 'Android Auto shows the same as the phone.', true);
     }
   }));
+  $('edRealOnly').addEventListener('change', () => {
+    const before = userData.realOnly !== false;
+    userData.realOnly = $('edRealOnly').checked;
+    if (!persist()) { userData.realOnly = before; renderShowing(); return showMsg('Could not save. Try again.', 'warn'); }
+    dirty = true;
+    showMsg(userData.realOnly ? 'Real frequency only is on. Close this screen to see the AM/FM/DAB+/NET dial.'
+      : 'The categories dial is back. Close this screen to see it.', 'ok');
+    renderShowing();
+  });
   $('edPickP').addEventListener('click', () => openPicker(PHONE_LIST, false));
   $('edPickC').addEventListener('click', () => openPicker(CAR_LIST, false));
   $('edListCancel').addEventListener('click', () => { closePicker(); showMsg(''); renderShowing(); });
@@ -3586,6 +3640,7 @@
     userData.added = []; userData.hidden = []; userData.edited = {}; userData.names = {};
     userData.hiddenGroups = []; userData.lists = []; userData.activeList = ''; userData.carList = '';
     userData.sleepDefault = 0;
+    userData.realOnly = true;
     if (!persist()) return setMsg(m, 'Could not reset. Try again.', 'warn');
     stopTest(); dirty = false;
     try { if (wh.getBandLock()) sessionStorage.setItem('wh_keep_lock', '1'); } catch (e) {}
@@ -3606,7 +3661,7 @@
     }
     return JSON.stringify({ app: 'Radio Wavehopper', format: 1, exported: new Date().toISOString(),
       added: userData.added, hidden: userData.hidden, edited: userData.edited, names: userData.names,
-      lists: userData.lists, activeList: userData.activeList, carList: userData.carList, sleepDefault: userData.sleepDefault || 0, logos });
+      lists: userData.lists, activeList: userData.activeList, carList: userData.carList, sleepDefault: userData.sleepDefault || 0, realOnly: userData.realOnly !== false, logos });
   }
   window.__whBackupError = m => setMsg($('edBackupMsg'), m, 'warn');
   window.__whBackupDone = (ok, msg) => setMsg($('edBackupMsg'), msg || '', ok ? 'ok' : (msg ? 'warn' : ''));
@@ -3715,7 +3770,7 @@
     // Backups from older versions (several lists) become the two lists, the same way as on start-up.
     const two = twoLists(lists0, d.activeList, d.carList);
     const sleepDefault = [10, 30, 60, 120].includes(d.sleepDefault) ? d.sleepDefault : 0;
-    return { added, hidden, edited, names: keptNames, lists: two.lists, activeList: two.activeList, carList: two.carList, sleepDefault, logos, dropped };
+    return { added, hidden, edited, names: keptNames, lists: two.lists, activeList: two.activeList, carList: two.carList, sleepDefault, realOnly: d.realOnly !== false, logos, dropped };
   }
   function handleImportText(text){
     const m = $('edBackupMsg');
@@ -3754,6 +3809,7 @@
     userData.added = c.added; userData.hidden = c.hidden; userData.edited = c.edited; userData.names = c.names;
     userData.hiddenGroups = []; userData.lists = c.lists; userData.activeList = c.activeList; userData.carList = c.carList;
     userData.sleepDefault = c.sleepDefault;
+    userData.realOnly = c.realOnly;
     if (!persist()) { Object.assign(userData, JSON.parse(before)); return setMsg(m, 'Could not import. Nothing was changed.', 'warn'); }
     if (native) {
       try {

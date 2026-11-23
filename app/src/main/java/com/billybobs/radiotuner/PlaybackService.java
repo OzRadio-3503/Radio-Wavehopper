@@ -1214,6 +1214,24 @@ public class PlaybackService extends Service {
                 }
             }
         }
+        UserStations.ensure(this);
+        if (UserStations.realOnly() && idx >= 0) {
+            // Real frequency only: step within the station's own band in real
+            // order (AM/FM low to high, DAB and Internet A to Z), wrapping at
+            // the ends - the same as the app's arrows.
+            StationLibrary.Station cur = all.get(idx);
+            String band = StationLibrary.realBand(cur);
+            java.util.List<StationLibrary.Station> inBand = new java.util.ArrayList<>();
+            for (StationLibrary.Station st : all) if (StationLibrary.realBand(st).equals(band)) inBand.add(st);
+            java.util.Collections.sort(inBand, (a, b) -> {
+                Double fa = StationLibrary.realFreqValue(a), fb = StationLibrary.realFreqValue(b);
+                if (fa != null && fb != null && !fa.equals(fb)) return Double.compare(fa, fb);
+                return a.name.compareToIgnoreCase(b.name);
+            });
+            int p = inBand.indexOf(cur);
+            playStationNow(inBand.get(((p + dir) % inBand.size() + inBand.size()) % inBand.size()));
+            return;
+        }
         int target = idx < 0 ? 0 : (idx + dir + all.size()) % all.size();
         playStationNow(all.get(target));
     }

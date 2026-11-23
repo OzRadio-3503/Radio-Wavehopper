@@ -63,6 +63,10 @@ public final class UserStations {
 
     static int sleepDefault() { return sleepDefault; }
 
+    /** "Real frequency only" (Settings): the phone tunes by real band. On unless switched off. */
+    private static volatile boolean realOnly = true;
+    static boolean realOnly() { return realOnly; }
+
     /** Only the timer's own steps are allowed. */
     static int cleanSleepMinutes(int m) {
         return (m == 10 || m == 30 || m == 60 || m == 120) ? m : 0;
@@ -156,6 +160,7 @@ public final class UserStations {
         java.util.Map<String, Showing> ls = new java.util.HashMap<>();
         String pl = "", cl = "";
         int sd = 0;
+        boolean ro = true;
         try {
             if (json != null && !json.isEmpty()) {
                 JSONObject root = new JSONObject(json);
@@ -199,6 +204,7 @@ public final class UserStations {
                 cl = root.optString("carList", "");
                 if (!cl.isEmpty() && !"*".equals(cl) && !ls.containsKey(cl)) cl = "";
                 sd = cleanSleepMinutes(root.optInt("sleepDefault", 0));
+                ro = root.optBoolean("realOnly", true);
                 JSONArray arr = root.optJSONArray("added");
                 if (arr != null) {
                     for (int i = 0; i < arr.length(); i++) {
@@ -223,6 +229,7 @@ public final class UserStations {
             ls = new java.util.HashMap<>(); pl = ""; cl = ""; sd = 0;
         }
         sleepDefault = sd;
+        realOnly = ro;
         hiddenGroups = hg;
         lists = ls;
         phoneList = pl;
