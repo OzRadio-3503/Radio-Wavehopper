@@ -475,7 +475,10 @@ public class PlaybackService extends Service {
         mediaSession.setFlags(
                 MediaSession.FLAG_HANDLES_MEDIA_BUTTONS | MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS);
         mediaSession.setCallback(new MediaSession.Callback() {
-            @Override public void onPlay() { doPlay(); }
+            @Override public void onPlay() {
+                if (savedStationMovedOn() && playSavedStation()) return;
+                doPlay();
+            }
             @Override public void onPause() { doPause(); }
             @Override public void onSkipToNext() { doNext(); }
             @Override public void onSkipToPrevious() { doPrev(); }
@@ -894,7 +897,7 @@ public class PlaybackService extends Service {
             // call straight into the MediaSession.Callback above).
             case ACTION_PLAY:
                 ensureForeground(); // the home-screen widget starts us as a foreground service
-                if (!hasLoadedStation() && playSavedStation()) return START_STICKY;
+                if ((!hasLoadedStation() || savedStationMovedOn()) && playSavedStation()) return START_STICKY;
                 doPlay();
                 return START_STICKY;
             case ACTION_PAUSE:
@@ -908,6 +911,8 @@ public class PlaybackService extends Service {
                 if (isReallyPlaying()) {
                     doPause();
                     RadioWidgetProvider.refresh(this);
+                } else if (savedStationMovedOn() && playSavedStation()) {
+                    // played the car's last station - see savedStationMovedOn
                 } else if (!hasLoadedStation()) {
                     if (!playSavedStation()) { stopForeground(true); stopSelf(); }
                 } else {
@@ -1170,6 +1175,17 @@ public class PlaybackService extends Service {
         player.pause();
         reconnectExoPlayer();
         acquireWakeLock();
+    }
+
+    /**
+     * True when the saved "last station" has moved on from the one this player
+     * still has loaded - e.g. you changed station in Android Auto, so the widget
+     * now shows the car's station. Play should then play that, not the older one.
+     */
+    private boolean savedStationMovedOn() {
+        if (!hasLoadedStation() || playingTestStream) return false;
+        String saved = getSharedPreferences("RadioPrefs", MODE_PRIVATE).getString("last_station_title", "");
+        return !saved.isEmpty() && !saved.equals(currentStationName);
     }
 
     private boolean hasLoadedStation() {
