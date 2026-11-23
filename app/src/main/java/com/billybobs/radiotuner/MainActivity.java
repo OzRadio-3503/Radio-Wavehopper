@@ -123,6 +123,10 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        // The player sends "playing", song titles etc. to MainActivity.instance.
+        // Make sure that's the screen actually showing, or the page is left
+        // saying "Connecting…" while the radio plays.
+        instance = this;
         getContentResolver().registerContentObserver(Settings.System.CONTENT_URI, true, volumeObserver);
         pushVolumeToPage(); // it may have changed while the app was in the background
         // The station may have changed while the app was in the background -
