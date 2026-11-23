@@ -345,7 +345,9 @@
   .volume-row label{ font-size:9.5px; letter-spacing:1.5px; color:var(--chrome-2); font-family:'Share Tech Mono',monospace; }
   .volume-row input[type=range]{ flex:1; accent-color:var(--cyan); }
 
-  .now-playing{ margin-top:10px; overflow:hidden; display:none; align-items:center; gap:12px; }
+  .now-playing{ margin-top:22px; overflow:hidden; display:none; align-items:center; gap:12px; }
+  /* Real frequency only: the box always shows, dimmed when the station sends no song. */
+  .now-playing-text.empty{ color:var(--chrome-2); text-shadow:none; }
   .now-playing-label{ font-size:9px; letter-spacing:2px; color:var(--chrome-2); font-family:'Share Tech Mono',monospace; margin-bottom:2px; }
   .now-playing-text{
     font-family:'Share Tech Mono',monospace; font-size:12px; color:var(--lcd-text);
@@ -1181,16 +1183,29 @@
     albumArtImg.style.display = 'block';
   }
 
+  // With Real frequency only on (the default) the Now Playing box always
+  // shows, saying "Unavailable" when the station sends no song; with it off,
+  // the box only appears when there's a song, as before.
   function clearNowPlaying(){
-    nowPlayingWrap.style.display = 'none';
     nowPlayingText.textContent = '';
+    nowPlayingText.classList.remove('empty');
+    if (userData.realOnly !== false) {
+      nowPlayingText.textContent = 'Unavailable';
+      nowPlayingText.classList.add('empty');
+      nowPlayingWrap.style.display = 'flex';
+      if (albumArtImg) { albumArtImg.src = DEFAULT_ART; albumArtImg.style.display = 'block'; }
+      return;
+    }
+    nowPlayingWrap.style.display = 'none';
     if (albumArtImg) albumArtImg.style.display = 'none';
   }
   function setNowPlaying(text){
     if (!text) { clearNowPlaying(); return; }
     nowPlayingText.textContent = text;
+    nowPlayingText.classList.remove('empty');
     nowPlayingWrap.style.display = 'flex';
   }
+  clearNowPlaying();   // shows "Unavailable" from the start in Real frequency only
 
   // --- "now playing" via embedded ID3 tags on HLS streams (hls.js parses these
   // into a standard TextTrack automatically; TIT2 = title, TPE1 = artist) ---
