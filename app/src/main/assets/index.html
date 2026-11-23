@@ -3003,16 +3003,16 @@
         <div class="ed-sub">PHONE</div>
         <div class="ed-radios">
           <label><input type="radio" name="edShowR" value=""> All stations</label>
-          <label><input type="radio" name="edShowR" value="list"> My phone stations <span class="cnt" id="cntP"></span></label>
+          <label><input type="radio" name="edShowR" value="list"> Only my chosen stations <span class="cnt" id="cntP"></span></label>
         </div>
-        <button type="button" class="ed-btn" id="edPickP">CHOOSE PHONE STATIONS…</button>
+        <button type="button" class="ed-btn" id="edPickP">CHOOSE STATIONS FOR THE PHONE…</button>
         <div class="ed-sub">ANDROID AUTO</div>
         <div class="ed-radios">
           <label><input type="radio" name="edCarR" value=""> Same as phone</label>
           <label><input type="radio" name="edCarR" value="*"> All stations</label>
-          <label><input type="radio" name="edCarR" value="list"> My car stations <span class="cnt" id="cntC"></span></label>
+          <label><input type="radio" name="edCarR" value="list"> Only my chosen stations <span class="cnt" id="cntC"></span></label>
         </div>
-        <button type="button" class="ed-btn" id="edPickC">CHOOSE CAR STATIONS…</button>
+        <button type="button" class="ed-btn" id="edPickC">CHOOSE STATIONS FOR THE CAR…</button>
         <div id="edListBox" hidden>
           <div class="ed-sub" id="edListTitle"></div>
           <label>ORDER<select id="edListSort"><option value="freq">By frequency</option><option value="az">A to Z</option></select></label>
@@ -3021,7 +3021,7 @@
           <div class="ed-row"><button type="button" class="ed-btn primary" id="edListSave">SAVE</button><button type="button" class="ed-btn" id="edListCancel">CANCEL</button></div>
         </div>
         <div class="ed-msg" id="edShowMsg"></div>
-        <div class="ed-note">Your own stations show alone, with no categories. The speaker buttons then jump through them in thirds.</div>
+        <div class="ed-note">With “Only my chosen stations”, nothing else shows. The speaker buttons then jump through them in thirds.</div>
       </div>
     </details>
 
@@ -3057,8 +3057,8 @@
           </div>
         </details>
         <div class="ed-radios" id="edToListWrap">
-          <label><input type="checkbox" id="edToP"> Also add to My phone stations</label>
-          <label><input type="checkbox" id="edToC"> Also add to My car stations</label>
+          <label><input type="checkbox" id="edToP"> Also choose it for the phone</label>
+          <label><input type="checkbox" id="edToC"> Also choose it for the car</label>
         </div>
         <div class="ed-msg" id="edMsg"></div>
         <button type="button" class="ed-btn primary" id="edAdd">ADD STATION</button>
@@ -3280,8 +3280,8 @@
     stopTest();
     const hiddenOnPhone = userData.activeList === PHONE_LIST && !into.includes(PHONE_LIST);
     setMsg(msg, 'Added “' + rec.name + '” to ' + STATION_GROUPS[g].name
-      + (into.length ? ' and to ' + into.join(' and ') : '') + '.'
-      + (hiddenOnPhone ? ' It won’t show on the phone while My phone stations is on.' : ' Close this screen to tune to it.'), 'ok');
+      + (into.length ? ' and to ' + into.map(shownName).join(' and ') : '') + '.'
+      + (hiddenOnPhone ? ' It won’t show on the phone, which shows only its chosen stations.' : ' Close this screen to tune to it.'), 'ok');
     renderShowing();
     $('edName').value = ''; $('edUrl').value = ''; $('edFreq').value = ''; $('edSite').value = ''; setMsg($('edTestMsg'), '');
     renderList(); refreshSlot();
@@ -3502,6 +3502,8 @@
   // edits, so backups and reset include them; the dial updates when this
   // screen closes, Android Auto the next time the car connects.
   let listEditing = null;      // PHONE_LIST or CAR_LIST while the picker is open
+  // How the two lists are named on screen (saved under PHONE_LIST / CAR_LIST).
+  const shownName = n => n === CAR_LIST ? 'the car’s chosen stations' : 'the phone’s chosen stations';
   let switchOnSave = false;    // picked "My … stations" before the list had any
   const showMsg = (t, c) => setMsg($('edShowMsg'), t, c);
   const listOf = name => userData.lists.find(l => l.name === name) || null;
@@ -3524,8 +3526,8 @@
     $('cntC').textContent = nC ? '(' + nC + ')' : '(none chosen yet)';
     $('edRealOnly').checked = userData.realOnly !== false;
     $('sumShow').textContent = (userData.realOnly !== false ? 'Real frequency · ' : 'Categories dial · ')
-      + 'Phone: ' + (p ? 'My phone stations' : 'All stations')
-      + ' · Car: ' + (c === 'list' ? 'My car stations' : c === '*' ? 'All stations' : 'Same as phone');
+      + 'Phone: ' + (p ? 'Chosen stations' : 'All stations')
+      + ' · Car: ' + (c === 'list' ? 'Chosen stations' : c === '*' ? 'All stations' : 'Same as phone');
     if (!editing) setAddToDefaults();
   }
   // New stations are offered for the lists that are showing.
@@ -3554,7 +3556,7 @@
       pick.appendChild(lab);
     });
   }
-  const titleFor = (name, n) => (name === PHONE_LIST ? 'CHOOSE PHONE STATIONS' : 'CHOOSE CAR STATIONS') + ' (' + n + ' ticked)';
+  const titleFor = (name, n) => (name === PHONE_LIST ? 'STATIONS FOR THE PHONE' : 'STATIONS FOR THE CAR') + ' (' + n + ' ticked)';
   function openPicker(name, andSwitch){
     const l = listOf(name);
     listEditing = name; switchOnSave = !!andSwitch;
@@ -3572,7 +3574,7 @@
     if (r.value === 'list') {
       if (!countOf(PHONE_LIST)) { renderShowing(); return openPicker(PHONE_LIST, true); }
       userData.activeList = PHONE_LIST;
-      saveShowing('The phone shows My phone stations.');
+      saveShowing('The phone shows only its chosen stations.');
     } else {
       userData.activeList = '';
       saveShowing('The phone shows all stations.');
@@ -3582,7 +3584,7 @@
     if (r.value === 'list') {
       if (!countOf(CAR_LIST)) { renderShowing(); return openPicker(CAR_LIST, true); }
       userData.carList = CAR_LIST;
-      saveShowing('Android Auto shows My car stations.', true);
+      saveShowing('Android Auto shows only its chosen stations.', true);
     } else {
       userData.carList = r.value;
       saveShowing(r.value === '*' ? 'Android Auto shows all stations.' : 'Android Auto shows the same as the phone.', true);
@@ -3620,7 +3622,7 @@
     }
     closePicker();
     if (!persist()) { const b = JSON.parse(before); userData.lists = b[0]; userData.activeList = b[1]; userData.carList = b[2]; renderShowing(); return showMsg('Could not save. Try again.', 'warn'); }
-    saveShowing(!picked.length ? 'Cleared ' + name + '.' : 'Saved ' + name + ' (' + picked.length + ' station' + (picked.length === 1 ? '' : 's') + ').', forCar);
+    saveShowing(!picked.length ? 'Cleared ' + shownName(name) + '; it shows all stations.' : 'Saved ' + shownName(name) + ' (' + picked.length + ' station' + (picked.length === 1 ? '' : 's') + ').', forCar);
   });
 
   // ---- default sleep timer ---------------------------------------------
@@ -3646,7 +3648,7 @@
     const m = $('edResetMsg');
     if (!resetArmed) {
       resetArmed = true; $('edReset').textContent = 'TAP AGAIN TO RESET';
-      setMsg(m, 'This puts back every built-in station and removes the ones you added or edited, your custom logos, My phone and car stations, and default sleep.', 'warn');
+      setMsg(m, 'This puts back every built-in station and removes the ones you added or edited, your custom logos, the stations chosen for the phone and car, and default sleep.', 'warn');
       resetTimer = setTimeout(() => { resetArmed = false; $('edReset').textContent = 'RESET TO DEFAULTS'; setMsg(m, ''); }, 5000);
       return;
     }
@@ -3795,7 +3797,7 @@
     pendingImport = c;
     $('edImportGoRow').hidden = false;
     setMsg(m, 'Backup: ' + c.added.length + ' added, ' + Object.keys(c.edited).length + ' edited, ' + c.hidden.length + ' removed, ' + Object.keys(c.logos).length + ' logos'
-      + c.lists.map(l => ', ' + l.name + ' (' + l.stations.length + ')').join('')
+      + c.lists.map(l => ', ' + (l.name === CAR_LIST ? 'car' : 'phone') + ' chosen stations (' + l.stations.length + ')').join('')
       + (c.sleepDefault ? ', default sleep ' + c.sleepDefault + ' min' : '')
       + (c.dropped ? ' (' + c.dropped + ' skipped: they did not fit the dial)' : '') + '. Replace what is on this phone now?', 'warn');
   }
