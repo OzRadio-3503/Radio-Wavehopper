@@ -1439,6 +1439,7 @@ public class RadioLibraryService extends MediaLibraryService {
                         if (next == null || bandHasStations(next)) { carBandFilter = next; break; }
                     }
                     refreshCustomLayout();
+                    showBandNotice();
                     if (carBandFilter != null) jumpBandRemembered();
                     return Futures.immediateFuture(new SessionResult(SessionResult.RESULT_SUCCESS));
                 }
@@ -1676,6 +1677,13 @@ public class RadioLibraryService extends MediaLibraryService {
                 if (item == null) return super.getMediaMetadata();
                 // The song playing, if the stream sends it, replaces the group
                 // as the second line; the title (frequency, name) and logo stay.
+                // For a few seconds after the band button, that line names the band.
+                if (!bandNotice.isEmpty()) {
+                    return item.mediaMetadata.buildUpon()
+                            .setArtist(bandNotice)
+                            .setSubtitle(bandNotice)
+                            .build();
+                }
                 if (!carSong.isEmpty() && item.mediaId.equals(carSongMediaId)) {
                     return item.mediaMetadata.buildUpon()
                             .setArtist(carSong)
@@ -1845,6 +1853,7 @@ public class RadioLibraryService extends MediaLibraryService {
         if (instance == this) instance = null;
         lastCarConnected = false;
         stallWatchdogHandler.removeCallbacks(stallWatchdogTick);
+        songHandler.removeCallbacksAndMessages(null);
         LogoFetcher.setListener(null);
         if (mediaLibrarySession != null) {
             mediaLibrarySession.getPlayer().release();
@@ -1902,6 +1911,26 @@ public class RadioLibraryService extends MediaLibraryService {
         pendingSong = "";
         carSongMediaId = "";
         carSongShownAt = 0;
+    }
+
+    // ---- Band name after pressing the band button ----
+    /** Shown as the second line for BAND_NOTICE_MS after a band change; "" otherwise. */
+    private String bandNotice = "";
+    private static final long BAND_NOTICE_MS = 5_000L;
+    private final Runnable clearBandNotice = () -> {
+        bandNotice = "";
+        tellCarDetailsChanged();
+    };
+
+    private void showBandNotice() {
+        if ("am".equals(carBandFilter)) bandNotice = "AM band";
+        else if ("fm".equals(carBandFilter)) bandNotice = "FM band";
+        else if ("dabnet".equals(carBandFilter)) bandNotice = "DAB+ & Internet band";
+        else bandNotice = "All bands";
+        DiagLog.log("carUI band: " + bandNotice);
+        songHandler.removeCallbacks(clearBandNotice);
+        songHandler.postDelayed(clearBandNotice, BAND_NOTICE_MS);
+        tellCarDetailsChanged();
     }
 
     private void tellCarDetailsChanged() {

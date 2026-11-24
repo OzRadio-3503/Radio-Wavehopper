@@ -1787,7 +1787,8 @@
     const target = bandOpeningStation(b.dataset.band);
     if (!target) return;
     if (Math.abs(target.freq - currentFreq) > 0.001) render(target.freq);
-    flashGroupName(`${BAND_LABEL[b.dataset.band]} BAND LOCKED`);
+    // In real-frequency-only mode the band is always locked, so just name it.
+    flashGroupName(realOnly ? `${BAND_LABEL[b.dataset.band]} BAND` : `${BAND_LABEL[b.dataset.band]} BAND LOCKED`);
     buzz(15);
   });
   var auUiReady = false;
