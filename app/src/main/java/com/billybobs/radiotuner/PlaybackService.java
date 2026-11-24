@@ -383,6 +383,9 @@ public class PlaybackService extends Service {
             public void onIsPlayingChanged(boolean isPlaying) {
                 DiagLog.log("isPlaying=" + isPlaying + " " + diagSnapshot());
                 if (isPlaying) {
+                    playedUrl = currentStationUrl;
+                    dropoutStartMs = 0;
+                    dropoutHandler.removeCallbacksAndMessages(null);
                     acquireWakeLock();
                     getSharedPreferences("RadioPrefs", MODE_PRIVATE).edit()
                             .putBoolean("is_playing", true)
@@ -462,6 +465,7 @@ public class PlaybackService extends Service {
                     player.prepare();
                     return;
                 }
+                if (retryAfterDropout()) return;
                 android.util.Log.e(TAG, "Playback error: "
                         + error.getErrorCodeName() + " - " + error.getMessage(), error);
                 releaseWakeLock();
@@ -848,6 +852,45 @@ public class PlaybackService extends Service {
     }
 
     /** Fresh connection to the current station on ExoPlayer. */
+    // --- Riding out a short outage --------------------------------------
+    // If a station that was playing drops out and won't reconnect straight
+    // away (e.g. the ABC Sport DAB relay answering "502" for a minute), keep
+    // trying every 10 s for up to 2 minutes before showing an error.
+    // A station that fails on first tuning still shows its error at once.
+    private static final long DROPOUT_RETRY_EVERY_MS = 10_000L;
+    private static final long DROPOUT_GIVE_UP_AFTER_MS = 120_000L;
+    private final Handler dropoutHandler = new Handler(Looper.getMainLooper());
+    private String playedUrl;          // the station that last actually played
+    private long dropoutStartMs;       // when the current dropout began, 0 = none
+
+    private boolean retryAfterDropout() {
+        if (usingLegacyPlayer || currentStationUrl == null
+                || !currentStationUrl.equals(playedUrl) || !player.getPlayWhenReady()) {
+            return false;
+        }
+        long now = android.os.SystemClock.elapsedRealtime();
+        if (dropoutStartMs == 0) dropoutStartMs = now;
+        if (now - dropoutStartMs >= DROPOUT_GIVE_UP_AFTER_MS) {
+            DiagLog.log("DROPOUT gave up after " + ((now - dropoutStartMs) / 1000) + "s");
+            dropoutStartMs = 0;
+            return false;
+        }
+        DiagLog.log("DROPOUT retrying in 10s (" + ((now - dropoutStartMs) / 1000) + "s so far)");
+        sendJs("onNativeReconnecting");
+        stopStallWatchdog();
+        final String url = currentStationUrl;
+        dropoutHandler.removeCallbacksAndMessages(null);
+        dropoutHandler.postDelayed(() -> {
+            // Skip if you've paused or changed station in the meantime.
+            if (url.equals(currentStationUrl) && player.getPlayWhenReady()
+                    && player.getPlaybackState() == Player.STATE_IDLE) {
+                DiagLog.log("DROPOUT retry " + url);
+                reconnectExoPlayer();
+            }
+        }, DROPOUT_RETRY_EVERY_MS);
+        return true;
+    }
+
     private void reconnectExoPlayer() {
         MediaItem.Builder builder = new MediaItem.Builder().setUri(currentStationUrl);
         if (currentStationMimeType != null) builder.setMimeType(currentStationMimeType);
@@ -970,6 +1013,8 @@ public class PlaybackService extends Service {
                 }
                 if (station != null) {
                     DiagLog.log("PLAY " + station.name + " " + station.url);
+                    dropoutStartMs = 0;
+                    dropoutHandler.removeCallbacksAndMessages(null);
                     currentStationName = (title != null && !title.isEmpty()) ? title : station.name;
                     currentArtist = "";
                     currentTrack = "";
@@ -1437,6 +1482,7 @@ public class PlaybackService extends Service {
     public void onDestroy() {
         running = false;
         DiagLog.log("=== service destroyed ===");
+        dropoutHandler.removeCallbacksAndMessages(null);
         unregisterDiagReceivers();
         releaseWakeLock();
         cancelSleepTimer();

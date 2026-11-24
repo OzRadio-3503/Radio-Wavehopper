@@ -2790,6 +2790,17 @@
       updateMediaSessionState();
       identifyBtn.style.display = 'none';   // nothing playing for Shazam to hear
     },
+    onNativeReconnecting: function(){
+      // The station dropped out; the player keeps retrying for a couple of minutes.
+      isLoading = true;
+      isPlaying = false;
+      eqBars.classList.remove('playing');
+      playIcon.innerHTML = '<path d="M6 6h12v12H6z"/>';
+      statusText.className = 'status-text warn';
+      statusText.textContent = 'Signal lost — reconnecting…';
+      identifyBtn.style.display = 'none';
+      updateMediaSessionState();
+    },
     onNativeError: function(reason){
       isLoading = false;
       isPlaying = false;
