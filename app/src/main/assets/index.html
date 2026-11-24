@@ -336,7 +336,7 @@
   .play-btn:disabled{ opacity:0.3; cursor:not-allowed; box-shadow:none; }
   .play-btn svg{ width:16px; height:16px; fill:#fff; }
 
-  .status-text{ font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--chrome-2); letter-spacing:0.3px; flex:1; }
+  .status-text{ font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--chrome-2); letter-spacing:0.3px; flex:1; min-width:0; overflow-wrap:anywhere; }
   .status-text.warn{ color:var(--warn); }
   .status-text.ok{ color:var(--ok); }
   .status-text a{ color:var(--cyan); text-decoration:underline; }
@@ -431,7 +431,7 @@
           <svg id="playIcon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
         </button>
         <div class="status-text" id="statusText">Tap ‹ › to find a station.</div>
-        <button id="identifyBtn" title="Identify song with Shazam" style="display:none;margin-left:auto;background:rgba(243,217,138,0.2);border:1px solid #f3d98a;color:#f3d98a;padding:4px 8px;border-radius:4px;font-family:'Share Tech Mono',monospace;font-size:11px;cursor:pointer;">🎵 Shazam</button>
+        <button id="identifyBtn" title="Identify song with Shazam" style="display:none;margin-left:auto;flex-shrink:0;background:rgba(243,217,138,0.2);border:1px solid #f3d98a;color:#f3d98a;padding:4px 8px;border-radius:4px;font-family:'Share Tech Mono',monospace;font-size:11px;cursor:pointer;">🎵 Shazam</button>
       </div>
       <div class="volume-row">
         <label>VOL</label>
@@ -2788,6 +2788,7 @@
       statusText.className = 'status-text';
       statusText.textContent = 'Paused. Press play to resume.';
       updateMediaSessionState();
+      identifyBtn.style.display = 'none';   // nothing playing for Shazam to hear
     },
     onNativeError: function(reason){
       isLoading = false;
@@ -2800,6 +2801,7 @@
       statusText.innerHTML = 'Couldn\'t play this' + reasonSuffix + '.' +
         (url ? ' <a href="' + url + '" target="_blank" rel="noopener">Open the stream directly ↗</a>' : '');
       updateMediaSessionState();
+      identifyBtn.style.display = 'none';
       if (icyAbortController) { icyAbortController.abort(); icyAbortController = null; }
       if (metadataPollTimer) { clearInterval(metadataPollTimer); metadataPollTimer = null; }
     }
