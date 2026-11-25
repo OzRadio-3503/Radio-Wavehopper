@@ -121,6 +121,7 @@ time. Please only add and use streams you have the right to listen to.
 <p>
   <img width="250" alt="image" src="https://github.com/user-attachments/assets/8e66e95b-0378-4cb3-a04c-23d8f269cc98" />
   <img width="250" alt="image" src="https://github.com/user-attachments/assets/4be3f4cf-a117-434a-8658-eccddd819a89" />
+  <img width="960" height="2142" alt="image" src="https://github.com/user-attachments/assets/1223a24b-f250-4907-895e-7b4b340afceb" />
   <img width="250" alt="image" src="https://github.com/user-attachments/assets/b887f641-2ab5-4580-82a2-8ee93a6852bb" />
   <img width="420" alt="image" src="https://github.com/user-attachments/assets/e46ec17b-e33b-414d-aa56-57ff0c2aff2d" />
 </p>
