@@ -74,7 +74,10 @@ code rather than running it, so download the file (open it on GitHub and use the
 order. The double arrows jump between station groups, or a third of the way
 through when the car shows only your chosen stations. The band button
 switches between AM, FM, DAB+ & Internet and all bands, and the line under the
-station name shows which band you're on for a few seconds.
+station name shows which band you're on for a few seconds. On the steering
+wheel, **hold next or previous** to change band the same way. The car starts on
+the station you last had in the car (or the phone's, if that's newer and on your
+car list).
 
 **Back up your stations.** Your added stations, logos, lists and settings are saved
 on the phone and are lost if you uninstall the app. Before uninstalling, open
