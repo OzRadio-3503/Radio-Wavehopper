@@ -1391,7 +1391,10 @@ public class RadioLibraryService extends MediaLibraryService {
                         .add(bandDabnetCommand)
                         .add(bandAllCommand)
                         .build();
-                if (ANDROID_AUTO.equals(controller.getPackageName())) refreshStationsForCar();
+                if (ANDROID_AUTO.equals(controller.getPackageName())) {
+                    refreshStationsForCar();
+                    loadStationIfEmpty();
+                }
                 DiagLog.log("carUI onConnect: controller=" + controller.getPackageName()
                         + " trusted=" + controller.isTrusted()
                         + " legacy=" + controller.getControllerVersion());
@@ -1799,6 +1802,21 @@ public class RadioLibraryService extends MediaLibraryService {
      * list was read (lists, hidden categories, added stations). The player
      * keeps playing; next/previous and jumps use the new list from here on.
      */
+    /**
+     * Leaving the car empties the car's player (handBackToPhone). If this
+     * service is still running at the next drive, onCreate's restore doesn't
+     * run again, so the car connected with nothing loaded and showed no
+     * station. Load the starting station again, ready to play (not playing).
+     */
+    private void loadStationIfEmpty() {
+        if (player == null || player.getMediaItemCount() > 0) return;
+        int idx = combinedLastStationIndex();
+        if (idx < 0) idx = 0;
+        if (stations == null || stations.isEmpty()) return;
+        DiagLog.log("carUI loadStationIfEmpty: " + stations.get(idx).name);
+        player.setMediaItems(fullPlaylist(), idx, 0L);   // like onCreate: shown, not connecting until played
+    }
+
     private void refreshStationsForCar() {
         List<StationLibrary.Station> fresh = StationLibrary.getCarStations();
         boolean same = stations != null && fresh.size() == stations.size();
