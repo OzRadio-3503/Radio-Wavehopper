@@ -201,9 +201,19 @@ public class RadioLibraryService extends MediaLibraryService {
      * were listening to and play carries on from there on the phone.
      * Safe to call any time; does nothing while still connected.
      */
+    /**
+     * True once the car's player has been used with Android Auto connected,
+     * since the last hand-back. The service also starts when the phone app
+     * opens and loads a station without any drive; that must not be handed
+     * back as "the car's station" (it overwrote the phone's station).
+     */
+    private static volatile boolean usedInCar = false;
+
     static void handBackToPhone() {
         RadioLibraryService car = instance;
         if (car == null || carConnected() || car.player == null) return;
+        if (!usedInCar) return;
+        usedInCar = false;
         StationLibrary.Station on = car.currentStationAnywhere();
         boolean wasPlaying = car.player.getPlayWhenReady()
                 && car.player.getPlaybackState() != Player.STATE_IDLE;
@@ -1270,11 +1280,18 @@ public class RadioLibraryService extends MediaLibraryService {
                 // Remember it for the next time the car connects - and, in
                 // the memory shared with the phone, as the last station in
                 // its band (AM, FM, DAB or Internet) for the band button.
-                if (mediaItem != null && !mediaItem.mediaId.isEmpty()) {
+                // Only while actually in the car: this service also starts
+                // (and loads a station) whenever the phone app opens, and that
+                // must not overwrite the car's own last station.
+                boolean inCar = carConnected();
+                if (inCar) usedInCar = true;
+                if (inCar && mediaItem != null && !mediaItem.mediaId.isEmpty()) {
                     getSharedPreferences(PREFS, MODE_PRIVATE).edit()
                             .putString(KEY_LAST_STATION, mediaItem.mediaId)
                             .putLong(KEY_LAST_STATION_AT, System.currentTimeMillis())
                             .apply();
+                }
+                if (inCar && mediaItem != null && !mediaItem.mediaId.isEmpty()) {
                     if (st >= 0) {
                         StationLibrary.Station s = stations.get(st);
                         BandMemory.remember(RadioLibraryService.this, StationLibrary.realBand(s), s.name);
@@ -1319,6 +1336,7 @@ public class RadioLibraryService extends MediaLibraryService {
 
             @Override
             public void onIsPlayingChanged(boolean isPlaying) {
+                if (isPlaying && carConnected()) usedInCar = true;
                 mirrorToPhoneWidget();
                 if (isPlaying) {
                     cancelPhoneSleepTimer();
