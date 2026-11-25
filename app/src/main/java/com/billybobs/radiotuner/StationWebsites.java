@@ -27,7 +27,7 @@ final class StationWebsites {
         SITES.put("SEN 1116", "https://www.sen.com.au");
         SITES.put("ABC Sports", "https://www.abc.net.au/sport");
         SITES.put("ABC Cricket", "https://www.abc.net.au/sport");
-        SITES.put("Sports Nation NZ", "https://sportnation.nz");
+        SITES.put("Sports Nation WLG NZ", "https://sportnation.nz");
         SITES.put("BBC Radio 5 Sports Extra", "https://www.bbc.co.uk/5live");
         SITES.put("Guerilla Cricket", "https://www.guerillacricket.com");
         SITES.put("SEN Fanatic", "https://www.sen.com.au");

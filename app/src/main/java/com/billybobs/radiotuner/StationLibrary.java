@@ -92,7 +92,7 @@ public final class StationLibrary {
             BY_NAME.put("WNYC", "US");
             BY_NAME.put("2UE 954", "NSW");
             BY_NAME.put("SEN 1170", "NSW");
-            BY_NAME.put("Sports Nation NZ", "NZ");
+            BY_NAME.put("Sports Nation WLG NZ", "NZ");
             BY_NAME.put("ABC Sports", "AU");
             BY_NAME.put("BBC Radio 5 Sports Extra", "UK");
             BY_NAME.put("talkSPORT 2", "UK");
@@ -239,7 +239,13 @@ public final class StationLibrary {
             BY_NAME.put("Station X", "NSW");
             BY_NAME.put("Forever Classic 60s", "NSW");
             BY_NAME.put("XLFM", "NSW");
-            BY_NAME.put("Vintage FM", "NSW");
+            BY_NAME.put("Crow FM", "QLD");
+            BY_NAME.put("2CC", "ACT");
+            BY_NAME.put("4BC", "QLD");
+            BY_NAME.put("3AW", "VIC");
+            BY_NAME.put("3HHH", "VIC");
+            BY_NAME.put("The Breeze Auckland", "NZ");
+            BY_NAME.put("Vintage FM Camden", "NSW");
             BY_NAME.put("Forever Classic 70s", "NSW");
             BY_NAME.put("The Fresh Mix", "AU");
         }
@@ -522,7 +528,7 @@ public final class StationLibrary {
         stations.add(new Station(87.52, "talkSPORT", "1089 AM", "http://23163.live.streamtheworld.com/NOVA_TALKSPORT_1.mp3?dist=talksport"));
         stations.add(new Station(87.55, "SEN 1116", "1116 AM", "http://13.54.221.214:8000/sen.mp3"));
         stations.add(new Station(87.6, "SEN 1170", "1170 AM", "https://d2kkpj3tysba3i.cloudfront.net/v1/master/fbb316a042e17a2e683126d94749c2d69866fc2c/SEN_Sydney/raw/sen-syd/EncoderUnit_3.m3u8?playerParams.sitepage=https%3A%2F%2Fsen.com.au%2F&playerParams.domain=sen.com.au&playerParams.cb=cachebusterPlaceholder&playerParams.playerId=SEN-Web", "application/x-mpegURL"));
-        stations.add(new Station(87.7, "Sports Nation NZ", "1476 AM", "https://sen.streamguys1.com/SENZ-AAC/playlist.m3u8"));
+        stations.add(new Station(87.7, "Sports Nation WLG NZ", "1233 AM", "https://sen.streamguys1.com/SENZ-AAC/playlist.m3u8"));
         stations.add(new Station(87.8, "ABC Sports", "DAB only", "https://mediaserviceslive.akamaized.net/hls/live/2038320/grandstand/master.m3u8"));
         stations.add(new Station(87.9, "BBC Radio 5 Sports Extra", "DAB only", "https://a.files.bbci.co.uk/ms6/live/3441A116-B12E-4D2F-ACA8-C1984642FA4B/audio/simulcast/hls/uk/audio_syndication_low_sbr_v1/cfs/bbc_radio_five_live_sports_extra.m3u8"));
         stations.add(new Station(88.0, "talkSPORT 2", "DAB only", "https://talksport.live.stream.broadcasting.news/stream2"));
@@ -532,10 +538,13 @@ public final class StationLibrary {
         // ---- Talk ----
         stations.add(new Station(88.4, "ABC News", "630 AM", "https://mediaserviceslive.akamaized.net/hls/live/2038311/newsradio/master.m3u8"));
         stations.add(new Station(88.5, "CBC Radio One Vancouver", "690 AM", "https://cbcradiolive.akamaized.net/hls/live/2041050/ES_R1PVC/master.m3u8"));
+        stations.add(new Station(88.55, "3AW", "693 AM", "http://playerservices.streamtheworld.com/api/livestream-redirect/3AW.mp3"));
         stations.add(new Station(88.6, "ABC SYD", "702 AM", "https://mediaserviceslive.akamaized.net/hls/live/2038258/localsydney/v0-221.m3u8"));
         stations.add(new Station(88.65, "WNYC", "820 AM", "https://fm939.wnyc.org/wnycfm"));
         stations.add(new Station(88.7, "KHVH 830 AM", "830 AM", "https://stream.revma.ihrhls.com/zc4748"));
         stations.add(new Station(88.8, "2GB Sydney", "873 AM", "https://23153.live.streamtheworld.com/2GB.mp3"));
+        stations.add(new Station(88.85, "4BC", "882 AM", "http://playerservices.streamtheworld.com/api/livestream-redirect/4BC.mp3"));
+        stations.add(new Station(88.87, "2CC", "1206 AM", "https://playerservices.streamtheworld.com/api/livestream-redirect/2CCAAC.aac"));
         stations.add(new Station(88.9, "2SM 1269", "1269 AM", "https://cast4.asurahosting.com/proxy/2sm1269/stream"));
         stations.add(new Station(89.0, "RTE Radio 1", "88.5 FM", "https://25633.live.streamtheworld.com/RTE_1_INT.mp3"));
         stations.add(new Station(89.1, "Money FM Singapore", "89.3 FM", "https://playerservices.streamtheworld.com/api/livestream-redirect/MONEY_893AAC.aac"));
@@ -553,12 +562,12 @@ public final class StationLibrary {
         stations.add(new Station(90.07, "Forever Classic 70s", "88.0 FM", "https://playerservices.streamtheworld.com/api/livestream-redirect/70S_MUSIC_GOULBURNAAC.aac"));
         stations.add(new Station(90.1, "2RDJ", "88.1 FM", "http://104.128.238.80:8000/radio%202rdj"));
         stations.add(new Station(90.2, "2RRR Ryde", "88.5 FM", "https://28803.live.streamtheworld.com/2RRRAAC.aac"));
-        stations.add(new Station(90.25, "Vintage FM", "88.7 FM", "https://stream.radio.co/sd60e90ab1/listen"));
+        stations.add(new Station(90.25, "Vintage FM Camden", "88.7 FM", "https://stream.radio.co/sd60e90ab1/listen"));
         stations.add(new Station(90.3, "2BRW", "88.9 FM", "https://audio-edge-d34v9.syd.o.radiomast.io/ba864be6-11d1-4e13-aa74-f8e8781f64f6#.mp3"));
         stations.add(new Station(90.4, "2BLU Katoomba", "89.1 FM", "https://23193.live.streamtheworld.com/2BLU.mp3"));
         stations.add(new Station(90.5, "2GLF", "89.3 FM", "https://23093.live.streamtheworld.com/2GLFAAC.aac"));
         stations.add(new Station(90.6, "Valley FM", "89.5 FM", "https://22283.live.streamtheworld.com/1VFMAAC.aac"));
-        stations.add(new Station(90.7, "Alive 90.5", "90.5 FM", "https://23093.live.streamtheworld.com/2CCRAAC.aac"));
+        stations.add(new Station(90.7, "Alive 90.5", "90.5 FM", "http://playerservices.streamtheworld.com/api/livestream-redirect/2CCR.mp3"));
         stations.add(new Station(90.8, "2MCE Bathurst", "92.3 FM", "https://stream.2mce.org/2MCE"));
         stations.add(new Station(90.9, "2YYY Young", "92.3 FM", "https://streaming.2yyyradio.com/radio/8000/radio.mp3"));
         stations.add(new Station(90.95, "2EC", "94.5 FM", "https://playerservices.streamtheworld.com/api/livestream-redirect/BEG_2ECAAC.aac"));
@@ -587,10 +596,10 @@ public final class StationLibrary {
         stations.add(new Station(93.0, "Highland FM Mittagong", "107.1 FM", "https://23163.live.streamtheworld.com/HIGHLAND_FM.mp3"));
         stations.add(new Station(93.1, "2BBB Bellingen", "107.3 FM", "https://23163.live.streamtheworld.com/2BBBAAC.aac"));
         stations.add(new Station(93.2, "2EAR Moruya", "107.5 FM", "https://23193.live.streamtheworld.com/2EARAAC.aac"));
-        stations.add(new Station(93.3, "2OCW Orange", "107.5 FM", "https://23093.live.streamtheworld.com/2OCWAAC.aac"));
+        stations.add(new Station(93.3, "2OCW Orange", "107.5 FM", "https://stream2.cnmns.net/orange1035"));
         // ---- Victoria ----
         stations.add(new Station(93.4, "3MFM", "88.1 FM", "http://listen.southcoastfm.au:881/aac"));
-        stations.add(new Station(93.5, "Southern FM", "88.3 FM", "https://stream.swifthosting.com.au/;stream.mp3"));
+        stations.add(new Station(93.5, "Southern FM", "88.3 FM", "https://stream.swifthosting.com.au/;?type=http&nocache=6846"));
         stations.add(new Station(93.6, "Plenty Valley FM", "88.6 FM", "https://28803.live.streamtheworld.com/3PVRAAC.aac"));
         stations.add(new Station(93.7, "WYN FM", "88.9 FM", "https://streamer5.rightclickitservices.com:19740/aac"));
         stations.add(new Station(93.8, "Pulse FM Geelong", "94.7 FM", "https://23193.live.streamtheworld.com/3PLSAAC.aac"));
@@ -604,12 +613,14 @@ public final class StationLibrary {
         stations.add(new Station(94.6, "Sunbury Radio", "99.3 FM", "https://23203.live.streamtheworld.com/3NRGAAC.aac"));
         stations.add(new Station(94.7, "3MGB Mallacoota", "101.7 FM", "https://23163.live.streamtheworld.com/3MGBAAC.aac"));
         stations.add(new Station(94.8, "3RRR FM", "102.7 FM", "https://realtime.rrr.org.au/p1h"));
+        stations.add(new Station(94.85, "3HHH", "106.3 FM", "http://playerservices.streamtheworld.com/api/livestream-redirect/3HHHAAC.aac"));
         stations.add(new Station(94.9, "3PBS FM", "106.7 FM", "https://playerservices.streamtheworld.com/api/livestream-redirect/3PBS_FMAACHIGH.aac"));
         // ---- Queensland ----
         stations.add(new Station(95.0, "4KZ", "531 AM", "https://stream03.syd.hostgeek.com.au/4kz/stream"));
         stations.add(new Station(95.1, "4AM", "558 AM", "https://stream03.syd.hostgeek.com.au/4am/stream"));
+        stations.add(new Station(95.15, "Crow FM", "90.7 FM", "https://23163.live.streamtheworld.com/4CSBAAC.aac"));
         stations.add(new Station(95.2, "4BRZ", "92.1 FM", "https://s8.yesstreaming.net:17065/BrzLgn"));
-        stations.add(new Station(95.3, "Goldie FM", "94.1 FM", "https://14533.live.streamtheworld.com/941FMAAC.aac"));
+        stations.add(new Station(95.3, "Goldie FM", "94.1 FM", "http://playerservices.streamtheworld.com/api/livestream-redirect/941FMAAC.aac"));
         stations.add(new Station(95.4, "Rebel FM", "99.4 FM", "https://s8.yesstreaming.net:17099/RblGC"));
         stations.add(new Station(95.5, "Bridge FM", "99.7 FM", "https://28793.live.streamtheworld.com/997BRIDGEFMAAC.aac"));
         stations.add(new Station(95.6, "4RIM Boonah", "100.1 FM", "https://streaming.rimfm.org/rimfmlive.mp3"));
@@ -624,15 +635,15 @@ public final class StationLibrary {
         stations.add(new Station(96.4, "Coast FM Adelaide", "88.7 FM", "http://streaming1.coastfm.com.au:8000/broadwavehigh.mp3"));
         stations.add(new Station(96.5, "Lofty Radio", "88.9 FM", "https://stream04.sigile.net/lofty-48-aac"));
         stations.add(new Station(96.6, "Fleurieu FM", "89.3 FM", "https://stream.sigile.net/fleurieufm-128-mp3"));
-        stations.add(new Station(96.7, "5PBA FM", "89.7 FM", "https://23093.live.streamtheworld.com/5PBAAAC.aac"));
+        stations.add(new Station(96.7, "5PBA FM", "89.7 FM", "https://playerservices.streamtheworld.com/api/livestream-redirect/5PBAAAC.aac"));
         stations.add(new Station(96.8, "Happy FM", "90.1 FM", "https://stream04.sigile.net/happyfm-128-mp3"));
-        stations.add(new Station(96.9, "5KIX Kangaroo Island", "90.7 FM", "https://23093.live.streamtheworld.com/5KIXAAC.aac"));
+        stations.add(new Station(96.9, "5KIX Kangaroo Island", "90.7 FM", "https://playerservices.streamtheworld.com/api/livestream-redirect/5KIXAAC.aac"));
         stations.add(new Station(97.0, "5ZZZ", "91.1 FM", "https://usa7.fastcast4u.com/proxy/triplez?mp=/1"));
         stations.add(new Station(97.1, "Three D Radio", "93.7 FM", "https://sounds.threedradio.com/stream"));
         stations.add(new Station(97.2, "Flow FM", "99.5 FM", "https://uksoutha.streaming.broadcast.radio/flow-fm"));
         stations.add(new Station(97.3, "5WOW", "100.5 FM", "https://stream04.sigile.net/wowfm-64-aac"));
         // ---- Western Australia ----
-        stations.add(new Station(97.4, "VCA FM Ellenbrook", "88.5 FM", "https://23093.live.streamtheworld.com/ELLENBROOK_RADIOAAC.aac"));
+        stations.add(new Station(97.4, "VCA FM Ellenbrook", "88.5 FM", "https://playerservices.streamtheworld.com/api/livestream-redirect/ELLENBROOK_RADIOAAC.aac"));
         stations.add(new Station(97.5, "Radio Kalamunda", "88.9 FM", "https://radio12.shoutcast.net.au:2020/stream/kalamunda"));
         stations.add(new Station(97.6, "Twin Cities FM", "89.7 FM", "https://ice8.securenetsystems.net/897FM"));
         stations.add(new Station(97.7, "Wave Mandurah", "91.7 FM", "https://sa47.scastream.com.au/live/6mm_128.stream/playlist.m3u8"));
@@ -641,13 +652,13 @@ public final class StationLibrary {
         stations.add(new Station(98.0, "H FM Armadale", "107.3 FM", "https://stream.hfm.radio:8443/;?type=http"));
         stations.add(new Station(98.1, "Radio Fremantle", "107.9 FM", "https://23193.live.streamtheworld.com/6CCRAAC.aac"));
         // ---- Tasmania ----
-        stations.add(new Station(98.2, "Star FM St Helens", "93.7 FM", "https://s6.myradiostream.com:11056/;stream.mp3"));
+        stations.add(new Station(98.2, "Star FM St Helens", "93.7 FM", "https://s6.myradiostream.com:11056/;?type=http&nocache=1795038414?0.47655228893962276"));
         stations.add(new Station(98.3, "Huon FM", "95.3 FM", "https://stream3.rcast.net/72445"));
         stations.add(new Station(98.4, "Hobart FM", "96.1 FM", "https://radio12.shoutcast.net.au:2020/stream/8032"));
-        stations.add(new Station(98.5, "MV FM", "96.9 FM", "https://23093.live.streamtheworld.com/MVFMAAC.aac"));
+        stations.add(new Station(98.5, "MV FM", "96.9 FM", "https://playerservices.streamtheworld.com/api/livestream-redirect/MVFMAAC.aac"));
         stations.add(new Station(98.6, "Tasman FM", "97.7 FM", "https://stream-285.surfernetwork.com/kehh7k7co2yvv"));
         stations.add(new Station(98.7, "TYGA FM", "98.9 FM", "https://radio12.shoutcast.net.au:2020/stream/8012"));
-        stations.add(new Station(98.8, "City Park Radio", "103.7 FM", "https://14533.live.streamtheworld.com/7LTNAAC.aac"));
+        stations.add(new Station(98.8, "City Park Radio", "103.7 FM", "http://playerservices.streamtheworld.com/api/livestream-redirect/7LTNAAC.aac"));
         stations.add(new Station(98.9, "7DBS Coast FM", "106.1 FM", "https://streaming.coastfmtas.au:8000/coastfm.aac"));
         // ---- Northern Territory ----
         stations.add(new Station(99.0, "Territory FM", "104.1 FM", "https://streaming.territoryfm.com:8443/TerritoryFM"));
@@ -661,6 +672,7 @@ public final class StationLibrary {
         stations.add(new Station(99.4, "Radio Hauraki Westport", "89.3 FM", "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_04AAC_SC.aac"));
         stations.add(new Station(99.5, "The Rock Auckland", "90.2 FM", "https://mediaworks.streamguys1.com/rock_net_icy"));
         stations.add(new Station(99.6, "Channel X Queenstown", "91.2 FM", "https://mediaworks.streamguys1.com/chx_net_icy"));
+        stations.add(new Station(99.62, "The Breeze Auckland", "93.4 FM", "https://mediaworks.streamguys1.com/breeze-akl-high_icy"));
         stations.add(new Station(99.65, "The Sound Auckland", "93.8 FM", "https://digitalstreams.mediaworks.nz/sound_net/playlist.m3u8"));
         // ---- Pacific ----
         stations.add(new Station(99.7, "NC 1’ere", "89.0 FM", "https://nouvelle-caledonie.ice.infomaniak.ch/nouvelle-caledonie-128.mp3"));

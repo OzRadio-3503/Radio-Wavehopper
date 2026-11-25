@@ -42,7 +42,7 @@ Same frequency, same name, same real frequency, same URL, same order, in both fi
 
 ### Dial rules
 
-- The dial runs **87.50 to 102.10**. Stations started on 0.1 steps; since the two-decimal dial (see below) a station can sit between two others (e.g. 87.55), so adding one no longer means removing one. 159 built-in stations as of 1.2.1.
+- The dial runs **87.50 to 102.10**. Stations started on 0.1 steps; since the two-decimal dial (see below) a station can sit between two others (e.g. 87.55), so adding one no longer means removing one. 165 built-in stations as of 1.2.2.
 - **Within each group, stations are in real-frequency order:** AM stations first (lowest to highest), then FM, then DAB only, then Internet only. Keep that order when adding or moving a station.
 - **Groups go up the dial in this order:**
   1. Sport
