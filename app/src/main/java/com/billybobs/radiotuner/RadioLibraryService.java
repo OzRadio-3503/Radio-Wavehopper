@@ -633,13 +633,22 @@ public class RadioLibraryService extends MediaLibraryService {
 
         // The phone's station only if the car has it (e.g. it's on your car
         // list); otherwise carry on with what you last heard in the car.
+        String phoneName = phonePrefs.getString("last_station_title", "");
+        String carId = carPrefs.getString(KEY_LAST_STATION, "");
+        int pick = carIdx;
+        String why = "car's last";
         if (phoneAt > carAt && phoneFreq >= 0) {
-            int idx = indexOfStationNamed(phonePrefs.getString("last_station_title", ""));
-            if (idx >= 0) return idx;
+            int idx = indexOfStationNamed(phoneName);
+            if (idx >= 0) { pick = idx; why = "phone's last (newer, in car list)"; }
             // Not in the car's stations and nothing played in the car yet: start at the top.
-            if (carIdx < 0 && stations != null && !stations.isEmpty()) return 0;
+            else if (carIdx < 0 && stations != null && !stations.isEmpty()) { pick = 0; why = "top of list (phone's not in car list, no car station)"; }
+            else why = "car's last (phone's not in car list)";
         }
-        return carIdx;
+        DiagLog.log("carUI start station: " + why + " -> "
+                + (pick >= 0 && stations != null && pick < stations.size() ? stations.get(pick).name : "none")
+                + " | phone=" + phoneName + " car=" + carId + " (index " + carIdx + ")"
+                + " | phone newer=" + (phoneAt > carAt));
+        return pick;
     }
 
     /**
