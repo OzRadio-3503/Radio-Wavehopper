@@ -5,7 +5,8 @@ makes the app work is not obvious from the code, and several "tidy-ups" that
 look harmless would quietly bring old bugs back. Build instructions are in
 `README.md`.
 
-Last updated: 2 Nov 2026 (dial layout 8).
+Last updated: 25 Nov 2026 (v1.2.1, dial layout 8). Several older sections below have been
+corrected in place; the newest behaviour is summarised in section 10.
 
 ---
 
@@ -113,7 +114,7 @@ A small station change that doesn't shift anything doesn't need a new layout: sw
 3. **Live streams "end" when the server drops them.** Both players reconnect instead of moving on, with the reconnects capped. The phone reconnects on `STATE_ENDED`; the car reconnects on an `AUTO` media-item transition (it runs in `REPEAT_MODE_ALL`).
 4. **Behind the live window:** live HLS stations only keep a short stretch of audio on the server. If playback falls behind it (a long stall, slow network), ExoPlayer fails with `ERROR_CODE_BEHIND_LIVE_WINDOW`. Both players catch that in `onPlayerError` and jump back to live with `seekToDefaultPosition()` + `prepare()`, at most 5 times a minute. The car must not treat it as a dead station and skip to the next one.
 5. **Stall watchdog:** both players reconnect a stream that says it's playing but isn't progressing. It only runs while `playWhenReady` is true, and the car gives a new station a grace period before the first audio.
-6. **MP3 ID3 metadata is disabled** (`Mp3Extractor.FLAG_DISABLE_ID3_METADATA`) on the phone. It was a workaround from the StreamTheWorld investigation; it's left in place because it does no harm.
+6. **MP3 file-header ID3 is disabled** (`Mp3Extractor.FLAG_DISABLE_ID3_METADATA`) on the phone. It was a workaround from the StreamTheWorld investigation; it's left in place because it does no harm. It doesn't affect song titles, which come from Icecast/ICY `StreamTitle` and HLS ID3 frames (see section 10).
 7. **Plain `http://` streams** are allowed (`usesCleartextTraffic="true"` in the manifest). The **web version** served over https can't play them, though. Browsers block mixed content, so prefer `https://` links where a station offers one.
 8. **No relay:** the old relay server (`billybobtuner.onrender.com`) is gone; every station URL is direct. The page's website-only fallback uses `corsproxy.io`.
 9. **Merging user data:** built-in edits and hides are keyed by the built-in's original frequency and sealed with its name (`names`), so if a built-in moves, saved edits follow it by name. User-added stations are checked for duplicate URLs and clashing dial spots (`mergeUserStations()` in index.html, `StationLibrary.addUserStations()` in Java). Saved data is never destroyed by this.
@@ -128,8 +129,8 @@ A small station change that doesn't shift anything doesn't need a new layout: sw
 - **Resume after the car restarts:** the last station is saved in `RadioAutoPrefs`/`last_station_id`. `onPlaybackResumption()` and `onCreate()` restore the full playlist at that station.
 - **Car takes over:** when the car starts playing, any phone sleep timer is cancelled (`cancelPhoneSleepTimer()`).
 - **Group buttons:** Now Playing has two extra buttons, previous group and next group, next to the standard skip buttons. They're Media3 custom commands (`CMD_PREV_GROUP`/`CMD_NEXT_GROUP`), allowed in `onConnect`, shown with `setCustomLayout`, handled in `onCustomCommand` → `jumpGroup()`. They land on a group's first station and wrap round, and previous group works like "previous track" (start of this group first, then the group before), the same as the phone's left speaker. Like everything in the car, they move with a seek, never `stop()`.
-- **No stream metadata in the car:** the car's player has no metadata renderers, and its `ForwardingPlayer.getMediaMetadata()` always returns the station's own item metadata. Streams' frequent "now playing" tags (HLS ID3, Icecast StreamTitle) were changing the session metadata every few seconds, making Android Auto's Now Playing background flash. Don't add them back.
-- **Second line in the car:** each station's artist/subtitle is its group name (Sport, Talk, NSW (and ACT) ...), so Now Playing and the station list always show which block you're in.
+- **Stream metadata in the car is filtered, not raw:** streams' "now playing" tags used to change the session metadata every few seconds and made Android Auto's Now Playing flash. Now `ForwardingPlayer.getMediaMetadata()` returns the station's own metadata plus at most one cleaned song line (`onStreamSong` → `SongText`, no more often than every 20 s, `SONG_MIN_GAP_MS`), and `CarQuietListener` drops loading flips and repeat timeline/metadata updates before they reach the car. Don't pass raw stream metadata through.
+- **Second line in the car:** the station's group name (Sport, Talk, NSW (and ACT) ...), replaced by the song title when the stream sends one, and for 5 s after the band button by the band name ("AM band", "FM band", "DAB+ & Internet band", "All bands").
 - **Steering-wheel hold:** the session gets the player through a `ForwardingPlayer`. Its `seekForward()` (fast forward) jumps to the next group, and `seekBack()` (rewind) goes back a group, like the screen buttons. Many cars send these on a long press of next and previous. Fast forward and rewind are always offered, even though live radio can't seek. Every next, previous, fast forward and rewind the car sends is logged (tag `RadioLibraryService`), to see what a particular car does.
 - **Station logos:** every station item has an artwork address from `StationArtworkProvider.uriFor(station)` (`content://com.billybobs.radiotuner.artwork/station/<name>.png`).
   - If `app/src/main/assets/logos/<slug>.png` exists, it's used, centred on white. The slug is the station name in lower case, with anything that isn't a letter or digit turned into `-`: `2GB Sydney` → `2gb-sydney.png`, `SEN 1170` → `sen-1170.png`. Logos are keyed by name, so they survive reshuffles.
@@ -159,9 +160,10 @@ A small station change that doesn't shift anything doesn't need a new layout: sw
 
 - **Volume slider:** inside the app, it drives the phone's media volume (`AudioManager.STREAM_MUSIC`), through `getVolume`/`setVolume`. It follows hardware volume keys via a ContentObserver. On the web, it sets the `<audio>` volume.
 - **Sleep timer:**
-  - Hold the BILLY BOB'S badge to cycle 120 / 60 / 30 / 10 minutes / off. The timer itself is native, in `PlaybackService`, with a 15-second fade, saved as `RadioPrefs`/`sleep_end_at`.
+  - Hold the RADIO WAVEHOPPER badge to cycle 120 / 60 / 30 / 10 minutes / off. The timer itself is native, in `PlaybackService`, with a 15-second fade, saved as `RadioPrefs`/`sleep_end_at`.
   - The page only shows it: a 10-second message, then a 30-second countdown at the end, when holding the badge extends the time.
-- **Real-frequency toggle:** tap the frequency display. The choice is remembered in `localStorage` `show_real_freq`.
+- **Real frequency only** (Settings, **on by default**, `userData.realOnly`): the phone always uses the real AM/FM/DAB+/NET dial with Band Lock on, the BAND button is hidden, and the speakers jump in thirds of the band. Unticked, the old behaviour below applies.
+- **Real-frequency toggle** (only with Real frequency only unticked): tap the frequency display. The choice is remembered in `localStorage` `show_real_freq`.
 - **Real-band dial:** in real-frequency mode the dial window redraws as the station's real band, and flips band as you step between stations:
   - **FM:** 88–108 MHz, needle on the real FM frequency.
   - **AM:** 531–1701 kHz, labelled 6–17 (hundreds of kHz) like a car radio.
@@ -180,8 +182,8 @@ A small station change that doesn't shift anything doesn't need a new layout: sw
 - **Region:** every station has a `cc` code: the state for Australian stations (NSW, ACT, VIC, QLD, SA, WA, TAS, NT, or AU for national ones), otherwise the country (NZ, UK, US, CA, IE, ZA, SG, FJ, NC, FR, DE). It shows after the frequency on the phone ("MHz · NSW", "REAL · kHz AM · NSW") and in the Android Auto title ("2SM 1269 (1269 AM · NSW)"). Java keeps the same codes in `StationLibrary.Regions` (by station name) — **add both when adding a station**.
 - **AU only** (the button beside BAND): skips overseas stations with the arrows, the dial, the speakers (sections with no Australian station are skipped) and the band strip, in every mode. Overseas dots are dimmed. Presets still tune anything. Remembered after closing (`au_only`). Phone and web only.
 - **Dial drag:** each station passed gives a light buzz (needs the VIBRATE permission, now in the manifest). Hold your finger still on the dial for about 0.4 s to magnify it 6x: the window shows a close-up and the dial moves 6 times slower under your finger. Works on Billy Bob's dial and, with Band Lock on, the real AM, FM and DAB+ dials.
-- **Speakers = group jumps:** tap the right speaker for the next group. The left speaker works like "previous track" on a CD player: from partway through a group it goes back to that group's first station, and from the first station it goes to the previous group. Either way it lands on a group's first station, wraps round at either end, and flashes the group name on the display. On a keyboard, PageUp and PageDown do the same. The code is `goToGroupStep()` in `index.html`, using `STATION_GROUPS`.
-- **Song ID:** `identifySong` opens Shazam.
+- **Speakers = group jumps** (categories dial; with Real frequency only they jump in thirds of the band, `goToBandThird()`; with "Only my chosen stations" in thirds of the list): tap the right speaker for the next group. The left speaker works like "previous track" on a CD player: from partway through a group it goes back to that group's first station, and from the first station it goes to the previous group. Either way it lands on a group's first station, wraps round at either end, and flashes the group name on the display. On a keyboard, PageUp and PageDown do the same. The code is `goToGroupStep()` in `index.html`, using `STATION_GROUPS`.
+- **Song ID:** `identifySong` opens Shazam. The button shows only while a station is actually playing; it hides on pause (from anywhere) and on errors.
 
 ## 7. Saved state (what survives an update)
 
@@ -189,7 +191,9 @@ A small station change that doesn't shift anything doesn't need a new layout: sw
 |---|---|---|
 | Page `localStorage` | `radio_presets` | Preset frequencies |
 | Page `localStorage` | `radio_layout` | Which dial layout the presets match (currently `'8'`) |
-| Page `localStorage` | `show_real_freq` | Real-frequency toggle |
+| Page `localStorage` | `show_real_freq` | Real-frequency toggle (categories dial only) |
+| Page `localStorage` | `au_only`, `band_last` | AU only, last station per band |
+| `UserStations` JSON (`user_stations_v1` on the web) | `added`, `hidden`, `edited`, `names`, `lists`, `activeList`, `carList`, `realOnly`, `sleepDefault` | Your stations and edits, the phone and car station lists, Real frequency only, default sleep |
 | `RadioPrefs` | `sleep_end_at`, `last_station_title`, `is_playing` | Phone player state |
 | `RadioAutoPrefs` | `last_station_id`, `station_layout` | Car's last station and its layout number |
 
@@ -255,7 +259,7 @@ Station logos belong to their owners; they are included to identify the stations
 
 ## Edit screen: your own stations (stage 1: Add)
 - Pencil icon (top right of the radio) opens the Edit screen; Back or CLOSE returns to the radio.
-- Add form: name, category (existing blocks only), region, band (Internet/FM/AM/DAB+), streaming URL with a TEST STREAM button, and a dial slot that is automatic (hundredth steps, e.g. 90.04, placed by AM/FM/DAB/Internet order inside the category) with a "choose it myself" override.
+- Add form: name, category (existing blocks only), region (under MORE), band (Internet/FM/AM/DAB+), streaming URL with a TEST STREAM button. The dial slot is always automatic (hundredth steps, e.g. 90.04, placed by AM/FM/DAB/Internet order inside the category); the old "choose it myself" option was removed in 1.1.0.
 - Saved on the phone only: `UserStations.java` (SharedPreferences "UserStations", key "data", JSON `{"added":[...]}`) via the bridge methods `getUserStations`, `saveUserStations`, `testStream`. On the website it uses localStorage `user_stations_v1`.
 - `StationLibrary.getStations()` = built-in list + user stations, sorted by dial frequency, so the phone player, widgets and Android Auto see them. Android Auto reads the list when its service starts (next car connection).
 - The page merges `userData.added` into `stations` before the ruler is built; closing the Edit screen after a change reloads the page.
@@ -263,24 +267,24 @@ Station logos belong to their owners; they are included to identify the stations
 - Coming: stage 2 Edit/Delete for any station and Reset to defaults (the JSON will gain `hidden` and `edited`), stage 3 logos, stage 4 backup.
 
 ## Edit screen stage 2: edit, delete, reset
-- "Edit or delete a station": type a dial number (e.g. 90.08) and FIND, or THIS ONE for the station tuned now. Works for built-in and your own stations. Your own stations also have EDIT in the list.
+- "Edit a station": FIND by name or real frequency (e.g. "2GB" or "873"), or THIS ONE for the station tuned now. (Dial numbers are no longer shown in Settings.) Works for built-in and your own stations. Your own stations also have EDIT in the list.
 - Built-in edits/removals are stored as overrides in the same JSON: `hidden` (dial keys like "87.80") and `edited` (key -> {name, real, cc, url, dab}). The built-in list in code is never changed. `StationLibrary.getStations()` applies them via `UserStations.applyOverrides`; the page applies them before building the dial.
 - Built-in stations keep their dial slot. Group-start stations (the first station of each block) can be edited but not deleted, because the group buttons need them. Renaming a built-in drops its bundled logo (the drawn tile or website logo is used).
 - RESET TO DEFAULTS (tap twice) clears added, hidden and edited and reloads.
 
 ## Edit screen stage 3: logos
-- In the app, the Edit form has a Logo box: UPLOAD FROM PHONE (system picker), FETCH from a station website (same finder as the built-in logo fetcher, `LogoFetcher.findLogo`), or USE DEFAULT. A preview shows the current logo. The logo is saved when the station is saved (Add or Save Changes); renaming a station moves its logo; deleting or Reset removes it.
+- In the app, the Edit form has a Logo box: UPLOAD LOGO (system picker), the logo is fetched automatically when a STATION WEBSITE is entered, with a preview, (same finder as the built-in logo fetcher, `LogoFetcher.findLogo`), or USE DEFAULT. A preview shows the current logo. The logo is saved when the station is saved (Add or Save Changes); renaming a station moves its logo; deleting or Reset removes it.
 - Stored only on the phone: `filesDir/userlogos/<slug>.png` (`UserLogos.java`), square on white. It beats bundled, website-fetched and drawn logos in `StationArtworkProvider`, so Android Auto and the widgets use it. Android Auto may show it the next time the car connects.
 - Bridge: `pickLogo`, `fetchLogo` (result back through `window.__whLogoResult`), `saveUserLogo`, `getUserLogo`, `clearUserLogo`, `renameUserLogo`. The logo box is hidden on the plain website.
 - Notice: the Edit screen says logos belong to their owners; keep the same wording in the README for GitHub (logos are the property of their owners; removed on request).
 
 ## Edit screen stage 4: backup
-- SAVE TO PHONE uses the system save dialog (ACTION_CREATE_DOCUMENT, `saveBackup`, result via `__whBackupDone`) so it can go into Files/Downloads. SHARE BACKUP (previously EXPORT) writes `radiowavehopper-backup.json` (cache/shared, FileProvider) and opens the share sheet (Drive, Files, email...). It holds `added`, `hidden`, `edited` and `logos` (name -> PNG data URL). On the website it downloads the file instead.
+- (Since 1.1.0 there is one SAVE OR SHARE BACKUP button; backups also hold lists, Real frequency only and default sleep.) SAVE TO PHONE uses the system save dialog (ACTION_CREATE_DOCUMENT, `saveBackup`, result via `__whBackupDone`) so it can go into Files/Downloads. SHARE BACKUP (previously EXPORT) writes `radiowavehopper-backup.json` (cache/shared, FileProvider) and opens the share sheet (Drive, Files, email...). It holds `added`, `hidden`, `edited` and `logos` (name -> PNG data URL). On the website it downloads the file instead.
 - IMPORT BACKUP opens a file picker (`pickBackup`), checks the file in the page (`cleanBackup`: only http(s) URLs, valid band text, slots that fit the dial and don't clash, known built-in keys, image data URLs only) and shows a summary. REPLACE WITH THIS BACKUP then swaps everything on the phone (stations, edits, removals and custom logos) and reloads.
 - Files that aren't Radio Wavehopper backups are refused; entries that don't fit are skipped and counted.
 
 ## Edit screen: moving stations
-- Editing a station can now change its category and band. When either changes (or you tick "choose it myself"), the station gets a new dial slot in the chosen category, placed by the usual AM/FM/DAB/Internet order. Renaming or changing the URL alone keeps its slot.
+- Editing a station can now change its category and band. When either changes, the station gets a new dial slot in the chosen category, placed by the usual AM/FM/DAB/Internet order. Renaming or changing the URL alone keeps its slot.
 - Built-in moves are saved in the override as `edited[<original key>].freq`; `UserStations.applyOverrides` applies it and `StationLibrary.getStations()` always re-sorts. The first station of each block cannot be moved or deleted.
 - Backups keep the moved slot (cleaned the same way as added stations).
 - Order inside a category is still AM, FM, DAB, Internet by real frequency; Internet-only is alphabetical. Name is now only the tie-breaker between equal real frequencies. Renaming an Internet-only station re-slots it only if it is no longer in alphabetical place.
@@ -293,3 +297,46 @@ Station logos belong to their owners; they are included to identify the stations
 - `StationArtworkProvider.composeOnWhite` now looks at the logo's outer edge. If it is mostly one solid, non-white colour (a black, green or red tile), the square is filled with that colour and the logo fills it, so there is no white border. Logos with a transparent or white edge, or a photo/gradient edge, keep the white square as before. `STYLE_VERSION` was bumped (4) so cached tiles are redrawn.
 - `trimToSolidTile`: a logo that is a solid-coloured tile inside a white/transparent margin (SEN) is trimmed to the tile, which then fills the square. Only done when the trimmed edge is solid; otherwise the logo is left as it was. `STYLE_VERSION` is 5.
 - Add/Edit: when the category is NSW (and ACT) the Region dropdown always shows, offering only NSW or ACT. Both stay in the same dial block.
+
+---
+
+## 10. Changes in 1.0.5 – 1.2.1 (Nov 2026)
+
+### Settings (pencil screen)
+- Sections: STATIONS TO SHOW, ADD OR EDIT A STATION, YOUR STATIONS, SLEEP TIMER, BACKUP & RESET (collapsible `<details>`).
+- **Two lists only:** "My phone stations" (`PHONE_LIST`) and "My car stations" (`CAR_LIST`). Phone: All stations / Only my chosen stations (`activeList` '' or PHONE_LIST). Car: Same as phone / All stations / Only my chosen stations (`carList` '', '*' or CAR_LIST). Category ticks and hidden categories are gone (`hiddenGroups` is always `[]`).
+- **Migration** (`twoLists()` in script 0, shared via `window.__wh`): the old car list becomes the car list, every other old list merges into the phone list. Data already in two-list form is left alone.
+- An empty chosen list means all stations (`StationLibrary.showing()`).
+- The add form's "also choose it for the phone/car" ticks only show for a side set to its chosen stations.
+
+### Real frequency only (default on)
+- See section 6. Widget/notification next/previous step within the current band and wrap (`PlaybackService.widgetStep`, `StationLibrary.realBand`/`realFreqValue`). The band label under the dial sits on its own line (`#realRuler` 88 px).
+
+### Song titles
+- Phone: `onMetadata` reads `IcyInfo` and HLS `TextInformationFrame` (TIT2/TPE1) → `SongText` → `NativeControls.onNativeTrack`. Car: see section 4.
+- `SongText.java` cleans titles: HTML entities, `[+]` → `&`, duplicate halves, artist == title, junk (Asset Start/Stop, timestamps, `song_spot`, `MediaBaseId`), the station's own name or slogan, Title Case for ALL CAPS (with a `KEEP_CAPS` list).
+- Now Playing box: always shown with Real frequency only ("Unavailable" when nothing is sent), two lines max.
+
+### Default sleep timer
+- `sleepDefault` (10/30/60/120 or 0) starts on any phone play (app, widget, notification), never in Android Auto (`maybeStartDefaultSleep`, 20 s grace on pause).
+
+### Phone and car handing over
+- `RadioLibraryService.carConnected()` asks `content://androidx.car.app.connection` (`CarConnectionState` 2 = projection), cached 2 s; needs the `<queries><provider android:authorities="androidx.car.app.connection"/>` manifest entry. Leaving the car calls `handBackToPhone()`, which saves the car's station as the phone's last station.
+- **Play after a drive:** if the saved station has moved on from the one the phone player still has loaded, Play (widget, notification, lock screen, Bluetooth) plays the saved one (`savedStationMovedOn()`).
+- **Car start station:** the phone's last station if it is in the car's stations, otherwise the car's own last station (`combinedLastStationIndex()`).
+- **App screen resync:** `MainActivity.onResume` sends the current/saved station to `NativeControls.onAppResume(name)`, which moves the dial (or, if already playing, updates the display) without re-tuning.
+- `MainActivity` is `singleTask`, and `instance` is set again in `onResume`, so the player's callbacks always reach the visible screen (the old "stuck on Connecting…" bug).
+
+### Android Auto controls
+- One band button cycling AM → FM → DAB+/Internet → Normal (four-block icon; host shows icons only, plain white mono-tint vectors). Next/previous follow frequency order; double arrows jump groups, or thirds when the car shows only its chosen stations.
+- Stations are reported as live (`C.TIME_UNSET` duration, position 0, not seekable), so no progress counter.
+
+### Outages
+- **Phone dropout retry:** a station that was playing and then fails to reconnect is retried every 10 s for up to 2 min (`retryAfterDropout()`, log lines `DROPOUT …`), with "Signal lost — reconnecting…" on screen. A station that fails on first tuning still errors at once. The car player is not covered yet.
+
+### Open ideas (not built)
+- Backup stream per station (e.g. ABC Sport when the ABC Sport DAB relay is down).
+- More `SongText` clean-ups: XLFM "Duplicate", 3PBS "NOW: … | pbsfm.org.au", 5WOW slogan.
+- Letter icons (AM/FM/DAB/ALL) on the car's band button.
+- Google Play closed testing (needs an .aab and the existing signing key).
+
