@@ -42,7 +42,7 @@ Same frequency, same name, same real frequency, same URL, same order, in both fi
 
 ### Dial rules
 
-- The dial runs **87.5 to 102.1 in 0.1 steps**. That's **147 slots, and every slot has exactly one station**. Adding a station means removing one, or the dial overflows.
+- The dial runs **87.50 to 102.10**. Stations started on 0.1 steps; since the two-decimal dial (see below) a station can sit between two others (e.g. 87.55), so adding one no longer means removing one. 159 built-in stations as of 1.2.1.
 - **Within each group, stations are in real-frequency order:** AM stations first (lowest to highest), then FM, then DAB only, then Internet only. Keep that order when adding or moving a station.
 - **Groups go up the dial in this order:**
   1. Sport
@@ -209,7 +209,7 @@ All of these survive an update installed over the top. Android's "Clear storage"
 
 ## 9. Checklist before handing back a change
 
-- [ ] Station changes are made in **both** `index.html` and `StationLibrary.java`. There are still 147 stations, and frequencies run 87.5 to 102.1 with no gaps or duplicates.
+- [ ] Station changes are made in **both** `index.html` and `StationLibrary.java`. Frequencies run 87.50 to 102.10 with no duplicates.
 - [ ] If anything moved, there's a new layout migration on the page **and** in Java, and the default presets and first-launch station have been checked.
 - [ ] `STATION_GROUPS` (page) and `GROUPS` (Java) still match the group headings.
 - [ ] `stations_list.txt` has been regenerated.
