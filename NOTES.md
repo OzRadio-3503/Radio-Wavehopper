@@ -334,6 +334,9 @@ Station logos belong to their owners; they are included to identify the stations
 ### Outages
 - **Phone dropout retry:** a station that was playing and then fails to reconnect is retried every 10 s for up to 2 min (`retryAfterDropout()`, log lines `DROPOUT …`), with "Signal lost — reconnecting…" on screen. A station that fails on first tuning still errors at once. The car player is not covered yet.
 
+### Station Finder (`tools/station-finder.html`)
+- A stand-alone page, not part of the app: search Radio Browser, test a stream, copy what the station editor needs. Opened as a local file in Chrome (GitHub shows the source, not the page). Linked from the README under "Finding a stream URL".
+
 ### Open ideas (not built)
 - Backup stream per station (e.g. ABC Sport when the ABC Sport DAB relay is down).
 - More `SongText` clean-ups: XLFM "Duplicate", 3PBS "NOW: … | pbsfm.org.au", 5WOW slogan.

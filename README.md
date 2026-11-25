@@ -64,6 +64,12 @@ drag the dial. The arrows step to the next or previous station in that band.
   defaults. Deleting and resetting ask you to tap twice, so you can't do it by
   accident.
 
+**Finding a stream URL.** The [Station Finder](tools/station-finder.html)
+(`tools/station-finder.html`) searches the free Radio Browser directory, lets you
+test a stream, and copies the details the station editor needs. GitHub shows its
+code rather than running it, so download the file (open it on GitHub and use the
+**Download raw file** button), then open it in Chrome on your computer or Chromebook.
+
 **Android Auto.** Next and previous step through the stations in frequency
 order. The double arrows jump between station groups, or a third of the way
 through when the car shows only your chosen stations. The band button
