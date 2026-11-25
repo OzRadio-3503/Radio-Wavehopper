@@ -115,14 +115,12 @@ changed, please open an issue and it will be taken out promptly.
 Streams are provided by the stations themselves and can change or stop at any
 time. Please only add and use streams you have the right to listen to.
 
-<img width="1280" height="2856" alt="Screenshot_20261117-094938" src="https://github.com/user-attachments/assets/f54e32f9-2554-4b3e-96e0-6d251c730f3d" />
-<img width="1280" height="2856" alt="Screenshot_20261117-095007" src="https://github.com/user-attachments/assets/8ca28d22-ed31-4bad-9085-ae1ed49ec2d5" />
-<img width="1280" height="541" alt="Screenshot_20261117-095028" src="https://github.com/user-attachments/assets/fb568b9a-a3d4-4d6d-b217-9dcb80f89ecf" />
-<img width="479" height="682" alt="Screenshot_20261117-095042" src="https://github.com/user-attachments/assets/ff6bb8d6-f70b-4776-a0bc-e0598edc7b4a" />
-<img width="1280" height="2856" alt="Screenshot_20261117-094506" src="https://github.com/user-attachments/assets/536ffa11-3ba4-4b86-864f-167e6fa2118b" />
-<img width="1280" height="2856" alt="Screenshot_20261117-094515" src="https://github.com/user-attachments/assets/57b0ed8c-753b-409c-b0cb-6bf5edc1facc" />
-<img width="1280" height="2856" alt="Screenshot_20261117-094649" src="https://github.com/user-attachments/assets/2387e4fd-7bf8-44cf-8aec-c9302937986e" />
+
 # Radio Wavehopper
+<img width="394" height="871" alt="image" src="https://github.com/user-attachments/assets/8e66e95b-0378-4cb3-a04c-23d8f269cc98" />
+<img width="960" height="2142" alt="image" src="https://github.com/user-attachments/assets/4be3f4cf-a117-434a-8658-eccddd819a89" />
+<img width="960" height="2142" alt="image" src="https://github.com/user-attachments/assets/b887f641-2ab5-4580-82a2-8ee93a6852bb" />
+<img width="1143" height="720" alt="image" src="https://github.com/user-attachments/assets/e46ec17b-e33b-414d-aa56-57ff0c2aff2d" />
 
 
 ## Licence
