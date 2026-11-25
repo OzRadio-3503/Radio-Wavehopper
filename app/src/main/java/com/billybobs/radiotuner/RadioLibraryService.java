@@ -1429,18 +1429,7 @@ public class RadioLibraryService extends MediaLibraryService {
                     // (or its first station, the first time); landing on
                     // Normal leaves you where you are.
                     // Bands with no stations showing are skipped.
-                    String[] cycle = {null, "am", "fm", "dabnet"};
-                    int at = 0;
-                    for (int i = 0; i < cycle.length; i++) {
-                        if (cycle[i] == null ? carBandFilter == null : cycle[i].equals(carBandFilter)) at = i;
-                    }
-                    for (int k = 1; k <= cycle.length; k++) {
-                        String next = cycle[(at + k) % cycle.length];
-                        if (next == null || bandHasStations(next)) { carBandFilter = next; break; }
-                    }
-                    refreshCustomLayout();
-                    showBandNotice();
-                    if (carBandFilter != null) jumpBandRemembered();
+                    stepBand(1);
                     return Futures.immediateFuture(new SessionResult(SessionResult.RESULT_SUCCESS));
                 }
                 if (CMD_BAND_DABNET.equals(customCommand.customAction)) {
@@ -1613,30 +1602,24 @@ public class RadioLibraryService extends MediaLibraryService {
         // The session sees the player through this wrapper so that holding
         // the tune button on the steering wheel jumps groups. Many cars send
         // "fast forward" / "rewind" on a long press (instead of next/previous):
-        // fast forward = next group, rewind = back (start of this group, then
-        // the previous one), the same as the on-screen group buttons. Live
+        // these change band (see seekForward/seekBack below). Live
         // radio can't really be fast-forwarded, so those commands are always
         // offered, and every command the car sends is logged to show what
         // this particular car does.
         Player sessionPlayer = new ForwardingPlayer(player) {
+            // Holding next/previous on the steering wheel changes band
+            // (forward / backward round AM -> FM -> DAB+ & Internet -> All).
+            // The on-screen double arrows still jump groups or thirds.
             @Override
             public void seekForward() {
-                DiagLog.log("carUI seekForward: carBandFilter=" + carBandFilter);
-                if (carBandFilter != null) {
-                    jumpBandThird(1);
-                    return;
-                }
-                jumpGroup(1);
+                DiagLog.log("carUI seekForward (hold next): band from " + carBandFilter);
+                stepBand(1);
             }
 
             @Override
             public void seekBack() {
-                DiagLog.log("carUI seekBack: carBandFilter=" + carBandFilter);
-                if (carBandFilter != null) {
-                    jumpBandThird(-1);
-                    return;
-                }
-                jumpGroup(-1);
+                DiagLog.log("carUI seekBack (hold previous): band from " + carBandFilter);
+                stepBand(-1);
             }
 
             // Single-station next/previous: stepped by real band while a
@@ -1911,6 +1894,28 @@ public class RadioLibraryService extends MediaLibraryService {
         pendingSong = "";
         carSongMediaId = "";
         carSongShownAt = 0;
+    }
+
+    /**
+     * One step round the bands, forward (dir 1) or back (dir -1):
+     * All -> AM -> FM -> DAB/Internet -> All. Landing on a band goes back to
+     * the last station played in it (or its first); landing on All stays put.
+     * Bands with no stations showing are skipped. Used by the band button and
+     * by holding next/previous on the steering wheel.
+     */
+    private void stepBand(int dir) {
+        String[] cycle = {null, "am", "fm", "dabnet"};
+        int n = cycle.length, at = 0;
+        for (int i = 0; i < n; i++) {
+            if (cycle[i] == null ? carBandFilter == null : cycle[i].equals(carBandFilter)) at = i;
+        }
+        for (int k = 1; k <= n; k++) {
+            String next = cycle[(((at + dir * k) % n) + n) % n];
+            if (next == null || bandHasStations(next)) { carBandFilter = next; break; }
+        }
+        refreshCustomLayout();
+        showBandNotice();
+        if (carBandFilter != null) jumpBandRemembered();
     }
 
     // ---- Band name after pressing the band button ----
