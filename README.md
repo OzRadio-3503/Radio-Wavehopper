@@ -1,21 +1,27 @@
-An Android radio app that works like a real tuner dial. Turn the dial from
-87.5 to 102.1 and it tunes to live Australian and international internet
-radio streams: commercial, community, sport, talk, music, and more.
+An Android radio app that works like a real tuner dial. Tune the AM, FM,
+DAB+ and Internet bands to live Australian and international internet radio
+streams: commercial, community, sport, talk, music, and more.
 
 > Station streams and logos belong to their owners. See [Logos and streams](#logos-and-streams).
 
 ## Features
 
-- **Tuner dial** with station groups (Sport, Talk, each state, New Zealand,
-  UK, USA and more, plus internet-only stations).
-- **Real frequency mode:** switch the display to each station's real on-air
-  frequency (AM, FM, DAB+), with Band Lock to tune along one band.
-- **Android Auto** support, with station logos and now-playing titles.
+- **Real-frequency dial (the default):** AM, FM, DAB+ and NET bands, with each
+  station at its real on-air frequency. Prefer the original dial? Untick
+  **Real frequency only** in Settings for the categories dial (station groups
+  such as Sport, Talk, each state, New Zealand, UK, USA).
+- **Android Auto** support, with station logos, song titles and its own
+  station list if you want one.
+- **Now Playing:** live song titles where a station sends them.
 - **Home screen widgets** in three sizes.
-- **Sleep timer**, presets, and live song titles where a station provides them.
-- **Your own stations:** tap the pencil to add, edit, move or delete any
-  station (test the stream before adding), set a logo, back up and restore,
-  or reset to the defaults. Your changes stay on your phone.
+- **Sleep timer**, including an optional default timer that starts whenever
+  the radio plays on the phone.
+- **Choose your stations:** show all stations, or only the ones you pick,
+  separately for the phone and for Android Auto.
+- **Your own stations:** add, edit or delete any station, test the stream
+  first, and set a logo. Back up and restore, or reset to the defaults.
+- **Rides out short outages:** if a station drops out, the app keeps trying
+  to reconnect for up to 2 minutes.
 - **Hidden diagnostic log:** hold the "DIGITAL TUNING" badge for 1.5 seconds
   to share a log file if you need help with a stream. It is only shared when
   you choose to send it.
@@ -28,44 +34,49 @@ Android 8.0 (API 26) or newer.
 
 ## How to use
 
-**Tuning.** Turn or drag the dial to move through the stations. The arrows step
-to the next or previous station. Station groups (Sport, Talk, each state, and so
-on) sit side by side on the dial.
-
-**Real frequency.** Switch the display to real mode to see each station's real
-on-air frequency (AM, FM or DAB+). Touch the dial in real mode and **Band Lock**
-switches on, so you tune along one band at a time.
+**Tuning.** Tap **AM**, **FM**, **DAB+** or **NET** to pick a band, then turn or
+drag the dial. The arrows step to the next or previous station in that band.
 
 **Shortcuts.**
-- **Speakers:** tap the **right speaker** to jump to the next group of stations (Sport,
-  Talk, NSW and so on). The **left speaker** goes back to the start of the current
-  group, and a second tap goes to the previous group. The groups wrap round at either end.
+- **Speakers:** the **right speaker** jumps a third of the way along the band
+  (start, 1/3, 2/3, then round again). The **left speaker** goes back to the start
+  of the current third, and a second tap goes to the previous one. (On the
+  categories dial they jump between station groups instead.)
 - **Hold the dial still** to magnify it for fine tuning.
 - **Hold the RADIO WAVEHOPPER badge** at the top to set the sleep timer (120, 60, 30, 10 minutes or off).
-- **AU only:** the button beside BAND skips overseas stations.
+- **AU only:** skips overseas stations.
+- **Shazam:** while a station is playing, tap it to identify the song.
 
-**Add your own station.**
-1. Tap the **pencil** icon to open the Edit screen, then **Add a station**.
-2. Enter the name, pick a **category** and **band**, and paste the **streaming URL**.
-3. Press **Test play** to check it works before saving.
-4. The dial position is chosen for you. Tick the manual option if you want to pick it yourself.
-5. In the NSW and ACT category, choose NSW or ACT under **Region**.
+**Settings.** Tap the **pencil** icon at the top right.
+- **Stations to show:** Real frequency only on or off, and for the **phone**
+  and **Android Auto** separately: **All stations** or **Only my chosen
+  stations**. Use **Choose stations for the phone / car** to pick them, sorted
+  by frequency or A to Z.
+- **Add or edit a station:** enter the name, category, band and frequency (or
+  DAB+ block), paste the **streaming URL**, and press **Test stream** to check it
+  works. Enter the station's website to fetch its logo (with a preview), or upload
+  one. Its place on the dial is chosen for you. To change a station, find it by
+  name or frequency and edit or delete it.
+- **Your stations:** the stations you've added.
+- **Sleep timer:** a **default sleep** that starts each time the radio plays on
+  the phone (not in Android Auto).
+- **Backup & reset:** save or share a backup, import one, or reset to the
+  defaults. Deleting and resetting ask you to tap twice, so you can't do it by
+  accident.
 
-**Edit, move or delete.** Open the pencil, find the station (or use **Find** with
-a dial number), and change it, move it to another category, or delete it. Deleting
-and resetting ask you to tap twice, so you can't do it by accident. **Reset to
-defaults** puts the original list back.
+**Android Auto.** Next and previous step through the stations in frequency
+order. The double arrows jump between station groups, or a third of the way
+through when the car shows only your chosen stations. The band button
+switches between AM, FM, DAB+ & Internet and all bands, and the line under the
+station name shows which band you're on for a few seconds.
 
-**Logos.** Logos show in Android Auto and the widgets. For your own station choose
-**Upload from phone**, **Fetch logo from website**, or leave the default tile.
+**Back up your stations.** Your added stations, logos, lists and settings are saved
+on the phone and are lost if you uninstall the app. Before uninstalling, open
+Settings, go to **Backup & reset** and use **Save or share backup**. After
+reinstalling, use **Import backup** to get them back.
 
-**Back up your stations.** Your added stations and logos are saved on the phone
-and are lost if you uninstall the app. Before uninstalling, open the pencil, go to
-**Backup** and use **Save to phone** (or **Share backup**). After reinstalling, use
-**Import backup** to get them back.
-
-**Updating.** Install the newer APK over the old one and your stations stay.
-It must come from the same Releases page, because updates only install over
+**Updating.** Install the newer APK over the old one and your stations and settings
+stay. It must come from the same Releases page, because updates only install over
 apps signed with the same key.
 
 ## Build it yourself
@@ -87,12 +98,12 @@ and the station list, and is worth reading before changing playback code.
 - Stations, edits and logos you add are stored only on your phone.
 - Nothing is uploaded by the app. It connects to the radio streams you play,
   to station websites to fetch logos, and to some stations' "now playing"
-  pages for song titles.
+  pages for song titles. Most song titles come from the stream itself.
 - Every station plays straight from its own stream. There is no relay server.
 - Your own stations and edits are merged with the built-in list on every
   update. If one of your stations lands on a dial spot a new built-in station
   now uses, yours is moved to the nearest free spot (AM, then FM, then DAB,
-  then Internet) and nothing is deleted. Back up first from Edit > Backup.
+  then Internet) and nothing is deleted. Back up first from Settings > Backup & reset.
 
 ## Logos and streams
 
