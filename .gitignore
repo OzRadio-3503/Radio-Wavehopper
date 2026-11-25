@@ -21,3 +21,6 @@ signing.properties
 *.log
 .DS_Store
 Thumbs.db
+
+# Release build output from Android Studio
+app/release/
