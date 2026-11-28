@@ -5,8 +5,9 @@ makes the app work is not obvious from the code, and several "tidy-ups" that
 look harmless would quietly bring old bugs back. Build instructions are in
 `README.md`.
 
-Last updated: 25 Nov 2026 (v1.2.1, dial layout 8). Several older sections below have been
-corrected in place; the newest behaviour is summarised in section 10.
+Last updated: 26 Nov 2026 (v1.2.2 + the category window, not yet released; dial layout 8).
+Several older sections below have been corrected in place; the newest behaviour is summarised
+in sections 10 and 11.
 
 ---
 
@@ -60,7 +61,7 @@ Same frequency, same name, same real frequency, same URL, same order, in both fi
   Each group starts with a `// ---- Group ----` comment line, in both files.
 - **The group list exists twice too:** `STATION_GROUPS` in `index.html` (for the speakers) and `GROUPS` in `StationLibrary.java` (for Android Auto's group buttons and the logo colours). Each entry is the group's name and its **first station's frequency**. If stations move, or a group is added, removed or renamed, update both lists to match the headings. The page warns in the browser console if a group start isn't on a station.
 - **`hls:true`** is only in the page, and every `.m3u8` station needs it. The website plays HLS through hls.js only when this flag is set; without it, the stream goes to a plain `<audio>` element, which most desktop browsers can't play. The native players in the app detect HLS by themselves, so missing it only breaks the website.
-- **`real`** is in both files: the page's `real:` and the third argument of Java's `Station(...)`. It's the station's real-world frequency, shown on the phone when you tap the frequency display, and in Android Auto in each station's title. Use the main analogue frequency (`"873 AM"`, `"104.1 FM"`), or `"DAB only"` / `"Internet only"`.
+- **`real`** is in both files: the page's `real:` and the third argument of Java's `Station(...)`. It's the station's real-world frequency, shown in the phone's frequency display, and in Android Auto in each station's title. Use the main analogue frequency (`"873 AM"`, `"104.1 FM"`), or `"DAB only"` / `"Internet only"`.
 - **Optional extras on a `Station`:**
   - `mimeType`: set `"application/x-mpegURL"` when an HLS stream's URL doesn't end in `.m3u8`, such as a relay link. SEN 1170 has it pinned, which is harmless.
   - `forceMediaPlayer`: a legacy fallback, currently unused.
@@ -162,16 +163,16 @@ A small station change that doesn't shift anything doesn't need a new layout: sw
 - **Sleep timer:**
   - Hold the RADIO WAVEHOPPER badge to cycle 120 / 60 / 30 / 10 minutes / off. The timer itself is native, in `PlaybackService`, with a 15-second fade, saved as `RadioPrefs`/`sleep_end_at`.
   - The page only shows it: a 10-second message, then a 30-second countdown at the end, when holding the badge extends the time.
-- **Real frequency only** (Settings, **on by default**, `userData.realOnly`): the phone always uses the real AM/FM/DAB+/NET dial with Band Lock on, the BAND button is hidden, and the speakers jump in thirds of the band. Unticked, the old behaviour below applies.
-- **Real-frequency toggle** (only with Real frequency only unticked): tap the frequency display. The choice is remembered in `localStorage` `show_real_freq`.
-- **Real-band dial:** in real-frequency mode the dial window redraws as the station's real band, and flips band as you step between stations:
+- **Real frequency only** (`userData.realOnly`; Settings shows it the other way round as **Browse by category**, ticked = categories. Since the 1.2.2 follow-up new installs start with categories; see section 11): the phone always uses the real AM/FM/DAB+/NET dial with Band Lock on, the CATEGORY / BAND button is hidden, and the speakers jump in thirds of the band. Unticked, the button appears and Band Lock off shows the **category window** (section 11).
+- **The readout always shows the real frequency** ("88.9 / MHz FM · NSW", "873 / kHz AM", "9C / DAB+ BLOCK", "Internet only / STREAM"), with no "REAL" label. The old tap-to-switch to the app's dial number (87.50–102.10) was removed after 1.2.2; `show_real_freq` is no longer read.
+- **Real-band dial:** with Band Lock on (always, with Real frequency only) the dial window redraws as the station's real band, and flips band as you step between stations:
   - **FM:** 88–108 MHz, needle on the real FM frequency.
   - **AM:** 531–1701 kHz, labelled 6–17 (hundreds of kHz) like a car radio.
   - **DAB only:** a DAB+ Band III block scale (5–13), needle on the station's block. The block is the page-only `dab:` field, e.g. `dab:"9C"`. Sydney's ABC/SBS stations are on 9C, Nova's on 9B (SKY News Radio's 9B is inferred from its Nova link), UK national BBC on 12B, Sound Digital (talkSPORT 2) on 11A, and Germany's second national multiplex mostly on 5D. A DAB station without a `dab:` value shows the scale with no needle.
   - **Internet only:** a stream panel ("INTERNET RADIO") instead of a dial.
   - Every station on that band shows as a dot at its real frequency. Internet stations show as evenly spaced dots, in alphabetical order, along the stream panel. The code is `updateDial()` and `buildBand()` in `index.html`.
-- **Band Lock** (the BAND padlock beside the presets): only in real-frequency mode; greyed out otherwise.
-  - **Off** (the default at every launch): everything works as before. The arrows go through Billy Bob's dial in section order (e.g. through NSW/ACT), and touching the real dial goes back to the standard dial.
+- **Band Lock** (the CATEGORY / BAND button beside the presets, `#bandLockBtn`; the code still calls it Band Lock): unlocked it shows a grid icon and "CATEGORY" (category window), locked a radio icon and "BAND" (real dial). Tapping it flashes "FM BAND" (etc.) or "CATEGORIES". Hidden with Real frequency only, where it's always locked.
+  - **Off** (the default at every launch, only with Real frequency only unticked): the dial window shows the station's category (section 11). The arrows go through Billy Bob's dial in section order (e.g. through NSW/ACT).
   - **On:** tuning follows real frequencies within the current station's band, across all sections. AM by kHz, FM by MHz, DAB+ by block (5A to 13F), Internet alphabetically; stations on the same frequency or block go alphabetically (`realOrder()`). The arrows (buttons, keys, headset next/previous) move one station per press and stop at each end of the band. Dragging the real dial or the stream panel tunes along the band and snaps to the nearest station (first alphabetically on a shared frequency).
   - Turned off by the speakers (which then jump by section, as before) and by leaving real-frequency mode. Presets still tune anything; the lock follows that station's band.
   - In real-frequency mode the digits roll like an odometer in the direction of travel (`rollReadout()`); Internet station names slide in instead.
@@ -181,8 +182,8 @@ A small station change that doesn't shift anything doesn't need a new layout: sw
   - Phone and web only: Android Auto keeps browsing by section.
 - **Region:** every station has a `cc` code: the state for Australian stations (NSW, ACT, VIC, QLD, SA, WA, TAS, NT, or AU for national ones), otherwise the country (NZ, UK, US, CA, IE, ZA, SG, FJ, NC, FR, DE). It shows after the frequency on the phone ("MHz · NSW", "REAL · kHz AM · NSW") and in the Android Auto title ("2SM 1269 (1269 AM · NSW)"). Java keeps the same codes in `StationLibrary.Regions` (by station name) — **add both when adding a station**.
 - **AU only** (the button beside BAND): skips overseas stations with the arrows, the dial, the speakers (sections with no Australian station are skipped) and the band strip, in every mode. Overseas dots are dimmed. Presets still tune anything. Remembered after closing (`au_only`). Phone and web only.
-- **Dial drag:** each station passed gives a light buzz (needs the VIBRATE permission, now in the manifest). Hold your finger still on the dial for about 0.4 s to magnify it 6x: the window shows a close-up and the dial moves 6 times slower under your finger. Works on Billy Bob's dial and, with Band Lock on, the real AM, FM and DAB+ dials.
-- **Speakers = group jumps** (categories dial; with Real frequency only they jump in thirds of the band, `goToBandThird()`; with "Only my chosen stations" in thirds of the list): tap the right speaker for the next group. The left speaker works like "previous track" on a CD player: from partway through a group it goes back to that group's first station, and from the first station it goes to the previous group. Either way it lands on a group's first station, wraps round at either end, and flashes the group name on the display. On a keyboard, PageUp and PageDown do the same. The code is `goToGroupStep()` in `index.html`, using `STATION_GROUPS`.
+- **Dial drag:** each station passed gives a light buzz (needs the VIBRATE permission, now in the manifest). Hold your finger still on the dial for about 0.4 s to magnify it 6x: the window shows a close-up and the dial moves 6 times slower under your finger. Works on the real AM, FM and DAB+ dials (Band Lock on). The category window (Band Lock off) can be dragged along its dots but has no magnifier.
+- **Speakers = group jumps** (categories, with Band Lock off; on the band dial - Real frequency only, or BAND on the CATEGORY / BAND button - they jump in thirds of the band and stay on the dial, `goToBandThird()`; with "Only my chosen stations" in thirds of the list): tap the right speaker for the next group, the left for the previous one. Each lands on the station last tuned in that group (`group_last`, see section 11), or the group's first station if there's none yet. It wraps round at either end, and flashes the group name on the display. On a keyboard, PageUp and PageDown do the same. The code is `goToGroupStep()` in `index.html`, using `STATION_GROUPS`.
 - **Song ID:** `identifySong` opens Shazam. The button shows only while a station is actually playing; it hides on pause (from anywhere) and on errors.
 
 ## 7. Saved state (what survives an update)
@@ -191,8 +192,10 @@ A small station change that doesn't shift anything doesn't need a new layout: sw
 |---|---|---|
 | Page `localStorage` | `radio_presets` | Preset frequencies |
 | Page `localStorage` | `radio_layout` | Which dial layout the presets match (currently `'8'`) |
-| Page `localStorage` | `show_real_freq` | Real-frequency toggle (categories dial only) |
+| Page `localStorage` | `show_real_freq` | Old real-frequency toggle; no longer read (left in place, harmless) |
 | Page `localStorage` | `au_only`, `band_last` | AU only, last station per band |
+| Page `localStorage` | `speaker_hint` | New-install speaker hint: launches shown so far (1-3), or `done` |
+| Page `localStorage` | `group_last` | Last station tuned in each category, by group name (speakers, Band Lock off) |
 | `UserStations` JSON (`user_stations_v1` on the web) | `added`, `hidden`, `edited`, `names`, `lists`, `activeList`, `carList`, `realOnly`, `sleepDefault` | Your stations and edits, the phone and car station lists, Real frequency only, default sleep |
 | `RadioPrefs` | `sleep_end_at`, `last_station_title`, `is_playing` | Phone player state |
 | `RadioAutoPrefs` | `last_station_id`, `station_layout` | Car's last station and its layout number |
@@ -235,6 +238,7 @@ All of these survive an update installed over the top. Android's "Clear storage"
 previous / play-pause / next. Tapping the logo or name opens the app.
 - State comes from `RadioPrefs` (`last_station_title`, `last_station_sub`, `last_station_freq_bits`, `is_playing`);
   `PlaybackService.updateState()` refreshes the widget on every change.
+- **Song title (after 1.2.2):** while the phone is playing and the station sends a song, the 4x1's second line is "♪ Artist – Title" instead of "On air · ...". `updateState()` puts it in the static `PlaybackService.widgetSong` (cleared when a new station starts, `""` when there's no song); the widget reads it only while the phone player runs and the car isn't playing. Paused, or no song: the line is as before. `w_sub` in `widget_radio.xml` is a marquee (`singleLine`, `ellipsize="marquee"`, `focusable` + `<requestFocus />`, the only way to start a marquee in a widget), so long text scrolls and short text sits still. Some launchers may not scroll it; it then just cuts off as before. The 2x1 and 1x1 have no text and are unchanged.
 - Play after the process was killed replays the last station (`playSavedStation`).
 - Previous/next: app open = the page decides (Band Lock, AU only); app closed = steps through the normal dial order, wrapping.
 - Buttons start the service with `getForegroundService`, so the service calls `ensureForeground()` first.
@@ -300,7 +304,7 @@ Station logos belong to their owners; they are included to identify the stations
 
 ---
 
-## 10. Changes in 1.0.5 – 1.2.1 (Nov 2026)
+## 10. Changes in 1.0.5 – 1.2.2 (Nov 2026)
 
 ### Settings (pencil screen)
 - Sections: STATIONS TO SHOW, ADD OR EDIT A STATION, YOUR STATIONS, SLEEP TIMER, BACKUP & RESET (collapsible `<details>`).
@@ -309,7 +313,7 @@ Station logos belong to their owners; they are included to identify the stations
 - An empty chosen list means all stations (`StationLibrary.showing()`).
 - The add form's "also choose it for the phone/car" ticks only show for a side set to its chosen stations.
 
-### Real frequency only (default on)
+### Real frequency only (default on until the 1.2.2 follow-up; now only for existing users who never chose)
 - See section 6. Widget/notification next/previous step within the current band and wrap (`PlaybackService.widgetStep`, `StationLibrary.realBand`/`realFreqValue`). The band label under the dial sits on its own line (`#realRuler` 88 px).
 
 ### Song titles
@@ -343,4 +347,27 @@ Station logos belong to their owners; they are included to identify the stations
 - More `SongText` clean-ups: XLFM "Duplicate", 3PBS "NOW: … | pbsfm.org.au", 5WOW slogan.
 - Letter icons (AM/FM/DAB/ALL) on the car's band button.
 - Google Play closed testing (needs an .aab and the existing signing key).
+
+---
+
+## 11. Category window (after 1.2.2, not yet released)
+
+Seen with **Browse by category** ticked (Real frequency only off, the default for new installs) and **Band Lock off**. Everything is in `index.html`; Java and Android Auto are unchanged, and no station moved (still layout 8).
+
+- **The dial window shows the station's category** instead of a dial: a short name in big letters, a caption for the states, and a row of dots for that category's stations (current one pink, overseas ones dimmed with AU only).
+  - Short names (`SHORT_GROUP` / `groupLabel()`): SPORT, TALK, NSW/ACT, VIC, QLD, SA, WA, TAS, NT, AUSTRALIA, NZ, PACIFIC, SINGAPORE, S. AFRICA, UK, FRANCE, GERMANY, USA, INTERNET. A new group without an entry shows its name in capitals.
+  - The caption is the part of the `STATION_GROUPS` name after " – " ("MUSIC & COMMUNITY" for the states). Every other group shows "MUSIC", except Sport and Talk, which have no caption: overseas talk and sport stations sit in the Talk and Sport groups, so the country groups, Australia (national) and Internet only are music. Keep it that way when adding stations.
+  - Dragging along the dots tunes within the category the drag started in (`groupDialTo()`); the arrows and speakers move between categories as before.
+- **Band Lock on** brings the real AM/FM/DAB+ dial or the Internet panel back. `setBandLock()` now redraws the window (`updateDial()`), which picks `'cat'` when unlocked.
+- **The old app dial** (`#ruler`, 87.50–102.10 with its numbers) is kept in the page but always hidden. Its frequencies still key presets, the car's last station, user stations and the layout migrations, so don't remove them.
+- **`showRealFreq`** is now a constant `true`; its old `!showRealFreq` branches are dead code.
+- **Unticking Real frequency only** opens the radio straight in category mode: `keepLockForReload()` doesn't carry Band Lock over the Settings reload (`wh_keep_lock`) when Real frequency only has just been switched off. Other Settings changes still keep the lock as it was.
+- **Settings:** the checkbox is now **Browse by category** (ticked = `realOnly` false), with the note "Sport, Talk, each state and country. The CATEGORY / BAND button switches to the real AM, FM and DAB+ dial. Untick to always use the real dial." The summary says "Categories" or "Real dial only". RESET TO DEFAULTS now sets categories.
+- **New installs start in categories; existing users keep what they had.** `realOnly` used to mean "on unless switched off". Now, if it isn't stored yet, the page checks `isNewInstall` (no `radio_layout` marker in `localStorage` before this start-up): new installs get `false` (categories), anyone who has run the app before gets `true` (the real dial they're used to). Either way it's saved straight away (`_defaulted`), so `UserStations.java` (which still treats a missing value as `true`) sees the same. Backups without the key still restore as `true`.
+- **Speaker hint:** each speaker has a small centre cap with a skip-back / skip-forward arrow (`.spk-cap`), always. New installs also get a soft green glow on both speakers (`.speaker.hint`) and a tip under the top row (`#speakerTip`, 7 s): "Tap a speaker to change category", or "...to jump along the band" with the real dial only. It shows until the first speaker tap or for the first three launches (`speaker_hint`), then never again. Existing users don't get it.
+- **Category memory:** every tuned station is saved as its category's last station (`rememberGroup()` in `render()`, not on the first load; `localStorage` `group_last`, keyed by the full `STATION_GROUPS` name). With Band Lock off, the speakers land on it (`goToGroupStep()`): right = next category, left = previous one. A remembered station that has gone, been hidden, or is skipped by AU only falls back to the category's first allowed station, and a category with no station to land on is skipped (e.g. every Talk station hidden). The left speaker no longer goes back to the start of the current category first. Not used by Real frequency only (thirds of the band), "Only my chosen stations" (thirds of the list) or Android Auto (still the group's first station).
+- **Presets show real frequencies:** "Preset 1 saved: 2BRW (88.9 FM)", the preset buttons' tooltips and the website's lock-screen info use `realLabel()` ("873 AM", "88.9 FM", "DAB+ 9C", "Internet only") instead of the app dial number. Presets are still *saved* by the app dial number (`radio_presets`), which the layout migrations rely on.
+- **More Android Auto logging (after a drive home where the full screen wouldn't open):** when Android Auto connects, the 25-line limit on "carUI update -> car" lines is reset (`resetCarLog()`), so a station left over from an earlier drive logs again. New lines: `carUI onGetChildren` (Android Auto asking for the station list, with the count) and `carUI onPlaybackResumption` (Android Auto asking what to resume). Logging only; nothing plays differently.
+- **Speakers on BAND:** with the CATEGORY / BAND button on BAND, the speakers now jump in thirds of the band ("FM · 1/3"), the same as Real frequency only, and Band Lock stays on. Before, they switched back to categories.
+- **Unchanged:** the speakers' group-name flash in the number box (2.5 s), Real frequency only behaviour, notification and Android Auto. (The 4x1 widget gained the song title: see the Home-screen widget section.)
 

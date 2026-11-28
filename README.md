@@ -6,14 +6,17 @@ streams: commercial, community, sport, talk, music, and more.
 
 ## Features
 
-- **Real-frequency dial (the default):** AM, FM, DAB+ and NET bands, with each
-  station at its real on-air frequency. Prefer the original dial? Untick
-  **Real frequency only** in Settings for the categories dial (station groups
-  such as Sport, Talk, each state, New Zealand, UK, USA).
+- **Browse by category (the default):** Sport, Talk, NSW/ACT and the other
+  states, New Zealand, UK, USA ... The **CATEGORY / BAND** button beside the
+  presets switches to the real-frequency dial and back.
+- **Real-frequency dial:** AM, FM, DAB+ and NET bands, with each station at its
+  real on-air frequency. Prefer it all the time? Untick **Browse by category**
+  in Settings.
 - **Android Auto** support, with station logos, song titles and its own
   station list if you want one.
 - **Now Playing:** live song titles where a station sends them.
-- **Home screen widgets** in three sizes.
+- **Home screen widgets** in three sizes. The large one shows the song title
+  while it plays, scrolling if it's long.
 - **Sleep timer**, including an optional default timer that starts whenever
   the radio plays on the phone.
 - **Choose your stations:** show all stations, or only the ones you pick,
@@ -34,14 +37,21 @@ Android 8.0 (API 26) or newer.
 
 ## How to use
 
-**Tuning.** Tap **AM**, **FM**, **DAB+** or **NET** to pick a band, then turn or
-drag the dial. The arrows step to the next or previous station in that band.
+**Tuning.** The dial window shows the station's category. The arrows step to the
+next or previous station, and you can drag along the row of dots. Tap the
+**CATEGORY** button for the real dial: tap **AM**, **FM**, **DAB+** or **NET** to
+pick a band, then turn or drag the dial, and the arrows step through that band.
+Tap the button again (it now says **BAND**) to go back to categories.
 
 **Shortcuts.**
-- **Speakers:** the **right speaker** jumps a third of the way along the band
-  (start, 1/3, 2/3, then round again). The **left speaker** goes back to the start
-  of the current third, and a second tap goes to the previous one. (On the
-  categories dial they jump between station groups instead.)
+- **Speakers:** in category mode the **right speaker** jumps to the next category
+  and the **left speaker** to the previous one, back to the station you last
+  listened to there. (Their centre caps show skip arrows, and new users get a
+  short hint.) On the band dial (the button on **BAND**, or **Browse by
+  category** unticked), the right speaker jumps a
+  third of the way along the band (start, 1/3, 2/3, then round again); the left
+  goes back to the start of the current third, and a second tap goes to the
+  previous one.
 - **Hold the dial still** to magnify it for fine tuning.
 - **Hold the RADIO WAVEHOPPER badge** at the top to set the sleep timer (120, 60, 30, 10 minutes or off).
 - **AU only:** skips overseas stations.

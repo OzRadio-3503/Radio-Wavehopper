@@ -1394,6 +1394,10 @@ public class RadioLibraryService extends MediaLibraryService {
                 if (ANDROID_AUTO.equals(controller.getPackageName())) {
                     refreshStationsForCar();
                     loadStationIfEmpty();
+                    // Log the car's screen updates afresh for this connection
+                    // (otherwise a station already used on an earlier drive
+                    // may have used up its 25 lines).
+                    resetCarLog();
                 }
                 DiagLog.log("carUI onConnect: controller=" + controller.getPackageName()
                         + " trusted=" + controller.isTrusted()
@@ -1506,6 +1510,8 @@ public class RadioLibraryService extends MediaLibraryService {
                 for (StationLibrary.Station s : browseOrder()) {
                     stationItems.add(buildMediaItem(s));
                 }
+                DiagLog.log("carUI onGetChildren: controller=" + browser.getPackageName()
+                        + " parent=" + parentId + " -> " + stationItems.size() + " stations");
                 return Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.copyOf(stationItems), params));
             }
 
@@ -1584,6 +1590,8 @@ public class RadioLibraryService extends MediaLibraryService {
                     @NonNull MediaSession mediaSession,
                     @NonNull MediaSession.ControllerInfo controller) {
                 int idx = Math.max(0, combinedLastStationIndex());
+                DiagLog.log("carUI onPlaybackResumption: controller=" + controller.getPackageName()
+                        + " -> index " + idx);
                 return Futures.immediateFuture(
                         new MediaSession.MediaItemsWithStartPosition(fullPlaylist(), idx, 0L));
             }
@@ -1981,6 +1989,11 @@ public class RadioLibraryService extends MediaLibraryService {
         songHandler.removeCallbacks(clearBandNotice);
         songHandler.postDelayed(clearBandNotice, BAND_NOTICE_MS);
         tellCarDetailsChanged();
+    }
+
+    /** Lets the car's screen updates be logged again (25 lines per station, see CarQuietListener). */
+    private void resetCarLog() {
+        for (CarQuietListener q : new ArrayList<>(quiet.values())) q.logged = 0;
     }
 
     private void tellCarDetailsChanged() {

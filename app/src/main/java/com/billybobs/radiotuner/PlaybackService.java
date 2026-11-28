@@ -160,6 +160,9 @@ public class PlaybackService extends Service {
 
     /** True while this service exists - the sleep timer only ever runs in it. */
     static volatile boolean running = false;
+    /** The song now playing on the phone ("Artist – Title", or just the title),
+     *  or "" when the station sends none. Read by the home-screen widget. */
+    static volatile String widgetSong = "";
 
     private PowerManager.WakeLock wakeLock;
     // Keeps Wi-Fi at full speed while the screen is off. Without it the
@@ -1018,6 +1021,7 @@ public class PlaybackService extends Service {
                     currentStationName = (title != null && !title.isEmpty()) ? title : station.name;
                     currentArtist = "";
                     currentTrack = "";
+                    widgetSong = "";   // a new station: no old song on the widget
                     currentStationUrl = station.url;
                     currentStationMimeType = station.mimeType;
                     loadControl.bigCushion = wantsBigCushion(station.name);
@@ -1187,6 +1191,9 @@ public class PlaybackService extends Service {
                     .build());
         }
         startForeground(NOTIF_ID, buildNotification(playing));
+        String track = currentTrack == null ? "" : currentTrack.trim();
+        String artist = currentArtist == null ? "" : currentArtist.trim();
+        widgetSong = track.isEmpty() ? "" : (artist.isEmpty() ? track : artist + " – " + track);
         RadioWidgetProvider.refresh(this);
     }
 

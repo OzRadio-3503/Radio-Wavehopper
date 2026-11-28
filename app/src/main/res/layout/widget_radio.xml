@@ -35,15 +35,25 @@
             android:textSize="15sp"
             android:textStyle="bold" />
 
+        <!-- Scrolls (marquee) when the text is too long, e.g. a song title.
+             Widgets can only start a marquee through focus, hence
+             focusable + requestFocus; short text just sits still. -->
         <TextView
             android:id="@+id/w_sub"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:ellipsize="end"
-            android:maxLines="1"
+            android:ellipsize="marquee"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:marqueeRepeatLimit="marquee_forever"
+            android:scrollHorizontally="true"
+            android:singleLine="true"
             android:text="Tap to tune in"
             android:textColor="#FFB9B2CC"
-            android:textSize="12sp" />
+            android:textSize="12sp">
+
+            <requestFocus />
+        </TextView>
     </LinearLayout>
 
     <ImageButton

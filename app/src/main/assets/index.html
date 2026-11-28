@@ -66,7 +66,7 @@
     border-radius:0 0 3px 3px;
   }
 
-  .top-row{ display:flex; align-items:center; justify-content:space-between; padding:14px 2px 10px; gap:10px; }
+  .top-row{ display:flex; align-items:center; justify-content:space-between; padding:14px 2px 10px; gap:10px; position:relative; }
   .speaker{
     width:62px; height:62px; border-radius:50%; flex-shrink:0;
     background:
@@ -83,6 +83,30 @@
   .speaker{ cursor:pointer; user-select:none; -webkit-user-select:none; touch-action:manipulation; -webkit-tap-highlight-color:transparent; transition:transform .1s ease, box-shadow .1s ease; }
   .speaker:active, .speaker.pressed{ transform:scale(.93); box-shadow:inset 0 2px 4px rgba(0,0,0,0.8), 0 0 0 3px #0c0c0e, 0 0 0 5px var(--chrome-2), 0 0 16px rgba(0,229,255,0.55); }
   .speaker:focus-visible{ outline:2px solid var(--cyan); outline-offset:6px; }
+  /* A small centre cap with skip arrows hints that the speakers are buttons. */
+  .speaker{ display:flex; align-items:center; justify-content:center; }
+  .spk-cap{
+    width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    background:radial-gradient(circle at 35% 30%, #404047, #161618 75%);
+    box-shadow:0 0 0 1px #050506, 0 1px 2px rgba(0,0,0,0.8);
+    color:var(--cyan); opacity:0.75; pointer-events:none;
+  }
+  .spk-cap svg{ width:11px; height:11px; }
+  /* New installs: the speakers glow softly, with a tip, until the first tap
+     (or for the first three launches). See speaker_hint in the script. */
+  .speaker.hint{ animation:speakerHint 1.8s ease-in-out infinite; }
+  @keyframes speakerHint{
+    0%,100%{ box-shadow:inset 0 2px 4px rgba(0,0,0,0.8), 0 0 0 3px #0c0c0e, 0 0 0 5px var(--chrome-2), 0 0 0 0 rgba(77,255,176,0); }
+    50%{ box-shadow:inset 0 2px 4px rgba(0,0,0,0.8), 0 0 0 3px #0c0c0e, 0 0 0 5px var(--chrome-2), 0 0 14px 4px rgba(77,255,176,0.55); }
+  }
+  #speakerTip{
+    position:absolute; left:50%; top:100%; transform:translate(-50%, -6px); z-index:6;
+    background:#0a1510; color:var(--lcd-text); border:1px solid #1f5c42; border-radius:6px;
+    font-family:'Share Tech Mono',monospace; font-size:12px; letter-spacing:0.5px; padding:5px 10px;
+    white-space:nowrap; pointer-events:none; transition:opacity .6s;
+  }
+  #speakerTip[hidden]{ display:none; }
+  #speakerTip.fade{ opacity:0; }
   /* After a speaker tap the display shows just the group's name, on its
      own, for a few seconds - then the frequency and station come back. */
   #groupBadge{
@@ -167,7 +191,23 @@
   #streamDisplay .stream-dots span:nth-child(2){ animation-delay:.2s; }
   #streamDisplay .stream-dots span:nth-child(3){ animation-delay:.4s; }
   @keyframes streamDot{ 0%,100%{opacity:0.2} 40%{opacity:1} }
-  .window.band-switch .ruler-wrap, .window.band-switch #streamDisplay{ animation:bandSwitch .28s steps(3); }
+  /* Band Lock off: the station's category instead of a dial. */
+  #groupDisplay{
+    height:88px; margin-top:2px; position:relative; cursor:pointer; touch-action:none;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; padding-bottom:12px; box-sizing:border-box;
+    color:var(--lcd-text); font-family:'Share Tech Mono',monospace; text-shadow:0 0 8px rgba(77,255,176,0.5);
+  }
+  #groupDisplay[hidden]{ display:none; }
+  #groupDisplay .grp-name{ font-size:clamp(22px,8vw,34px); letter-spacing:4px; font-weight:700; line-height:1.1; white-space:nowrap; }
+  #groupDisplay .grp-cap{ font-size:10px; letter-spacing:3px; color:var(--ink); margin-top:5px; white-space:nowrap; }
+  #groupDisplay .grp-cap[hidden]{ display:none; }
+  #groupDisplay .grp-marks{ position:absolute; left:0; right:0; bottom:4px; height:6px; pointer-events:none; }
+  #groupDisplay .grp-marks span{
+    position:absolute; top:0; width:5px; height:5px; border-radius:50%; transform:translateX(-50%);
+    background:var(--lcd-dim); opacity:0.8;
+  }
+  #groupDisplay .grp-marks span.active{ background:var(--pink); box-shadow:0 0 8px 2px rgba(255,45,149,0.8); opacity:1; }
+  .window.band-switch .ruler-wrap, .window.band-switch #streamDisplay, .window.band-switch #groupDisplay{ animation:bandSwitch .28s steps(3); }
   @keyframes bandSwitch{ 0%{opacity:0.15} 50%{opacity:0.7} 100%{opacity:1} }
   /* Internet stations: evenly spaced dots along the stream panel, in
      alphabetical order, so it can be dragged like a dial. */
@@ -193,7 +233,7 @@
   @keyframes nameUp{ from{ transform:translateY(70%); opacity:0; } to{ transform:none; opacity:1; } }
   @keyframes nameDown{ from{ transform:translateY(-70%); opacity:0; } to{ transform:none; opacity:1; } }
 
-  /* Band Lock (next to the presets): only works in real-frequency mode. */
+  /* CATEGORY / BAND button (next to the presets; the code still calls it Band Lock). Hidden with Real frequency only. */
   #bandLockBtn{
     width:52px; height:52px; border-radius:50%; cursor:pointer; padding:0;
     background:linear-gradient(145deg, #2a2a2e, #18181b); border:2px solid #f3d98a; color:#f3d98a;
@@ -203,8 +243,11 @@
     transition:transform 0.1s ease, opacity .2s, box-shadow .2s; -webkit-tap-highlight-color:transparent;
   }
   #bandLockBtn svg{ width:18px; height:18px; }
-  #bandLockBtn .shackle{ transition:transform .2s; }
-  #bandLockBtn:not(.on) .shackle{ transform:translateY(-3px); }
+  /* Unlocked = categories (grid, "CATEGORY"); locked = band dial (radio, "BAND"). */
+  #bandLockBtn .ic-band{ display:none; }
+  #bandLockBtn.on .ic-cat{ display:none; }
+  #bandLockBtn.on .ic-band{ display:block; }
+  #bandLockBtn .lbl{ letter-spacing:0.2px; }
   #bandLockBtn.on{ background:#f3d98a; color:#18181b; box-shadow:0 4px 10px rgba(0,0,0,0.6), 0 0 14px rgba(243,217,138,0.75); }
   #auOnlyBtn{
     width:52px; height:52px; border-radius:50%; cursor:pointer; padding:0;
@@ -252,7 +295,7 @@
     position:absolute; right:14px; top:6px; font-family:'Share Tech Mono',monospace; font-size:9px;
     letter-spacing:2px; color:var(--pink);
   }
-  .station-mark.dim, .real-mark.dim, #streamDisplay .net-marks span.dim{ opacity:0.15; }
+  .station-mark.dim, .real-mark.dim, #streamDisplay .net-marks span.dim, #groupDisplay .grp-marks span.dim{ opacity:0.15; }
   #bandLockBtn:disabled{ opacity:0.28; cursor:not-allowed; border-color:#6b6b70; color:#8a8a90; }
 
   .needle{
@@ -292,8 +335,8 @@
     font-size:clamp(34px,12vw,60px); letter-spacing:1px; line-height:1;
     text-shadow:0 0 8px rgba(77,255,176,0.65), 0 0 18px rgba(77,255,176,0.3);
   }
-  .plaque .freq-readout{ cursor:pointer; user-select:none; -webkit-user-select:none; -webkit-tap-highlight-color:transparent; }
-  #freqUnit{ cursor:pointer; user-select:none; -webkit-user-select:none; }
+  .plaque .freq-readout{ user-select:none; -webkit-user-select:none; -webkit-tap-highlight-color:transparent; }
+  #freqUnit{ user-select:none; -webkit-user-select:none; }
   .plaque .freq-readout.real-text{ font-size:clamp(16px,5.2vw,28px); letter-spacing:0; line-height:64px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .plaque .freq-readout.flicker{ animation:freqFlick .2s steps(2); }
   @keyframes freqFlick{ 0%{opacity:.3;} 50%{opacity:1;} 100%{opacity:1;} }
@@ -369,22 +412,28 @@
 <div class="set">
   <div class="stripe"></div>
   <div class="top-row">
-    <div class="speaker" id="speakerLeft" role="button" tabindex="0" aria-label="Previous group of stations" title="Previous group"></div>
+    <div class="speaker" id="speakerLeft" role="button" tabindex="0" aria-label="Previous group of stations" title="Previous group"><span class="spk-cap" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 5v14L8 12z"/><rect x="5" y="5" width="2.6" height="14" rx="1"/></svg></span></div>
     <div class="logo-badge" role="button" tabindex="0" aria-label="Sleep timer off. Press and hold to set">
       <span class="brand-name">RADIO WAVEHOPPER</span>
       <div class="sub-badges"><span>STEREO</span><span>DIGITAL TUNING</span><span class="sleep-badge" id="sleepBadge" hidden>SLEEP</span></div>
     </div>
-    <div class="speaker" id="speakerRight" role="button" tabindex="0" aria-label="Next group of stations" title="Next group"></div>
+    <div class="speaker" id="speakerRight" role="button" tabindex="0" aria-label="Next group of stations" title="Next group"><span class="spk-cap" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5v14l10-7z"/><rect x="16.4" y="5" width="2.6" height="14" rx="1"/></svg></span></div>
+    <div id="speakerTip" hidden></div>
   </div>
 
   <div class="main-body">
     <div class="window">
       <div class="scanlines"></div>
-      <div class="ruler-wrap" id="ruler">
+      <div class="ruler-wrap" id="ruler" hidden>
         <div class="ruler-line"></div>
         <div class="needle" id="needle" style="left:0%"></div>
       </div>
       <div class="ruler-wrap" id="realRuler" hidden aria-hidden="true"></div>
+      <div id="groupDisplay" hidden>
+        <div class="grp-name"></div>
+        <div class="grp-cap" hidden></div>
+        <div class="grp-marks"></div>
+      </div>
       <div id="streamDisplay" hidden aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
           <circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.6 3.8 5.6 3.8 9s-1.2 6.4-3.8 9M12 3c-2.6 2.6-3.8 5.6-3.8 9s1.2 6.4 3.8 9"/>
@@ -414,7 +463,7 @@
       <div class="plaque" style="position:relative;">
         <div id="presetBadge" style="display:none; position:absolute; top:12px; left:14px; color:var(--lcd-text); font-family:'Share Tech Mono',monospace; font-size:13px; font-weight:700; text-shadow:0 0 6px rgba(77,255,176,0.6);">1</div>
         <div id="groupBadge" aria-live="polite"></div>
-        <div class="freq-readout" id="freqReadout" role="button" tabindex="0" title="Tap to show the station's real on-air frequency">91.8</div>
+        <div class="freq-readout" id="freqReadout">91.8</div>
         <div id="freqUnit" style="text-align:center;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:3px;color:var(--ink);margin-top:-2px;">MHz</div>
         <div class="station-name" id="stationName">tuning…</div>
       </div>
@@ -442,9 +491,10 @@
         <button class="preset-btn" data-index="0" data-freq="100.2" title="Preset 1 (Hold to save)" style="width:52px; height:52px; border-radius:50%; background:linear-gradient(145deg, #2a2a2e, #18181b); border:2px solid #4dffb0; color:#4dffb0; font-family:'Share Tech Mono',monospace; font-size:18px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 10px rgba(0,0,0,0.6), inset 0 2px 3px rgba(255,255,255,0.15), 0 0 10px rgba(77,255,176,0.4); transition:transform 0.1s ease;">1</button>
         <button class="preset-btn" data-index="1" data-freq="102.1" title="Preset 2 (Hold to save)" style="width:52px; height:52px; border-radius:50%; background:linear-gradient(145deg, #2a2a2e, #18181b); border:2px solid #ff2d95; color:#ff2d95; font-family:'Share Tech Mono',monospace; font-size:18px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 10px rgba(0,0,0,0.6), inset 0 2px 3px rgba(255,255,255,0.15), 0 0 10px rgba(255,45,149,0.4); transition:transform 0.1s ease;">2</button>
         <button class="preset-btn" data-index="2" data-freq="101.5" title="Preset 3 (Hold to save)" style="width:52px; height:52px; border-radius:50%; background:linear-gradient(145deg, #2a2a2e, #18181b); border:2px solid #00e5ff; color:#00e5ff; font-family:'Share Tech Mono',monospace; font-size:18px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 10px rgba(0,0,0,0.6), inset 0 2px 3px rgba(255,255,255,0.15), 0 0 10px rgba(0,229,255,0.4); transition:transform 0.1s ease;">3</button>
-        <button id="bandLockBtn" type="button" disabled aria-pressed="false" title="Band lock — tune only within this band (real-frequency mode)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path class="shackle" d="M8 11V8a4 4 0 0 1 8 0v3"/><rect x="5" y="11" width="14" height="10" rx="2"/></svg>
-          <span>BAND</span>
+        <button id="bandLockBtn" type="button" disabled aria-pressed="false" title="Switch between categories and the band dial">
+          <svg class="ic-cat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>
+          <svg class="ic-band" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 8l10-4"/><rect x="3" y="8" width="18" height="12" rx="2"/><circle cx="8.5" cy="14" r="2.5"/><path d="M14 12h4M14 16h4"/></svg>
+          <span class="lbl">CATEGORY</span>
         </button>
         <button id="auOnlyBtn" type="button" aria-pressed="false" title="Australian stations only">AU<small>ONLY</small></button>
       </div>
@@ -705,6 +755,10 @@
   // Stations the listener added on the Edit screen (pencil icon). Stored on
   // the phone only: in the app by AndroidBridge, on the website in
   // localStorage. The phone player merges the same list (UserStations.java).
+  // A new install has never run the page: no radio_layout marker yet (it's
+  // written on every start-up, further down). Read it before that happens.
+  let isNewInstall = false;
+  try { isNewInstall = !localStorage.getItem('radio_layout'); } catch (e) {}
   const userData = (function(){
     let d = {};
     try {
@@ -724,9 +778,16 @@
     Object.assign(d, twoLists(d.lists, d.activeList, d.carList));
     d.hiddenGroups = [];
     d._migrated = before !== JSON.stringify([d.lists, d.activeList, d.carList, d.hiddenGroups]);
-    // Real frequency only (Settings): the phone tunes by real AM/FM/DAB+/
-    // Internet band, always. On unless switched off.
-    d.realOnly = d.realOnly !== false;
+    // Real frequency only (Settings shows it the other way round, as "Browse
+    // by category"): the phone tunes by real AM/FM/DAB+/Internet band, always.
+    // New installs start with categories (realOnly false). Anyone who used the
+    // app before and never chose keeps the real dial they're used to - they
+    // already have the radio_layout marker. The choice is stored once
+    // (_defaulted -> saved below) so it sticks and the phone player sees it.
+    if (typeof d.realOnly !== 'boolean') {
+      d.realOnly = !isNewInstall;
+      d._defaulted = true;
+    }
     // Default sleep timer in minutes (0 = off), started by any play on the phone.
     if (![10, 30, 60, 120].includes(d.sleepDefault)) d.sleepDefault = 0;
     d.added = d.added.filter(u => u && typeof u.name === 'string' && /^https?:\/\//i.test(u.url || '') && isFinite(u.freq));
@@ -741,8 +802,9 @@
   // is applied. Entries saved before names existed are matched here by the key
   // they were saved under; LEGACY_KEY_NAMES lists built-ins that have moved.
   const LEGACY_KEY_NAMES = { '90.08': 'Station X', '87.50': 'talkSPORT', '99.10': 'Triple J Hottest' };
-  let userDataChanged = !!userData._migrated;
+  let userDataChanged = !!userData._migrated || !!userData._defaulted;
   delete userData._migrated;
+  delete userData._defaulted;
   if (!userData.names || typeof userData.names !== 'object' || Array.isArray(userData.names)) { userData.names = {}; }
   (function rekeySavedEdits(){
     const byKey = {}, byName = {};
@@ -1096,6 +1158,16 @@
     } catch (e) {}
   })();
 
+  // A station's real-world frequency as people know it: "873 AM", "88.9 FM",
+  // "DAB+ 9C", or "DAB only" / "Internet only". Shown instead of the app's
+  // own dial number (87.50-102.10), which only keys presets and the car.
+  function realLabel(st){
+    if (!st) return '';
+    if (st.real && st.real !== 'DAB only') return st.real;
+    if (st.dab) return 'DAB+ ' + st.dab;
+    return st.real || 'Internet only';
+  }
+
   function updatePresetButtons() {
     let saved;
     try { saved = JSON.parse(localStorage.getItem('radio_presets') || '[100.2, 102.1, 101.5]'); }
@@ -1105,7 +1177,7 @@
       const station = nearestStation(freq);
       btn.dataset.freq = freq;
       if (station) {
-        btn.title = `Preset ${idx + 1}: ${freq.toFixed(2)} MHz — ${station.name} (Hold to save)`;
+        btn.title = `Preset ${idx + 1}: ${station.name} · ${realLabel(station)} (Hold to save)`;
       }
     });
   }
@@ -1128,7 +1200,7 @@
           btn.textContent = '✓';
           btn.style.transform = 'scale(1.15)';
           statusText.className = 'status-text ok';
-          statusText.textContent = `Preset ${idx + 1} saved: ${tunedStation.name} (${tunedStation.freq.toFixed(2)} MHz)`;
+          statusText.textContent = `Preset ${idx + 1} saved: ${tunedStation.name} (${realLabel(tunedStation)})`;
 
           setTimeout(() => {
             btn.textContent = originalText;
@@ -1190,7 +1262,7 @@
     albumArtImg.style.display = 'block';
   }
 
-  // With Real frequency only on (the default) the Now Playing box always
+  // With Real frequency only on the Now Playing box always
   // shows, saying "Unavailable" when the station sends no song; with it off,
   // the box only appears when there's a song, as before.
   function clearNowPlaying(){
@@ -1465,7 +1537,7 @@
     if (isNativeApp || !('mediaSession' in navigator)) return;
     navigator.mediaSession.metadata = new MediaMetadata({
       title: station ? station.name : "Radio Wavehopper",
-      artist: station ? station.freq.toFixed(2) + ' MHz' : '',
+      artist: station ? realLabel(station) : '',
       album: "Radio Wavehopper"
     });
   }
@@ -1480,17 +1552,16 @@
     navigator.mediaSession.setActionHandler('nexttrack', () => goToStationStep(1));
   }
 
-  // Tap the frequency to swap between the app's dial frequency and the
-  // station's real-world one (its main AM/FM frequency, or "DAB only" /
-  // "Internet only" when it has none). Stays in that mode while tuning, so
-  // you can scroll the dial seeing real frequencies; tap again to go back.
-  // Real frequency only (the default, see Settings): the readout always shows
-  // the real frequency and Band Lock is always on - the AM/FM/DAB+/NET dial.
-  // Switched off, the categories dial and its dial numbers come back, with
-  // tap-to-switch and the optional Band Lock.
+  // The readout shows the station's real-world frequency (its main AM/FM
+  // frequency, its DAB+ block, or "DAB only" / "Internet only").
+  // Real frequency only (Settings: "Browse by category" unticked): Band Lock is always on -
+  // the AM/FM/DAB+/NET dial. Switched off, the BAND lock button appears: locked
+  // shows the real dial, unlocked shows the station's category (Sport, Talk,
+  // NSW/ACT ...) in the dial window. Since the 1.2.2 follow-up the readout always shows the
+  // real frequency; the old app-dial numbers (87.50-102.10) and tap-to-switch
+  // are gone from the screen (the numbers still key presets and the car).
   const realOnly = userData.realOnly !== false;
-  let showRealFreq = realOnly;
-  if (!realOnly) { try { showRealFreq = localStorage.getItem('show_real_freq') === '1'; } catch (e) {} }
+  const showRealFreq = true;
   let readoutStation = null;
   let pendingRollDir = 0;
 
@@ -1509,26 +1580,21 @@
     readoutStation = station;
     const real = station.real || 'Internet only';
     const onAir = /^([\d.]+) (FM|AM)$/.exec(real);
-    if (!showRealFreq) {
-      freqReadout.textContent = station.freq.toFixed(2);
-      freqReadout.classList.remove('real-text');
-      freqUnit.textContent = 'MHz';
-      freqReadout.setAttribute('aria-label', `${station.freq.toFixed(2)} megahertz. Tap for the real on-air frequency`);
-    } else if (onAir) {
+    if (onAir) {
       freqReadout.textContent = onAir[1];
       freqReadout.classList.remove('real-text');
-      freqUnit.textContent = onAir[2] === 'FM' ? 'REAL · MHz FM' : 'REAL · kHz AM';
-      freqReadout.setAttribute('aria-label', `On air on ${real}. Tap for the dial frequency`);
+      freqUnit.textContent = onAir[2] === 'FM' ? 'MHz FM' : 'kHz AM';
+      freqReadout.setAttribute('aria-label', `On air on ${real}`);
     } else if (real === 'DAB only' && station.dab) {
       freqReadout.textContent = station.dab;
       freqReadout.classList.remove('real-text');
-      freqUnit.textContent = 'REAL · DAB+ BLOCK';
-      freqReadout.setAttribute('aria-label', `On DAB+ block ${station.dab}. Tap for the dial frequency`);
+      freqUnit.textContent = 'DAB+ BLOCK';
+      freqReadout.setAttribute('aria-label', `On DAB+ block ${station.dab}`);
     } else {
       freqReadout.textContent = real;
       freqReadout.classList.add('real-text');
-      freqUnit.textContent = 'REAL · NO AM/FM';
-      freqReadout.setAttribute('aria-label', `${real}. Tap for the dial frequency`);
+      freqUnit.textContent = real === 'DAB only' ? 'DAB+' : 'STREAM';
+      freqReadout.setAttribute('aria-label', real);
     }
     // State (NSW, ACT, VIC ...) or country (NZ, UK, US ...) after the frequency.
     if (station.cc) freqUnit.textContent += ' · ' + station.cc;
@@ -1635,9 +1701,10 @@
   function realBandStations(band){ return realOrder().filter(s => realBandFor(s).band === band); }
 
   // Band Lock: tunes by real frequency inside the current station's band,
-  // stopping at either end. Starts off every launch, is greyed out outside
-  // real-frequency mode, and is switched off by the speakers. Presets still
-  // tune anything; the lock then follows that station's band.
+  // stopping at either end. Starts off every launch and is switched off by
+  // the speakers. Presets still tune anything; the lock then follows that
+  // station's band. The dial window follows it: locked = the real band's dial,
+  // unlocked = the station's category (see updateDial).
   let bandLock = false;
   const bandLockBtn = document.getElementById('bandLockBtn');
   function setBandLock(on){
@@ -1645,14 +1712,17 @@
     bandLockBtn.style.display = realOnly ? 'none' : '';   // always locked: no button
     bandLockBtn.classList.toggle('on', bandLock);
     bandLockBtn.setAttribute('aria-pressed', bandLock ? 'true' : 'false');
+    bandLockBtn.querySelector('.lbl').textContent = bandLock ? 'BAND' : 'CATEGORY';
+    bandLockBtn.setAttribute('aria-label', bandLock ? 'Band dial. Tap for categories' : 'Categories. Tap for the band dial');
     bandLockBtn.disabled = !showRealFreq;
+    if (readoutStation) updateDial(readoutStation);   // swap the window: dial <-> category
     updateBandUI();
   }
   bandLockBtn.addEventListener('click', () => {
     if (!showRealFreq) return;
     setBandLock(!bandLock);
     const band = realBandFor(nearestStation(currentFreq)).band;
-    flashGroupName(bandLock ? `${BAND_LABEL[band]} BAND LOCKED` : 'BAND UNLOCKED');
+    flashGroupName(bandLock ? `${BAND_LABEL[band]} BAND` : 'CATEGORIES');
     if (navigator.vibrate) { try { navigator.vibrate(15); } catch (e) {} }
   });
 
@@ -1703,7 +1773,7 @@
       const s = nearestStation(parseFloat(d.dataset.freq));
       d.classList.toggle('dim', !allowed(s));
     });
-    document.querySelectorAll('.real-mark, #streamDisplay .net-marks span').forEach(d => {
+    document.querySelectorAll('.real-mark, #streamDisplay .net-marks span, #groupDisplay .grp-marks span').forEach(d => {
       const s = byName[d.dataset.name];
       d.classList.toggle('dim', !!s && !allowed(s));
     });
@@ -1748,6 +1818,17 @@
     } catch (e) {}
   }
   loadSharedBandMemory();
+  // Category memory: the last station tuned in each category (Sport, Talk,
+  // NSW/ACT ...), keyed by group name, so the speakers land back on it with
+  // Band Lock off. Phone and web only (localStorage group_last).
+  let groupLast = {};
+  try { groupLast = JSON.parse(localStorage.getItem('group_last') || '{}') || {}; } catch (e) { groupLast = {}; }
+  function rememberGroup(station){
+    const g = STATION_GROUPS[groupIndexFor(station.freq)].name;
+    if (groupLast[g] === station.name) return;
+    groupLast[g] = station.name;
+    try { localStorage.setItem('group_last', JSON.stringify(groupLast)); } catch (e) {}
+  }
   function rememberBand(station, tuned){
     const band = realBandFor(station).band;
     // Tell the app whenever a station is actually tuned (even if it's the
@@ -1795,7 +1876,7 @@
     if (!target) return;
     if (Math.abs(target.freq - currentFreq) > 0.001) render(target.freq);
     // In real-frequency-only mode the band is always locked, so just name it.
-    flashGroupName(realOnly ? `${BAND_LABEL[b.dataset.band]} BAND` : `${BAND_LABEL[b.dataset.band]} BAND LOCKED`);
+    flashGroupName(`${BAND_LABEL[b.dataset.band]} BAND`);
     buzz(15);
   });
   var auUiReady = false;
@@ -1863,10 +1944,64 @@
   const NET_MARGIN = 6;
   function netPct(i, n){ return n < 2 ? 50 : NET_MARGIN + i / (n - 1) * (100 - 2 * NET_MARGIN); }
 
+  // Band Lock off (only possible with Real frequency only unticked): the
+  // window shows the station's category instead of a dial - a short name
+  // (TALK, NSW/ACT, UK ...), a caption underneath ("MUSIC & COMMUNITY" for
+  // the states, "MUSIC" for the rest; none for Sport and Talk, whose names
+  // say it), and a row of dots for that category's stations, which can be
+  // dragged to tune within it. Overseas talk and sport stations live in the
+  // Talk and Sport groups, so the country groups are music.
+  // The old app dial (#ruler, 87.50-102.10) is no longer shown.
+  const SHORT_GROUP = {
+    'Sport':'SPORT', 'Talk':'TALK', 'NSW (and ACT)':'NSW/ACT', 'Victoria':'VIC',
+    'Queensland':'QLD', 'South Australia':'SA', 'Western Australia':'WA',
+    'Tasmania':'TAS', 'Northern Territory':'NT', 'Australia (national)':'AUSTRALIA',
+    'New Zealand':'NZ', 'Pacific':'PACIFIC', 'Singapore':'SINGAPORE',
+    'South Africa':'S. AFRICA', 'UK':'UK', 'France':'FRANCE', 'Germany':'GERMANY',
+    'USA':'USA', 'Internet only':'INTERNET'
+  };
+  function groupLabel(name){
+    const parts = String(name).split(' – ');
+    const plain = parts[0] === 'Sport' || parts[0] === 'Talk';
+    return { name: SHORT_GROUP[parts[0]] || parts[0].toUpperCase(),
+             caption: parts[1] ? parts[1].toUpperCase() : (plain ? '' : 'MUSIC') };
+  }
+  // A category's stations, in dial order (the user's own ones included).
+  function groupStations(gi){
+    const lo = STATION_GROUPS[gi].start - 1e-9;
+    const hi = gi + 1 < STATION_GROUPS.length ? STATION_GROUPS[gi + 1].start - 1e-9 : Infinity;
+    return byFreq.filter(s => s.freq >= lo && s.freq < hi);
+  }
+  const groupDisplay = document.getElementById('groupDisplay');
+  let builtGroup = -1;
+  function showGroupDisplay(station){
+    const gi = groupIndexFor(station.freq);
+    if (builtGroup !== gi) {
+      const label = groupLabel(STATION_GROUPS[gi].name);
+      groupDisplay.querySelector('.grp-name').textContent = label.name;
+      const cap = groupDisplay.querySelector('.grp-cap');
+      cap.textContent = label.caption;
+      cap.hidden = !label.caption;
+      const marks = groupDisplay.querySelector('.grp-marks');
+      marks.innerHTML = '';
+      const list = groupStations(gi);
+      list.forEach((s, i) => {
+        const dot = document.createElement('span');
+        dot.dataset.name = s.name;
+        dot.style.left = netPct(i, list.length) + '%';
+        marks.appendChild(dot);
+      });
+      builtGroup = gi;
+    }
+    groupDisplay.querySelectorAll('.grp-marks span').forEach(d => d.classList.toggle('active', d.dataset.name === station.name));
+  }
+
   function updateDial(station){
-    const r = showRealFreq ? realBandFor(station) : { band: 'std' };
+    const r = bandLock ? realBandFor(station) : { band: 'cat' };
     const view = r.band;
-    ruler.hidden = view !== 'std';
+    ruler.hidden = true;   // the old app dial; kept in the page but not shown
+    groupDisplay.hidden = view !== 'cat';
+    if (view === 'cat') showGroupDisplay(station);
     streamDisplay.hidden = view !== 'net';
     realRuler.hidden = !(view === 'fm' || view === 'am' || view === 'dab');
     if (!realRuler.hidden) {
@@ -1899,19 +2034,8 @@
     if (auUiReady) { applyAuFilterUI(); updateBandUI(); }
   }
 
-  function toggleRealFrequency(){
-    if (realOnly) return;   // always real (Settings → Real frequency only)
-    showRealFreq = !showRealFreq;
-    try { localStorage.setItem('show_real_freq', showRealFreq ? '1' : '0'); } catch (e) {}
-    setBandLock(false);   // greys out (or re-enables) the button; lock starts off
-    if (readoutStation) showStationFrequency(readoutStation);
-    freqReadout.classList.remove('flicker'); void freqReadout.offsetWidth; freqReadout.classList.add('flicker');
-  }
-  freqReadout.addEventListener('click', toggleRealFrequency);
-  freqUnit.addEventListener('click', toggleRealFrequency);
-  freqReadout.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleRealFrequency(); }
-  });
+  // (Tapping the readout used to swap to the app's dial frequency; removed after
+  // 1.2.2. The old show_real_freq setting is no longer read.)
 
   // Takes the group name off the display (any tuning shows the frequency again).
   function hideGroupName(){
@@ -1960,6 +2084,7 @@
     // non-silent render() call once the button is released.
     if (opts.silent) return station;
     rememberBand(station, !opts.initial && station !== tunedStation);
+    if (!opts.initial) rememberGroup(station);   // opening the app doesn't count
 
     if (station !== tunedStation) {
       tunedStation = station;
@@ -2343,6 +2468,31 @@
   streamDisplay.addEventListener('pointerup', () => { draggingNet = false; });
   streamDisplay.addEventListener('pointercancel', () => { draggingNet = false; });
 
+  // The category window (Band Lock off): drag along the dots to tune within
+  // the category you started in; the arrows and speakers go beyond it.
+  let dragGroup = -1;
+  function groupDialTo(clientX){
+    const all = groupStations(dragGroup);
+    const list = all.filter(allowed);
+    if (!list.length) return;
+    const rect = groupDisplay.getBoundingClientRect();
+    const pc = (clientX - rect.left) / rect.width * 100;
+    const p = Math.min(1, Math.max(0, (pc - NET_MARGIN) / (100 - 2 * NET_MARGIN)));
+    const near = Math.round(p * (all.length - 1));
+    let best = null, gap = Infinity;
+    list.forEach(s => { const g = Math.abs(all.indexOf(s) - near); if (g < gap) { gap = g; best = s; } });
+    if (best && Math.abs(best.freq - currentFreq) > 0.001) { buzz(8); render(best.freq); }
+  }
+  groupDisplay.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    dragGroup = groupIndexFor(currentFreq);
+    try { groupDisplay.setPointerCapture(e.pointerId); } catch (err) {}
+    groupDialTo(e.clientX);
+  });
+  groupDisplay.addEventListener('pointermove', e => { if (dragGroup >= 0) groupDialTo(e.clientX); });
+  groupDisplay.addEventListener('pointerup', () => { dragGroup = -1; });
+  groupDisplay.addEventListener('pointercancel', () => { dragGroup = -1; });
+
   // --- arrow-button tuning + keyboard ---
   const prevStationBtn = document.getElementById('prevStationBtn');
   const nextStationBtn = document.getElementById('nextStationBtn');
@@ -2455,10 +2605,12 @@
     groupBadgeTimer = setTimeout(hideGroupName, 2500);
   }
 
-  // Left works like "previous track" on a CD player: from partway through a
-  // group it goes back to that group's first station; from the first
-  // station it goes to the previous group.
-  // Real frequency only: the speakers jump through the band in thirds (start,
+  // Categories (Band Lock off): right = next category, left = previous one,
+  // landing on the station last tuned there (group_last), or its first
+  // station if it has none yet or that station is gone/hidden/skipped by
+  // AU only. Categories with no station to land on are skipped. (Before this,
+  // left worked like "previous track": back to this category's start first.)
+  // On the band dial (Real frequency only, or BAND on the CATEGORY / BAND button): the speakers jump through the band in thirds (start,
   // 1/3, 2/3), like Android Auto's double arrows. Same "previous track" rule:
   // from partway through a third, back goes to that third's start first.
   function goToBandThird(direction){
@@ -2480,29 +2632,28 @@
   }
 
   function goToGroupStep(direction){
-    if (realOnly) return goToBandThird(direction);
-    setBandLock(false);   // the speakers go back to browsing by section
+    // On the band dial (Real frequency only, or the CATEGORY / BAND button
+    // on BAND) the speakers jump in thirds of the band and stay on the dial.
+    if (realOnly || bandLock) return goToBandThird(direction);
     if (showingList) return goToListSection(direction);
     const n = STATION_GROUPS.length;
     const here = groupIndexFor(currentFreq);
-    // A section's first station (the first Australian one when AU only is
-    // on); sections with none are skipped.
-    const firstOf = g => {
-      const lo = STATION_GROUPS[g].start - 1e-9;
-      const hi = g + 1 < n ? STATION_GROUPS[g + 1].start - 1e-9 : Infinity;
-      return byFreq.find(s => s.freq >= lo && s.freq < hi && allowed(s)) || null;
+    // A category's first station (the first Australian one when AU only is
+    // on); categories with none are skipped.
+    const firstOf = g => groupStations(g).find(allowed) || null;
+    // Where a category opens: its remembered station if still there and
+    // allowed, otherwise its first station.
+    const openingOf = g => {
+      const name = groupLast[STATION_GROUPS[g].name];
+      return (name && groupStations(g).find(s => s.name === name && allowed(s))) || firstOf(g);
     };
-    const first = firstOf(here);
-    const atStart = !first || currentFreq <= first.freq + 0.001;
     let target = here;
-    if (!(direction < 0 && !atStart)) {
-      for (let k = 1; k <= n; k++) {
-        target = (((here + direction * k) % n) + n) % n;
-        if (firstOf(target)) break;
-      }
+    for (let k = 1; k <= n; k++) {
+      target = (((here + direction * k) % n) + n) % n;
+      if (firstOf(target)) break;
     }
     const group = STATION_GROUPS[target];
-    const landing = firstOf(target) || nearestStation(group.start);
+    const landing = openingOf(target) || nearestStation(group.start);
     freqReadout.classList.remove('flicker'); void freqReadout.offsetWidth; freqReadout.classList.add('flicker');
     render(landing.freq);
     flashGroupName(group.name);
@@ -2511,7 +2662,7 @@
 
   // With My phone stations on there are no categories: the group buttons jump
   // through the list in thirds (start, 1/3, 2/3, back to the start), in dial
-  // order - the same as Android Auto. Same "previous track" rule as above:
+  // order - the same as Android Auto. "Previous track" rule here:
   // from partway through a third, back goes to that third's start first.
   function goToListSection(direction){
     const list = byFreq.filter(s => inShowingList.has(s.name) && allowed(s));
@@ -2531,11 +2682,35 @@
     if (navigator.vibrate) { try { navigator.vibrate(15); } catch (e) {} }
   }
 
+  // Speaker hint for new installs: both speakers glow and a tip says what
+  // they do, until the first speaker tap or for the first three launches
+  // (localStorage speaker_hint: launches so far, or 'done').
+  const speakerTip = document.getElementById('speakerTip');
+  function endSpeakerHint(){
+    document.querySelectorAll('.speaker.hint').forEach(sp => sp.classList.remove('hint'));
+    speakerTip.hidden = true;
+    try { localStorage.setItem('speaker_hint', 'done'); } catch (e) {}
+  }
+  (function startSpeakerHint(){
+    let state = null;
+    try { state = localStorage.getItem('speaker_hint'); } catch (e) {}
+    if (state === null && !isNewInstall) return;   // existing users: no hint
+    if (state === 'done') return;
+    const launches = (Number(state) || 0) + 1;
+    if (launches > 3) { endSpeakerHint(); return; }
+    try { localStorage.setItem('speaker_hint', String(launches)); } catch (e) {}
+    document.querySelectorAll('.speaker').forEach(sp => sp.classList.add('hint'));
+    speakerTip.textContent = realOnly ? 'Tap a speaker to jump along the band' : 'Tap a speaker to change category';
+    speakerTip.hidden = false;
+    setTimeout(() => { speakerTip.classList.add('fade'); }, 7000);
+    setTimeout(() => { speakerTip.hidden = true; }, 7700);
+  })();
+
   [['speakerLeft', -1], ['speakerRight', 1]].forEach(([id, direction]) => {
     const speaker = document.getElementById(id);
-    speaker.addEventListener('click', () => goToGroupStep(direction));
+    speaker.addEventListener('click', () => { endSpeakerHint(); goToGroupStep(direction); });
     speaker.addEventListener('keydown', e => {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goToGroupStep(direction); }
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); endSpeakerHint(); goToGroupStep(direction); }
     });
   });
 
@@ -2882,6 +3057,15 @@
 // built-in list; the page and the phone player merge the two.
 (function(){
   const wh = window.__wh;
+  // Before the page reloads after Settings: keep Band Lock on if it was on,
+  // except when Real frequency only has just been unticked - then the radio
+  // opens straight in category mode (Band Lock off).
+  function keepLockForReload(){
+    try {
+      const switchedToCategories = wh.realOnly && userData.realOnly === false;
+      if (wh.getBandLock() && !switchedToCategories) sessionStorage.setItem('wh_keep_lock', '1');
+    } catch (e) {}
+  }
   if (!wh) return;
   const { stations, STATION_GROUPS, DAB_BLOCKS, LEGACY_KEY_NAMES, userData, twoLists, PHONE_LIST, CAR_LIST } = wh;
   const KEY = 'user_stations_v1';
@@ -3040,9 +3224,9 @@
       <summary><span class="t">STATIONS TO SHOW</span><span class="s" id="sumShow"></span></summary>
       <div class="ed-body">
         <div class="ed-radios">
-          <label><input type="checkbox" id="edRealOnly"> Real frequency only</label>
+          <label><input type="checkbox" id="edRealOnly"> Browse by category</label>
         </div>
-        <div class="ed-note" style="margin-top:-6px">Tune by real AM, FM, DAB+ and Internet bands. Untick for the categories dial.</div>
+        <div class="ed-note" style="margin-top:-6px">Sport, Talk, each state and country. The CATEGORY / BAND button switches to the real AM, FM and DAB+ dial. Untick to always use the real dial.</div>
         <div class="ed-sub">PHONE</div>
         <div class="ed-radios">
           <label><input type="radio" name="edShowR" value=""> All stations</label>
@@ -3567,8 +3751,9 @@
     const nP = countOf(PHONE_LIST), nC = countOf(CAR_LIST);
     $('cntP').textContent = nP ? '(' + nP + ')' : '(none yet)';
     $('cntC').textContent = nC ? '(' + nC + ')' : '(none yet)';
-    $('edRealOnly').checked = userData.realOnly !== false;
-    $('sumShow').textContent = (userData.realOnly !== false ? 'Real frequency · ' : 'Categories dial · ')
+    // The box is "Browse by category", so it's ticked when realOnly is off.
+    $('edRealOnly').checked = userData.realOnly === false;
+    $('sumShow').textContent = (userData.realOnly !== false ? 'Real dial only · ' : 'Categories · ')
       + 'Phone: ' + (p ? 'Chosen stations' : 'All stations')
       + ' · Car: ' + (c === 'list' ? 'Chosen stations' : c === '*' ? 'All stations' : 'Same as phone');
     if (!editing) setAddToDefaults();
@@ -3639,11 +3824,11 @@
   }));
   $('edRealOnly').addEventListener('change', () => {
     const before = userData.realOnly !== false;
-    userData.realOnly = $('edRealOnly').checked;
+    userData.realOnly = !$('edRealOnly').checked;
     if (!persist()) { userData.realOnly = before; renderShowing(); return showMsg('Could not save. Try again.', 'warn'); }
     dirty = true;
-    showMsg(userData.realOnly ? 'Real frequency only is on. Close this screen to see the AM/FM/DAB+/NET dial.'
-      : 'The categories dial is back. Close this screen to see it.', 'ok');
+    showMsg(userData.realOnly ? 'Real dial only. Close this screen to tune by real frequency.'
+      : 'Categories are on. Close this screen to browse by category.', 'ok');
     renderShowing();
   });
   $('edPickP').addEventListener('click', () => openPicker(PHONE_LIST, false));
@@ -3704,10 +3889,10 @@
     userData.added = []; userData.hidden = []; userData.edited = {}; userData.names = {};
     userData.hiddenGroups = []; userData.lists = []; userData.activeList = ''; userData.carList = '';
     userData.sleepDefault = 0;
-    userData.realOnly = true;
+    userData.realOnly = false;   // the default: browse by category
     if (!persist()) return setMsg(m, 'Could not reset. Try again.', 'warn');
     stopTest(); dirty = false;
-    try { if (wh.getBandLock()) sessionStorage.setItem('wh_keep_lock', '1'); } catch (e) {}
+    keepLockForReload();
     location.reload();
   });
 
@@ -3883,7 +4068,7 @@
       } catch (e) {}
     }
     pendingImport = null; dirty = false; stopTest();
-    try { if (wh.getBandLock()) sessionStorage.setItem('wh_keep_lock', '1'); } catch (e) {}
+    keepLockForReload();
     location.reload();
   });
 
@@ -3902,7 +4087,7 @@
     stopTest(); exitEdit(); scr.hidden = true;
     if (dirty) {
       dirty = false;
-      try { if (wh.getBandLock()) sessionStorage.setItem('wh_keep_lock', '1'); } catch (e) {}
+      keepLockForReload();
       location.reload();
     }
   }

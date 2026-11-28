@@ -17,6 +17,9 @@ import java.io.InputStream;
 /**
  * Home-screen widget: the current station's logo, name and region, with
  * previous / play-pause / next buttons. Tapping the logo or name opens the app.
+ * While a song title is known and the phone is playing, the large widget's
+ * second line shows it ("♪ Artist – Title"), scrolling if it's too long;
+ * otherwise that line is "On air · NSW" / "Paused · NSW" as before.
  *
  * It reads what the app already saves in "RadioPrefs" (last_station_title,
  * last_station_sub, last_station_freq, is_playing); PlaybackService calls
@@ -59,9 +62,11 @@ public class RadioWidgetProvider extends AppWidgetProvider {
         // on the main thread, as the player can't be asked from the logo thread.
         final boolean carPlaying = RadioLibraryService.carIsPlaying();
         boolean playing = prefs.getBoolean("is_playing", false) && (PlaybackService.running || carPlaying);
+        // The phone player's song, if any (not the car's: Android Auto shows its own).
+        final String song = PlaybackService.running && !carPlaying ? PlaybackService.widgetSong : "";
 
         Bitmap have = logoKey.equals(keyFor(freq)) ? logoBitmap : null;
-        draw(app, manager, ids, title, sub, freq, playing, have);
+        draw(app, manager, ids, title, sub, song, freq, playing, have);
         drawSmall(app, manager, smallIds, title, freq, playing, have, R.layout.widget_radio_small, false);
         drawSmall(app, manager, tinyIds, title, freq, playing, have, R.layout.widget_radio_tiny, true);
 
@@ -80,7 +85,7 @@ public class RadioWidgetProvider extends AppWidgetProvider {
                     int[] nowSmall = manager.getAppWidgetIds(new ComponentName(app, RadioWidgetSmallProvider.class));
                     boolean stillPlaying = app.getSharedPreferences("RadioPrefs", Context.MODE_PRIVATE)
                             .getBoolean("is_playing", false) && (PlaybackService.running || carPlaying);
-                    draw(app, manager, now, t, s, f, stillPlaying, bmp);
+                    draw(app, manager, now, t, s, song, f, stillPlaying, bmp);
                     drawSmall(app, manager, nowSmall, t, f, stillPlaying, bmp, R.layout.widget_radio_small, false);
                     drawSmall(app, manager, nowTiny, t, f, stillPlaying, bmp, R.layout.widget_radio_tiny, true);
                 }
@@ -115,12 +120,13 @@ public class RadioWidgetProvider extends AppWidgetProvider {
     }
 
     private static void draw(Context ctx, AppWidgetManager manager, int[] ids, String title, String sub,
-                             double freq, boolean playing, Bitmap logo) {
+                             String song, double freq, boolean playing, Bitmap logo) {
         RemoteViews v = new RemoteViews(ctx.getPackageName(), R.layout.widget_radio);
         boolean haveStation = title != null && !title.isEmpty() && freq >= 0;
         v.setTextViewText(R.id.w_title, haveStation ? title : "Radio Wavehopper");
         String line;
         if (!haveStation) line = "Tap to tune in";
+        else if (playing && song != null && !song.isEmpty()) line = "♪ " + song;
         else if (playing) line = (sub == null || sub.isEmpty()) ? "On air" : "On air · " + sub;
         else line = (sub == null || sub.isEmpty()) ? "Paused" : "Paused · " + sub;
         v.setTextViewText(R.id.w_sub, line);
